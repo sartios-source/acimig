@@ -3,7 +3,7 @@
 <div class="landing-page">
     <header class="hero">
         <h1>ACI Analysis Tool</h1>
-        <p class="subtitle">Multi-fabric analysis for onboarding and offboarding</p>
+        <p class="subtitle">Multi-fabric analysis for onboarding, offboarding, and EVPN migration</p>
     </header>
     <section class="mode-selection">
         <div class="mode-card {% if mode == 'offboard' %}selected{% endif %}">
@@ -18,6 +18,15 @@
             <p>Plan new FEX deployments with policy scaffolding</p>
             {% if mode != 'onboard' %}
             <a href="{{ url_for('set_mode', mode='onboard') }}" class="btn btn-primary">Switch to Onboard</a>
+            {% endif %}
+        </div>
+        <div class="mode-card {% if mode == 'evpn' %}selected{% endif %}">
+            <h2>EVPN Migration</h2>
+            <p>Migrate from ACI to standard EVPN/VXLAN fabric - the off ramp</p>
+            {% if mode != 'evpn' %}
+            <a href="{{ url_for('set_mode', mode='evpn') }}" class="btn btn-primary">Switch to EVPN</a>
+            {% else %}
+            <a href="{{ url_for('evpn_migration_page') }}" class="btn btn-secondary">Go to EVPN Migration</a>
             {% endif %}
         </div>
     </section>

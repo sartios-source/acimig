@@ -14,6 +14,9 @@
                 <a href="{{ url_for('visualize') }}" class="nav-link">Visualize</a>
                 <a href="{{ url_for('plan') }}" class="nav-link">Plan</a>
                 <a href="{{ url_for('report') }}" class="nav-link">Report</a>
+                {% if mode == 'evpn' %}
+                <a href="{{ url_for('evpn_migration_page') }}" class="nav-link">EVPN Migration</a>
+                {% endif %}
                 <a href="{{ url_for('help_page') }}" class="nav-link">Help</a>
             </div>
             <div class="nav-controls">
@@ -21,6 +24,7 @@
                     <span>Mode:</span>
                     <a href="{{ url_for('set_mode', mode='offboard') }}" class="mode-btn {% if mode == 'offboard' %}active{% endif %}">Offboard</a>
                     <a href="{{ url_for('set_mode', mode='onboard') }}" class="mode-btn {% if mode == 'onboard' %}active{% endif %}">Onboard</a>
+                    <a href="{{ url_for('set_mode', mode='evpn') }}" class="mode-btn {% if mode == 'evpn' %}active{% endif %}">EVPN</a>
                 </div>
             </div>
         </div>

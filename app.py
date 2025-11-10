@@ -11,7 +11,7 @@ from flask import Flask, render_template, request, jsonify, send_file, session, 
 from werkzeug.utils import secure_filename
 
 # Import analysis modules
-from analysis import parsers, engine, fabric_manager, planning, reporting
+from analysis import parsers, engine, fabric_manager, planning, reporting, evpn_migration
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -42,8 +42,8 @@ def index():
 
 @app.route('/set_mode/<mode>')
 def set_mode(mode):
-    """Toggle between onboard and offboard modes."""
-    if mode in ['onboard', 'offboard']:
+    """Toggle between onboard, offboard, and evpn modes."""
+    if mode in ['onboard', 'offboard', 'evpn']:
         session['mode'] = mode
     return redirect(url_for('index'))
 
@@ -205,6 +205,64 @@ def report():
                          mode=mode,
                          current_fabric=current_fabric,
                          report_data=report_data)
+
+
+@app.route('/evpn_migration')
+def evpn_migration_page():
+    """EVPN migration planning and configuration generation."""
+    mode = session.get('mode', 'offboard')
+    current_fabric = session.get('current_fabric')
+
+    evpn_data = {}
+    if current_fabric:
+        fabric_data = fm.get_fabric_data(current_fabric)
+        analyzer = engine.ACIAnalyzer(fabric_data)
+        analyzer._load_data()
+
+        # Get target platform from request or default to nxos
+        target_platform = request.args.get('platform', 'nxos')
+
+        # Generate EVPN migration plan
+        evpn_data = evpn_migration.generate_evpn_migration_report(
+            analyzer._aci_objects,
+            target_platform
+        )
+        evpn_data['target_platform'] = target_platform
+
+    return render_template('evpn_migration.html',
+                         mode=mode,
+                         current_fabric=current_fabric,
+                         evpn_data=evpn_data)
+
+
+@app.route('/download/evpn_config/<device_role>')
+def download_evpn_config(device_role):
+    """Download EVPN configuration for specific device role."""
+    current_fabric = session.get('current_fabric')
+    if not current_fabric:
+        return "No fabric selected", 400
+
+    fabric_data = fm.get_fabric_data(current_fabric)
+    analyzer = engine.ACIAnalyzer(fabric_data)
+    analyzer._load_data()
+
+    target_platform = request.args.get('platform', 'nxos')
+
+    # Generate migration report
+    migration_data = evpn_migration.generate_evpn_migration_report(
+        analyzer._aci_objects,
+        target_platform
+    )
+
+    # Get config for device role
+    config = migration_data['config_samples'].get(device_role, '')
+
+    # Save to output directory
+    filename = f'{current_fabric}_evpn_{device_role}_{target_platform}.cfg'
+    output_path = OUTPUT_DIR / filename
+    output_path.write_text(config, encoding='utf-8')
+
+    return send_file(output_path, as_attachment=True, download_name=filename, mimetype='text/plain')
 
 
 @app.route('/download/report/<format>')

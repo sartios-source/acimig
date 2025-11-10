@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}EVPN Migration - ACI Analysis Tool{% endblock %}
+
+{% block content %}
+<div class="evpn-migration-page">
+    <header class="page-header">
+        <h1>ACI to EVPN Migration</h1>
+        <p>Plan and execute your migration from ACI to standard EVPN/VXLAN fabric</p>
+    </header>
+
+    {% if not current_fabric %}
+    <div class="alert alert-warning">
+        <strong>No fabric selected.</strong> Please return to the <a href="{{ url_for('index') }}">home page</a> and select a fabric.
+    </div>
+    {% else %}
+
+    <!-- Platform Selection -->
+    <section class="platform-selection">
+        <h2>Target Platform</h2>
+        <div class="platform-options">
+            <button onclick="selectPlatform('nxos')" class="platform-btn {% if evpn_data.target_platform == 'nxos' %}active{% endif %}">
+                Cisco NX-OS
+            </button>
+            <button onclick="selectPlatform('eos')" class="platform-btn {% if evpn_data.target_platform == 'eos' %}active{% endif %}">
+                Arista EOS
+            </button>
+            <button onclick="selectPlatform('junos')" class="platform-btn {% if evpn_data.target_platform == 'junos' %}active{% endif %}">
+                Juniper Junos
+            </button>
+        </div>
+    </section>
+
+    {% if evpn_data %}
+
+    <!-- Migration Complexity -->
+    <section class="complexity-section">
+        <h2>Migration Complexity Assessment</h2>
+        <div class="complexity-card complexity-{{ evpn_data.complexity.level }}">
+            <div class="complexity-header">
+                <h3>Complexity Level: {{ evpn_data.complexity.level|upper }}</h3>
+                <span class="complexity-score">Score: {{ evpn_data.complexity.score }}/100</span>
+            </div>
+            <div class="complexity-factors">
+                <h4>Complexity Factors:</h4>
+                <ul>
+                    {% for factor in evpn_data.complexity.factors %}
+                    <li>{{ factor }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% if evpn_data.complexity.risks %}
+            <div class="complexity-risks">
+                <h4>Key Risks:</h4>
+                <ul>
+                    {% for risk in evpn_data.complexity.risks %}
+                    <li class="risk-item">⚠️ {{ risk }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- ACI to EVPN Mapping -->
+    <section class="mapping-section">
+        <h2>ACI to EVPN Object Mapping</h2>
+
+        <div class="mapping-tabs">
+            <button class="tab-btn active" onclick="showMappingTab('l3')">VRFs (L3 VNIs)</button>
+            <button class="tab-btn" onclick="showMappingTab('l2')">Bridge Domains (L2 VNIs)</button>
+            <button class="tab-btn" onclick="showMappingTab('vlans')">EPGs (VLANs)</button>
+        </div>
+
+        <div id="l3-mapping" class="mapping-tab-content active">
+            <h3>VRF to L3 VNI Mapping</h3>
+            <table class="mapping-table">
+                <thead>
+                    <tr>
+                        <th>ACI VRF Name</th>
+                        <th>L3 VNI</th>
+                        <th>Route Distinguisher</th>
+                        <th>Route Target</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vrf_dn, vrf in evpn_data.mapping.l3_vnis.items() %}
+                    <tr>
+                        <td>{{ vrf.name }}</td>
+                        <td><span class="vni-badge">{{ vrf.l3_vni }}</span></td>
+                        <td>{{ vrf.rd }}</td>
+                        <td>{{ vrf.rt_import }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="l2-mapping" class="mapping-tab-content">
+            <h3>Bridge Domain to L2 VNI Mapping</h3>
+            <table class="mapping-table">
+                <thead>
+                    <tr>
+                        <th>ACI BD Name</th>
+                        <th>L2 VNI</th>
+                        <th>VLAN</th>
+                        <th>VRF</th>
+                        <th>Subnets</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bd_dn, bd in evpn_data.mapping.l2_vnis.items() %}
+                    <tr>
+                        <td>{{ bd.name }}</td>
+                        <td><span class="vni-badge">{{ bd.l2_vni }}</span></td>
+                        <td><span class="vlan-badge">{{ bd.vlan }}</span></td>
+                        <td>{{ bd.vrf }}</td>
+                        <td>
+                            {% for subnet in bd.subnets %}
+                            <div>{{ subnet.ip }}</div>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="vlans-mapping" class="mapping-tab-content">
+            <h3>EPG to VLAN Mapping</h3>
+            <table class="mapping-table">
+                <thead>
+                    <tr>
+                        <th>ACI EPG Name</th>
+                        <th>VLAN</th>
+                        <th>L2 VNI</th>
+                        <th>Bridge Domain</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for epg_dn, epg in evpn_data.mapping.vlans.items() %}
+                    <tr>
+                        <td>{{ epg.name }}</td>
+                        <td><span class="vlan-badge">{{ epg.vlan }}</span></td>
+                        <td><span class="vni-badge">{{ epg.l2_vni }}</span></td>
+                        <td>{{ epg.bd }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Migration Steps -->
+    <section class="steps-section">
+        <h2>Migration Plan</h2>
+        <div class="migration-timeline">
+            {% for step in evpn_data.steps %}
+            <div class="timeline-item phase-{{ step.phase|lower|replace(' ', '-') }}">
+                <div class="timeline-marker">
+                    <span class="step-number">{{ step.step }}</span>
+                </div>
+                <div class="timeline-content">
+                    <div class="step-header">
+                        <h3>{{ step.title }}</h3>
+                        <span class="step-phase">{{ step.phase }}</span>
+                        <span class="step-duration">Duration: {{ step.duration }}</span>
+                        <span class="step-risk risk-{{ step.risk }}">Risk: {{ step.risk|upper }}</span>
+                    </div>
+                    <p class="step-description">{{ step.description }}</p>
+                    <div class="step-tasks">
+                        <h4>Tasks:</h4>
+                        <ul>
+                            {% for task in step.tasks %}
+                            <li>{{ task }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% if step.warnings %}
+                    <div class="step-warnings">
+                        <h4>Warnings:</h4>
+                        {% for warning in step.warnings %}
+                        <p class="warning-text">⚠️ {{ warning }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Configuration Samples -->
+    <section class="config-section">
+        <h2>EVPN Configuration Samples</h2>
+        <p>Download configuration templates for {{ evpn_data.target_platform|upper }} devices</p>
+
+        <div class="config-downloads">
+            <div class="config-card">
+                <h3>Leaf Switch Configuration</h3>
+                <p>Complete EVPN configuration for leaf/VTEP switches</p>
+                <a href="{{ url_for('download_evpn_config', device_role='leaf_switch', platform=evpn_data.target_platform) }}"
+                   class="btn btn-primary">Download Leaf Config</a>
+            </div>
+            <div class="config-card">
+                <h3>Spine Switch Configuration</h3>
+                <p>BGP route reflector configuration for spine switches</p>
+                <a href="{{ url_for('download_evpn_config', device_role='spine_switch', platform=evpn_data.target_platform) }}"
+                   class="btn btn-primary">Download Spine Config</a>
+            </div>
+            <div class="config-card">
+                <h3>Border Leaf Configuration</h3>
+                <p>Configuration for border leafs with external connectivity</p>
+                <a href="{{ url_for('download_evpn_config', device_role='border_leaf', platform=evpn_data.target_platform) }}"
+                   class="btn btn-primary">Download Border Config</a>
+            </div>
+        </div>
+
+        <div class="config-preview">
+            <h3>Sample Leaf Configuration Preview</h3>
+            <pre class="config-text">{{ evpn_data.config_samples.leaf_switch }}</pre>
+        </div>
+    </section>
+
+    <!-- Validation Checklist -->
+    <section class="validation-section">
+        <h2>Post-Migration Validation Checklist</h2>
+        <div class="validation-categories">
+            {% for category in evpn_data.validation %}
+            <div class="validation-category">
+                <h3>{{ category.category }}</h3>
+                <table class="validation-table">
+                    <thead>
+                        <tr>
+                            <th>Check</th>
+                            <th>Command</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for check in category.checks %}
+                        <tr>
+                            <td>{{ check.item }}</td>
+                            <td><code>{{ check.command }}</code></td>
+                            <td><input type="checkbox"></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block context_help %}
+<h4>EVPN Migration</h4>
+<p>This workflow helps you migrate from Cisco ACI to a standards-based EVPN/VXLAN fabric.</p>
+<h4>Key Concepts:</h4>
+<ul>
+    <li><strong>L3 VNI:</strong> VRF identifier (typically 50000+)</li>
+    <li><strong>L2 VNI:</strong> BD/VLAN identifier (typically 10000+)</li>
+    <li><strong>Route Target:</strong> BGP EVPN route filtering</li>
+</ul>
+<h4>Migration Phases:</h4>
+<ol>
+    <li>Pre-Migration planning</li>
+    <li>Parallel fabric build</li>
+    <li>Phased workload migration</li>
+    <li>ACI decommission</li>
+</ol>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function selectPlatform(platform) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('platform', platform);
+    window.location.href = url.toString();
+}
+
+function showMappingTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.mapping-tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.mapping-tabs .tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Show selected tab
+    document.getElementById(tabName + '-mapping').classList.add('active');
+    event.target.classList.add('active');
+}
+</script>
+{% endblock %}
