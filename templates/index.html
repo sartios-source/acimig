@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="landing-page">
+    <header class="hero">
+        <h1>ACI Analysis Tool</h1>
+        <p class="subtitle">Multi-fabric analysis for onboarding and offboarding</p>
+    </header>
+    <section class="mode-selection">
+        <div class="mode-card {% if mode == 'offboard' %}selected{% endif %}">
+            <h2>Offboard</h2>
+            <p>Analyze existing FEX deployments and plan consolidation</p>
+            {% if mode != 'offboard' %}
+            <a href="{{ url_for('set_mode', mode='offboard') }}" class="btn btn-primary">Switch to Offboard</a>
+            {% endif %}
+        </div>
+        <div class="mode-card {% if mode == 'onboard' %}selected{% endif %}">
+            <h2>Onboard</h2>
+            <p>Plan new FEX deployments with policy scaffolding</p>
+            {% if mode != 'onboard' %}
+            <a href="{{ url_for('set_mode', mode='onboard') }}" class="btn btn-primary">Switch to Onboard</a>
+            {% endif %}
+        </div>
+    </section>
+    <section class="fabric-manager">
+        <h2>Fabric Manager</h2>
+        <button onclick="showCreateFabricDialog()" class="btn btn-secondary">Create New Fabric</button>
+        {% if fabrics %}
+        <div class="fabric-list">
+            {% for fabric in fabrics %}
+            <div class="fabric-item">
+                <div class="fabric-info">
+                    <h3>{{ fabric.name }}</h3>
+                    <p>Datasets: {{ fabric.dataset_count }}</p>
+                </div>
+                <div class="fabric-actions">
+                    <button onclick="selectFabric('{{ fabric.name }}')" class="btn btn-sm">Select</button>
+                    <button onclick="deleteFabric('{{ fabric.name }}')" class="btn btn-sm">Delete</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No fabrics yet. Create your first fabric to get started.</p>
+        {% endif %}
+    </section>
+</div>
+<div id="create-fabric-dialog" class="dialog" style="display: none;">
+    <div class="dialog-content">
+        <h3>Create New Fabric</h3>
+        <form onsubmit="createFabric(event)">
+            <input type="text" id="fabric-name" required>
+            <button type="submit" class="btn btn-primary">Create</button>
+            <button type="button" onclick="hideCreateFabricDialog()" class="btn">Cancel</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function showCreateFabricDialog() {
+    document.getElementById('create-fabric-dialog').style.display = 'flex';
+}
+function hideCreateFabricDialog() {
+    document.getElementById('create-fabric-dialog').style.display = 'none';
+}
+function createFabric(event) {
+    event.preventDefault();
+    const name = document.getElementById('fabric-name').value;
+    fetch('/fabrics', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: name})
+    }).then(response => response.json()).then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+function selectFabric(name) {
+    fetch(`/fabrics/${name}/select`, {method: 'POST'}).then(() => location.reload());
+}
+function deleteFabric(name) {
+    if (confirm(`Delete fabric "${name}"?`)) {
+        fetch(`/fabrics/${name}`, {method: 'DELETE'}).then(() => location.reload());
+    }
+}
+</script>
+{% endblock %}

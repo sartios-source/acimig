@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}ACI Analysis Tool{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-container">
+            <div class="nav-brand">ACI Analysis Tool</div>
+            <div class="nav-links">
+                <a href="{{ url_for('analyze') }}" class="nav-link">Analyze</a>
+                <a href="{{ url_for('visualize') }}" class="nav-link">Visualize</a>
+                <a href="{{ url_for('plan') }}" class="nav-link">Plan</a>
+                <a href="{{ url_for('report') }}" class="nav-link">Report</a>
+                <a href="{{ url_for('help_page') }}" class="nav-link">Help</a>
+            </div>
+            <div class="nav-controls">
+                <div class="mode-toggle">
+                    <span>Mode:</span>
+                    <a href="{{ url_for('set_mode', mode='offboard') }}" class="mode-btn {% if mode == 'offboard' %}active{% endif %}">Offboard</a>
+                    <a href="{{ url_for('set_mode', mode='onboard') }}" class="mode-btn {% if mode == 'onboard' %}active{% endif %}">Onboard</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <div class="main-container">
+        <div class="content-area">
+            <div id="toast-container"></div>
+            {% block content %}{% endblock %}
+        </div>
+        <aside class="context-help">
+            <h3>Context Help</h3>
+            <div class="help-content">
+                {% block context_help %}<p>Welcome to ACI Analysis Tool</p>{% endblock %}
+            </div>
+        </aside>
+    </div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Plan</h1>
+<p>{{ 'Consolidation' if mode == 'offboard' else 'Onboarding' }} recommendations</p>
+{% for rec in plan_data.get('recommendations', []) %}
+<div class="recommendation-card">
+    <h3>{{ rec.title }}</h3>
+    <p>{{ rec.description }}</p>
+</div>
+{% endfor %}
+{% endblock %}

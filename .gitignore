@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Application data (user uploads and generated content)
+/data/*.json
+/data/*.xml
+/data/*.txt
+/data/*.csv
+!/data/samples/
+/fabrics/*/
+!/fabrics/.gitkeep
+/cmdb/*.csv
+/output/*.md
+/output/*.csv
+/output/*.html
+
+# Keep directory structure
+!.gitkeep
+
+# Environment
+.env
+.env.local
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.bak

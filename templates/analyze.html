@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Analyze</h1>
+<p>Upload and validate datasets for {{ mode }} analysis</p>
+{% if not current_fabric %}
+<p>No fabric selected. Please select a fabric from the home page.</p>
+{% else %}
+<h2>Upload Data</h2>
+<input type="file" id="file-upload" multiple>
+<button onclick="uploadFiles()">Upload</button>
+<h2>Datasets</h2>
+{% for dataset in datasets %}
+<div>{{ dataset.filename }} - {{ dataset.type }}</div>
+{% endfor %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+function uploadFiles() {
+    const input = document.getElementById('file-upload');
+    for (const file of input.files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        fetch('/upload', {method: 'POST', body: formData})
+            .then(r => r.json())
+            .then(data => { if (data.success) location.reload(); });
+    }
+}
+</script>
+{% endblock %}

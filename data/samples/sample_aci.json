@@ -1,0 +1,35 @@
+{
+  "imdata": [
+    {
+      "eqptFex": {
+        "attributes": {
+          "dn": "topology/pod-1/node-101/sys/extch-101",
+          "id": "101",
+          "ser": "FEX0101ABC",
+          "model": "N2K-C2248TP-E-1GE",
+          "operSt": "up"
+        }
+      }
+    },
+    {
+      "fabricNode": {
+        "attributes": {
+          "dn": "topology/pod-1/node-101",
+          "id": "101",
+          "name": "leaf-101",
+          "role": "leaf",
+          "model": "N9K-C93180YC-EX"
+        }
+      }
+    },
+    {
+      "fvAEPg": {
+        "attributes": {
+          "dn": "uni/tn-production/ap-web-app/epg-web-epg",
+          "name": "web-epg",
+          "bd": "web-bd"
+        }
+      }
+    }
+  ]
+}

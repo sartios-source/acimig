@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Report</h1>
+<a href="{{ url_for('download_report', format='html') }}" class="btn">Download HTML</a>
+<a href="{{ url_for('download_report', format='markdown') }}" class="btn">Download Markdown</a>
+<a href="{{ url_for('download_report', format='csv') }}" class="btn">Download CSV</a>
+<div class="report-preview">
+    <h2>Generated: {{ report_data.generated }}</h2>
+    <p>{{ report_data.executive_summary }}</p>
+</div>
+{% endblock %}
