@@ -151,6 +151,44 @@ aciv2/
 └── scripts/        # Setup scripts
 ```
 
+## Sample Data
+
+The tool includes sample datasets for testing:
+
+### Small-Scale Samples
+- `data/samples/sample_aci.json` - Small ACI fabric (3 FEX, 2 leafs)
+- `data/samples/sample_aci.xml` - XML variant
+- `data/samples/sample_nxos.txt` - NX-OS configuration
+- `data/samples/sample_cmdb.csv` - CMDB data
+
+### Large-Scale Enterprise Sample
+- `data/samples/sample_large_scale.json` - **110 leafs, 316 FEX, 8 tenants** (1.2 MB, 4,237 objects)
+- `data/samples/sample_large_scale_cmdb.csv` - Matching CMDB with 426 devices (26 KB)
+
+The large-scale sample represents a realistic enterprise deployment across 5 data centers (NYC, SFO, CHI, DAL) with:
+- 240 EPGs across 80 Bridge Domains
+- 16 VRFs (2 per tenant)
+- 50 inter-tenant contracts
+- 3 L3Outs for external connectivity
+- Realistic port utilization (~65%)
+
+See `docs/LARGE_SCALE_EXAMPLE.md` for detailed analysis and expected insights.
+
+### Generating Custom Samples
+
+To generate your own large-scale sample:
+
+```bash
+cd scripts
+python generate_large_scale_sample.py
+```
+
+Edit the script to customize:
+- Number of leafs and FEX
+- Number of tenants
+- Number of BDs/EPGs
+- Geographic distribution
+
 ## License
 
 Internal use only.
