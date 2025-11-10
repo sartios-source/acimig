@@ -1,6 +1,22 @@
+# Core Flask framework
 Flask==3.0.0
 Werkzeug==3.0.1
+Jinja2==3.1.2
+
+# Data processing
 pandas==2.1.4
 markdown==3.5.1
+
+# Security packages
+defusedxml==0.7.1  # Secure XML parsing (prevents XXE attacks)
+Flask-WTF==1.2.1   # CSRF protection
+python-dotenv==1.0.0  # Environment variable management
+
+# XML/HTML parsing (keep lxml for other uses)
 lxml==5.1.0
-Jinja2==3.1.2
+
+# Rate limiting
+Flask-Limiter==3.5.0
+
+# Caching
+Flask-Caching==2.1.0
