@@ -1,6 +1,254 @@
 {% extends "base.html" %}
+
+{% block title %}Visualize - ACI Analysis Tool{% endblock %}
+
 {% block content %}
-<h1>Visualize</h1>
-<p>Interactive topology and density views</p>
-<div id="topology-canvas">Topology visualization would render here</div>
+<div class="visualization-container">
+    {% if not current_fabric %}
+    <div class="alert alert-warning">
+        <h3>⚠️ No Fabric Selected</h3>
+        <p>Please create or select a fabric from the <a href="{{ url_for('index') }}">home page</a> to view visualizations.</p>
+    </div>
+    {% elif not viz_data.get('topology') or not viz_data['topology'].get('nodes') %}
+    <div class="alert alert-info">
+        <h3>ℹ️ No Data Available</h3>
+        <p>Upload ACI data for fabric "{{ current_fabric }}" to generate visualizations.</p>
+        <a href="{{ url_for('analyze') }}" class="btn btn-primary">Go to Analysis Page</a>
+    </div>
+    {% else %}
+
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <h1>📊 Fabric Visualization Dashboard</h1>
+        <p class="dashboard-subtitle">Fabric: <strong>{{ current_fabric }}</strong> | Mode: <strong>{{ mode|upper }}</strong></p>
+    </div>
+
+    <!-- Dashboard Navigation Tabs -->
+    <div class="dashboard-tabs">
+        <button class="dashboard-tab active" data-tab="overview">Overview</button>
+        <button class="dashboard-tab" data-tab="topology">Topology</button>
+        <button class="dashboard-tab" data-tab="utilization">Port Utilization</button>
+        <button class="dashboard-tab" data-tab="vlans">VLANs</button>
+        <button class="dashboard-tab" data-tab="complexity">EPG Complexity</button>
+        <button class="dashboard-tab" data-tab="migration">Migration Readiness</button>
+    </div>
+
+    <!-- Overview Dashboard -->
+    <div id="overview-dashboard" class="dashboard-panel active">
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon">🖧</div>
+                <div class="metric-value" id="total-leafs">{{ viz_data.get('statistics', {}).get('total_leafs', 0) }}</div>
+                <div class="metric-label">Leaf Switches</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">📡</div>
+                <div class="metric-value" id="total-fex">{{ viz_data.get('statistics', {}).get('total_fex', 0) }}</div>
+                <div class="metric-label">FEX Devices</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">🔌</div>
+                <div class="metric-value" id="avg-utilization">{{ viz_data.get('statistics', {}).get('avg_utilization', 0) }}%</div>
+                <div class="metric-label">Avg Utilization</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">⚠️</div>
+                <div class="metric-value" id="consolidation-candidates">{{ viz_data.get('statistics', {}).get('consolidation_candidates', 0) }}</div>
+                <div class="metric-label">Consolidation Candidates</div>
+            </div>
+        </div>
+
+        <div class="chart-row">
+            <div class="chart-container">
+                <h3>Utilization Distribution</h3>
+                <canvas id="utilizationDistributionChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Fabric Health Overview</h3>
+                <canvas id="healthOverviewChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Topology Dashboard -->
+    <div id="topology-dashboard" class="dashboard-panel">
+        <div class="topology-controls">
+            <button class="btn btn-sm" onclick="zoomIn()">🔍 Zoom In</button>
+            <button class="btn btn-sm" onclick="zoomOut()">🔍 Zoom Out</button>
+            <button class="btn btn-sm" onclick="resetView()">🔄 Reset View</button>
+            <label>
+                <input type="checkbox" id="show-labels" checked onchange="toggleLabels()">
+                Show Labels
+            </label>
+        </div>
+        <div id="topology-canvas"></div>
+        <div class="topology-legend">
+            <div class="legend-item"><span class="legend-color leaf"></span> Leaf Switch</div>
+            <div class="legend-item"><span class="legend-color fex"></span> FEX Device</div>
+            <div class="legend-item"><span class="legend-color edge"></span> Connection</div>
+        </div>
+    </div>
+
+    <!-- Port Utilization Dashboard -->
+    <div id="utilization-dashboard" class="dashboard-panel">
+        <div class="chart-row">
+            <div class="chart-container chart-large">
+                <h3>FEX Port Utilization</h3>
+                <canvas id="portUtilizationChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-row">
+            <div class="chart-container">
+                <h3>Consolidation Scores</h3>
+                <canvas id="consolidationScoreChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Top Consolidation Candidates</h3>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>FEX ID</th>
+                                <th>Utilization</th>
+                                <th>Score</th>
+                                <th>Recommendation</th>
+                            </tr>
+                        </thead>
+                        <tbody id="consolidation-table">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VLAN Dashboard -->
+    <div id="vlans-dashboard" class="dashboard-panel">
+        <div class="chart-row">
+            <div class="chart-container">
+                <h3>VLAN Usage Distribution</h3>
+                <canvas id="vlanDistributionChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>VLAN Overlaps</h3>
+                <div class="vlan-overlaps" id="vlan-overlaps">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-row">
+            <div class="chart-container chart-large">
+                <h3>VLAN Range Heatmap</h3>
+                <div id="vlan-heatmap"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EPG Complexity Dashboard -->
+    <div id="complexity-dashboard" class="dashboard-panel">
+        <div class="chart-row">
+            <div class="chart-container">
+                <h3>EPG Complexity Distribution</h3>
+                <canvas id="complexityDistributionChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Complexity Factors</h3>
+                <canvas id="complexityFactorsChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-row">
+            <div class="chart-container chart-large">
+                <h3>Top 20 Most Complex EPGs</h3>
+                <canvas id="topComplexEpgsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Migration Readiness Dashboard -->
+    <div id="migration-dashboard" class="dashboard-panel">
+        <div class="migration-summary">
+            <div class="summary-card summary-success">
+                <h3>✓ Ready</h3>
+                <p class="summary-value" id="ready-count">0</p>
+                <p class="summary-label">Items</p>
+            </div>
+            <div class="summary-card summary-warning">
+                <h3>⚠ Warnings</h3>
+                <p class="summary-value" id="warning-count">0</p>
+                <p class="summary-label">Items</p>
+            </div>
+            <div class="summary-card summary-error">
+                <h3>✗ Issues</h3>
+                <p class="summary-value" id="issue-count">0</p>
+                <p class="summary-label">Items</p>
+            </div>
+        </div>
+
+        <div class="chart-row">
+            <div class="chart-container">
+                <h3>Migration Flags by Category</h3>
+                <canvas id="migrationFlagsChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>VPC Symmetry Analysis</h3>
+                <canvas id="vpcSymmetryChart"></canvas>
+            </div>
+        </div>
+
+        <div class="flags-list">
+            <h3>Detailed Findings</h3>
+            <div id="migration-flags-list">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+
+<!-- Embedded Data for JavaScript -->
+<script id="viz-data" type="application/json">
+    {{ viz_data | tojson | safe }}
+</script>
+
+{% endblock %}
+
+{% block context_help %}
+<div class="help-section">
+    <h4>Dashboard Navigation</h4>
+    <ul>
+        <li><strong>Overview:</strong> High-level fabric metrics and health</li>
+        <li><strong>Topology:</strong> Interactive leaf-FEX topology map</li>
+        <li><strong>Port Utilization:</strong> FEX utilization and consolidation</li>
+        <li><strong>VLANs:</strong> VLAN distribution and overlaps</li>
+        <li><strong>EPG Complexity:</strong> Migration complexity analysis</li>
+        <li><strong>Migration Readiness:</strong> Issues and recommendations</li>
+    </ul>
+
+    <h4>Chart Interactions</h4>
+    <ul>
+        <li>Hover over charts for detailed information</li>
+        <li>Click legend items to show/hide data</li>
+        <li>Use topology controls to zoom and pan</li>
+    </ul>
+
+    <h4>Export Options</h4>
+    <ul>
+        <li>Right-click charts to save as image</li>
+        <li>Use Report page for comprehensive exports</li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- D3.js for Topology Visualization -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script src="{{ url_for('static', filename='dashboards.js') }}"></script>
 {% endblock %}

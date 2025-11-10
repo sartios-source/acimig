@@ -354,15 +354,56 @@ def upload():
 
 @app.route('/visualize')
 def visualize():
-    """Visualization page - topology, density, rack layouts."""
+    """Visualization page - interactive dashboards with charts and graphs."""
     mode = session.get('mode', 'offboard')
     current_fabric = session.get('current_fabric')
 
     viz_data = {}
     if current_fabric:
-        fabric_data = fm.get_fabric_data(current_fabric)
-        analyzer = engine.ACIAnalyzer(fabric_data)
-        viz_data = analyzer.get_visualization_data()
+        try:
+            fabric_data = fm.get_fabric_data(current_fabric)
+            analyzer = engine.ACIAnalyzer(fabric_data)
+
+            # Get base visualization data
+            viz_data = analyzer.get_visualization_data()
+
+            # Enrich with analysis data for dashboards
+            port_util = analyzer.analyze_port_utilization()
+            vlan_dist = analyzer.analyze_vlan_distribution()
+            epg_complex = analyzer.analyze_epg_complexity()
+            migration_flags = analyzer.analyze_migration_flags()
+            vpc_symmetry = analyzer.analyze_vpc_symmetry()
+            leaf_fex = analyzer.analyze_leaf_fex_mapping()
+
+            # Add comprehensive statistics
+            viz_data['statistics'] = {
+                'total_leafs': leaf_fex.get('statistics', {}).get('total_leafs', 0),
+                'total_fex': leaf_fex.get('statistics', {}).get('total_fex', 0),
+                'avg_utilization': round(
+                    sum(p['utilization_pct'] for p in port_util) / len(port_util), 2
+                ) if port_util else 0,
+                'consolidation_candidates': sum(
+                    1 for p in port_util if p['consolidation_score'] >= 60
+                ),
+                'total_epgs': len(epg_complex),
+                'total_vlans': vlan_dist.get('statistics', {}).get('total_vlans_used', 0),
+                'vlan_overlaps': len(vlan_dist.get('overlaps', [])),
+                'migration_flags': len(migration_flags)
+            }
+
+            # Add detailed analysis data
+            viz_data['port_utilization'] = port_util[:50]  # Top 50
+            viz_data['vlan_distribution'] = vlan_dist
+            viz_data['epg_complexity'] = epg_complex[:20]  # Top 20
+            viz_data['migration_flags'] = migration_flags
+            viz_data['vpc_symmetry'] = vpc_symmetry
+            viz_data['leaf_fex_mapping'] = leaf_fex
+
+            app.logger.info(f"Generated visualization data for fabric {current_fabric}")
+
+        except Exception as e:
+            app.logger.error(f"Error generating visualization data: {str(e)}", exc_info=True)
+            viz_data = {'error': str(e)}
 
     return render_template('visualize.html',
                          mode=mode,
