@@ -1018,3 +1018,342 @@ class ACIAnalyzer:
             return 'medium'
         else:
             return 'low'
+
+    # ==================== Coupling & Migration Analysis ====================
+
+    def analyze_coupling_issues(self) -> Dict[str, Any]:
+        """
+        Comprehensive coupling analysis for migration planning.
+
+        Identifies:
+        - EPGs spanning multiple devices (FEX, leafs)
+        - Shared VLANs across EPGs (namespace collision risk)
+        - Cross-tenant contract dependencies
+        - Multi-device EPG deployments
+
+        Returns detailed coupling metrics and migration risks.
+        """
+        self._load_data()
+
+        coupling_issues = []
+        device_coupling = defaultdict(lambda: {"epgs": [], "vlans": set()})
+        vlan_sharing = defaultdict(list)  # vlan -> list of EPGs
+
+        # Analyze each EPG for coupling
+        for epg in self._epgs:
+            epg_dn = epg.get("dn", "")
+            epg_name = epg.get("name", "")
+
+            # Get path attachments for this EPG
+            epg_paths = [p for p in self._path_attachments
+                        if epg_dn in p.get("dn", "")]
+
+            if not epg_paths:
+                continue
+
+            # Extract devices and VLANs
+            devices = set()
+            vlans = set()
+
+            for path in epg_paths:
+                path_dn = path.get("tDn", "")
+                encap = path.get("encap", "")
+
+                # Extract device from path
+                if "fex-" in path_dn:
+                    match = re.search(r"node-(\d+).*fex-(\d+)", path_dn)
+                    if match:
+                        leaf_id, fex_id = match.groups()
+                        devices.add(f"fex-{fex_id}")
+                elif "node-" in path_dn:
+                    match = re.search(r"node-(\d+)", path_dn)
+                    if match:
+                        devices.add(f"leaf-{match.group(1)}")
+
+                # Extract VLAN
+                if "vlan-" in encap:
+                    vlan = encap.split("vlan-")[1]
+                    vlans.add(vlan)
+                    vlan_sharing[vlan].append(epg_name)
+
+            # Track device usage
+            for device in devices:
+                device_coupling[device]["epgs"].append(epg_name)
+                device_coupling[device]["vlans"].update(vlans)
+
+            # Identify coupling issues
+            if len(devices) > 1:
+                # Multi-device EPG (coupling!)
+                issue_type = "multi_fex" if all("fex" in d for d in devices) else "fex_leaf_mix"
+                severity = "high" if len(devices) > 3 else "medium"
+
+                coupling_issues.append({
+                    "epg": epg_name,
+                    "tenant": self._extract_tenant_from_dn(epg_dn),
+                    "issue_type": issue_type,
+                    "severity": severity,
+                    "devices": list(devices),
+                    "device_count": len(devices),
+                    "vlans": list(vlans),
+                    "description": f"EPG spans {len(devices)} devices",
+                    "migration_impact": "Must migrate all devices simultaneously or implement L2 extension"
+                })
+
+        # Detect shared VLANs (coupling risk)
+        for vlan, epg_list in vlan_sharing.items():
+            if len(epg_list) > 1:
+                coupling_issues.append({
+                    "epg": ", ".join(epg_list[:3]) + (f" +{len(epg_list)-3} more" if len(epg_list) > 3 else ""),
+                    "tenant": "multiple",
+                    "issue_type": "shared_vlan",
+                    "severity": "medium",
+                    "vlan": vlan,
+                    "epg_count": len(epg_list),
+                    "description": f"VLAN {vlan} shared by {len(epg_list)} EPGs",
+                    "migration_impact": "VLAN conflict risk during migration; requires VLAN remapping"
+                })
+
+        # Detect cross-tenant contracts (coupling)
+        cross_tenant_contracts = []
+        for contract in self._contracts:
+            scope = contract.get("scope", "")
+            if scope in ["tenant", "global"]:
+                cross_tenant_contracts.append(contract.get("name", ""))
+
+        if cross_tenant_contracts:
+            coupling_issues.append({
+                "issue_type": "cross_tenant_contracts",
+                "severity": "high",
+                "contract_count": len(cross_tenant_contracts),
+                "contracts": cross_tenant_contracts[:5],
+                "description": f"{len(cross_tenant_contracts)} cross-tenant contracts",
+                "migration_impact": "Tenant migration order constrained by contract dependencies"
+            })
+
+        # Calculate coupling statistics
+        multi_device_epgs = sum(1 for issue in coupling_issues if issue["issue_type"] in ["multi_fex", "fex_leaf_mix"])
+        shared_vlan_count = sum(1 for issue in coupling_issues if issue["issue_type"] == "shared_vlan")
+
+        # Device coupling density
+        high_density_devices = [
+            {"device": device, "epg_count": len(data["epgs"]), "vlan_count": len(data["vlans"])}
+            for device, data in device_coupling.items()
+            if len(data["epgs"]) > 10
+        ]
+
+        return {
+            "issues": sorted(coupling_issues, key=lambda x:
+                           {"high": 3, "medium": 2, "low": 1}.get(x.get("severity", "low"), 0), reverse=True),
+            "statistics": {
+                "total_issues": len(coupling_issues),
+                "high_severity": sum(1 for i in coupling_issues if i.get("severity") == "high"),
+                "medium_severity": sum(1 for i in coupling_issues if i.get("severity") == "medium"),
+                "low_severity": sum(1 for i in coupling_issues if i.get("severity") == "low"),
+                "multi_device_epgs": multi_device_epgs,
+                "shared_vlans": shared_vlan_count,
+                "cross_tenant_contracts": len(cross_tenant_contracts),
+                "devices_analyzed": len(device_coupling)
+            },
+            "high_density_devices": sorted(high_density_devices,
+                                          key=lambda x: x["epg_count"], reverse=True)[:20],
+            "migration_risk_score": self._calculate_migration_risk(coupling_issues)
+        }
+
+    def analyze_migration_waves(self) -> Dict[str, Any]:
+        """
+        Analyze and group EPGs into migration waves based on coupling.
+
+        Strategy:
+        - Wave 1: Standalone EPGs (no coupling) - easiest to migrate
+        - Wave 2: EPGs with low coupling (same device, no shared VLANs)
+        - Wave 3: EPGs with medium coupling (multi-device or shared VLANs)
+        - Wave 4: EPGs with high coupling (multi-device + shared VLANs + contracts)
+
+        Returns migration wave recommendations with estimated effort.
+        """
+        self._load_data()
+
+        # Get coupling data
+        coupling_data = self.analyze_coupling_issues()
+        coupled_epgs = set()
+        for issue in coupling_data["issues"]:
+            if "epg" in issue:
+                epg_name = issue["epg"].split(",")[0].strip()  # Handle multi-EPG issues
+                coupled_epgs.add(epg_name)
+
+        # Categorize EPGs by coupling level
+        waves = {
+            "wave1_standalone": [],
+            "wave2_low_coupling": [],
+            "wave3_medium_coupling": [],
+            "wave4_high_coupling": []
+        }
+
+        for epg in self._epgs:
+            epg_name = epg.get("name", "")
+            epg_dn = epg.get("dn", "")
+            tenant = self._extract_tenant_from_dn(epg_dn)
+
+            # Get EPG path attachments
+            epg_paths = [p for p in self._path_attachments if epg_dn in p.get("dn", "")]
+            device_count = len(set(p.get("tDn", "") for p in epg_paths))
+
+            # Find coupling issues for this EPG
+            epg_issues = [i for i in coupling_data["issues"]
+                         if epg_name in i.get("epg", "")]
+            high_severity_issues = sum(1 for i in epg_issues if i.get("severity") == "high")
+            medium_severity_issues = sum(1 for i in epg_issues if i.get("severity") == "medium")
+
+            epg_info = {
+                "epg": epg_name,
+                "tenant": tenant,
+                "device_count": device_count,
+                "path_count": len(epg_paths),
+                "issues": len(epg_issues),
+                "high_issues": high_severity_issues,
+                "medium_issues": medium_severity_issues
+            }
+
+            # Assign to wave
+            if not epg_issues:
+                waves["wave1_standalone"].append(epg_info)
+            elif high_severity_issues > 0:
+                waves["wave4_high_coupling"].append(epg_info)
+            elif medium_severity_issues > 1 or device_count > 2:
+                waves["wave3_medium_coupling"].append(epg_info)
+            else:
+                waves["wave2_low_coupling"].append(epg_info)
+
+        # Calculate effort estimates (person-hours per wave)
+        effort_per_epg = {
+            "wave1_standalone": 1,      # 1 hour each
+            "wave2_low_coupling": 2,    # 2 hours each
+            "wave3_medium_coupling": 4, # 4 hours each
+            "wave4_high_coupling": 8    # 8 hours each
+        }
+
+        wave_summary = []
+        for wave_name, epgs in waves.items():
+            effort = len(epgs) * effort_per_epg[wave_name]
+            wave_summary.append({
+                "wave": wave_name.replace("_", " ").title(),
+                "epg_count": len(epgs),
+                "estimated_hours": effort,
+                "estimated_days": round(effort / 8, 1),
+                "description": self._get_wave_description(wave_name)
+            })
+
+        total_effort = sum(w["estimated_hours"] for w in wave_summary)
+
+        return {
+            "waves": waves,
+            "summary": wave_summary,
+            "total_epgs": sum(len(epgs) for epgs in waves.values()),
+            "total_effort_hours": total_effort,
+            "total_effort_days": round(total_effort / 8, 1),
+            "recommended_order": ["wave1_standalone", "wave2_low_coupling",
+                                 "wave3_medium_coupling", "wave4_high_coupling"]
+        }
+
+    def analyze_vlan_sharing_detailed(self) -> Dict[str, Any]:
+        """
+        Detailed VLAN sharing analysis for migration planning.
+
+        Identifies:
+        - VLANs shared across multiple EPGs
+        - VLANs shared across multiple devices
+        - VLAN namespace collision risks
+        - VLAN remapping requirements
+        """
+        self._load_data()
+
+        vlan_usage = defaultdict(lambda: {"epgs": set(), "devices": set(), "tenants": set()})
+
+        for path in self._path_attachments:
+            encap = path.get("encap", "")
+            path_dn = path.get("dn", "")
+            target_dn = path.get("tDn", "")
+
+            if "vlan-" not in encap:
+                continue
+
+            vlan = encap.split("vlan-")[1]
+            epg_dn = path_dn.split("/rspathAtt")[0] if "/rspathAtt" in path_dn else path_dn
+            epg_name = self._extract_epg_from_path_dn(path_dn)
+            tenant = self._extract_tenant_from_dn(epg_dn)
+
+            # Extract device
+            device = "unknown"
+            if "fex-" in target_dn:
+                match = re.search(r"fex-(\d+)", target_dn)
+                if match:
+                    device = f"fex-{match.group(1)}"
+            elif "node-" in target_dn:
+                match = re.search(r"node-(\d+)", target_dn)
+                if match:
+                    device = f"leaf-{match.group(1)}"
+
+            vlan_usage[vlan]["epgs"].add(epg_name)
+            vlan_usage[vlan]["devices"].add(device)
+            vlan_usage[vlan]["tenants"].add(tenant)
+
+        # Identify sharing issues
+        sharing_issues = []
+        for vlan, data in vlan_usage.items():
+            epg_count = len(data["epgs"])
+            device_count = len(data["devices"])
+            tenant_count = len(data["tenants"])
+
+            if epg_count > 1 or device_count > 1 or tenant_count > 1:
+                severity = "high" if tenant_count > 1 else ("medium" if epg_count > 2 else "low")
+                sharing_issues.append({
+                    "vlan": vlan,
+                    "epg_count": epg_count,
+                    "device_count": device_count,
+                    "tenant_count": tenant_count,
+                    "epgs": list(data["epgs"])[:5],
+                    "devices": list(data["devices"])[:5],
+                    "tenants": list(data["tenants"]),
+                    "severity": severity,
+                    "migration_risk": "VLAN collision during migration - requires remapping"
+                })
+
+        return {
+            "sharing_issues": sorted(sharing_issues,
+                                    key=lambda x: (x["tenant_count"], x["epg_count"]), reverse=True),
+            "statistics": {
+                "total_vlans_used": len(vlan_usage),
+                "shared_vlans": len(sharing_issues),
+                "multi_tenant_vlans": sum(1 for i in sharing_issues if i["tenant_count"] > 1),
+                "multi_device_vlans": sum(1 for i in sharing_issues if i["device_count"] > 1)
+            }
+        }
+
+    def _calculate_migration_risk(self, coupling_issues: List[Dict[str, Any]]) -> int:
+        """Calculate overall migration risk score (0-100)."""
+        if not coupling_issues:
+            return 0
+
+        risk_score = 0
+
+        # Weight by severity
+        for issue in coupling_issues:
+            severity = issue.get("severity", "low")
+            if severity == "high":
+                risk_score += 10
+            elif severity == "medium":
+                risk_score += 5
+            else:
+                risk_score += 2
+
+        return min(risk_score, 100)
+
+    def _get_wave_description(self, wave_name: str) -> str:
+        """Get description for migration wave."""
+        descriptions = {
+            "wave1_standalone": "Standalone EPGs with no coupling - easiest to migrate",
+            "wave2_low_coupling": "EPGs with minimal coupling - straightforward migration",
+            "wave3_medium_coupling": "EPGs with moderate coupling - requires coordination",
+            "wave4_high_coupling": "Highly coupled EPGs - complex migration requiring careful planning"
+        }
+        return descriptions.get(wave_name, "Unknown wave")
