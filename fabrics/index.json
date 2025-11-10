@@ -1,0 +1,23 @@
+{
+  "test_fabric": {
+    "created": "2025-11-10T15:20:00",
+    "modified": "2025-11-10T15:20:00",
+    "datasets": [
+      {
+        "filename": "aci_data.json",
+        "type": "aci",
+        "format": "json",
+        "path": "fabrics/test_fabric/aci_data.json",
+        "uploaded": "2025-11-10T15:20:00",
+        "objects": 4237
+      },
+      {
+        "filename": "cmdb_data.csv",
+        "type": "cmdb",
+        "path": "fabrics/test_fabric/cmdb_data.csv",
+        "uploaded": "2025-11-10T15:20:00",
+        "records": 426
+      }
+    ]
+  }
+}
