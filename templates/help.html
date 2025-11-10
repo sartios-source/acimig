@@ -1,10 +1,345 @@
 {% extends "base.html" %}
+
+{% block title %}Help & Documentation - ACI Analysis Tool{% endblock %}
+
 {% block content %}
-<h1>Help & Documentation</h1>
-<h2>ACI Objects Reference</h2>
-<p>Learn about ACI objects, analysis methods, and scoring algorithms</p>
-<h3>fvRsPathAtt (EPG Path Attachment)</h3>
-<p>Links an EPG to a specific interface where endpoints reside.</p>
-<h3>eqptFex (FEX Equipment)</h3>
-<p>Represents a Fabric Extender device in the ACI fabric.</p>
+<div class="help-container">
+    <h1>Help & Documentation</h1>
+
+    <!-- Quick Start Guide -->
+    <section class="help-section">
+        <h2>Quick Start Guide</h2>
+        <div class="help-content">
+            <h3>1. Create or Select a Fabric</h3>
+            <p>Start by creating a new fabric or selecting an existing one from the home page. Choose your analysis mode:</p>
+            <ul>
+                <li><strong>Offboard:</strong> Analyze FEX consolidation opportunities and decommissioning candidates</li>
+                <li><strong>Onboard:</strong> Plan new FEX deployments and capacity requirements</li>
+                <li><strong>EVPN Migration:</strong> Plan migration from ACI to EVPN fabric</li>
+            </ul>
+
+            <h3>2. Upload Data</h3>
+            <p>Upload your ACI fabric data in JSON or XML format, and optionally provide CMDB data for enhanced correlation:</p>
+            <ul>
+                <li><strong>ACI Data:</strong> Export from APIC using moquery or API calls</li>
+                <li><strong>CMDB Data:</strong> CSV file with device serial numbers, locations, and metadata</li>
+            </ul>
+
+            <h3>3. Analyze</h3>
+            <p>Navigate to the Analyze page to validate your data and run comprehensive analysis</p>
+
+            <h3>4. Visualize</h3>
+            <p>Explore interactive dashboards with charts, graphs, and topology visualizations</p>
+
+            <h3>5. Plan & Report</h3>
+            <p>Generate migration plans and comprehensive reports for stakeholders</p>
+        </div>
+    </section>
+
+    <!-- ACI Objects Reference -->
+    <section class="help-section">
+        <h2>ACI Objects Reference</h2>
+        <div class="help-content">
+            <div class="aci-object-card">
+                <h3>eqptFex (FEX Equipment)</h3>
+                <p><strong>Description:</strong> Represents a Fabric Extender (FEX) device in the ACI fabric.</p>
+                <p><strong>Key Attributes:</strong></p>
+                <ul>
+                    <li><code>id</code> - Unique FEX identifier</li>
+                    <li><code>model</code> - FEX model (e.g., N2K-C2348TQ)</li>
+                    <li><code>serial</code> - Serial number</li>
+                    <li><code>operSt</code> - Operational status (up/down)</li>
+                </ul>
+                <p><strong>Analysis Use:</strong> Port utilization, consolidation scoring, topology mapping</p>
+            </div>
+
+            <div class="aci-object-card">
+                <h3>fabricNode (Fabric Node)</h3>
+                <p><strong>Description:</strong> Represents a fabric node (leaf, spine, or APIC).</p>
+                <p><strong>Key Attributes:</strong></p>
+                <ul>
+                    <li><code>id</code> - Node ID</li>
+                    <li><code>name</code> - Node name</li>
+                    <li><code>role</code> - Node role (leaf/spine/controller)</li>
+                    <li><code>model</code> - Switch model</li>
+                </ul>
+                <p><strong>Analysis Use:</strong> Topology mapping, capacity planning</p>
+            </div>
+
+            <div class="aci-object-card">
+                <h3>fvAEPg (Application EPG)</h3>
+                <p><strong>Description:</strong> Application Endpoint Group - collection of endpoints with common policy requirements.</p>
+                <p><strong>Key Attributes:</strong></p>
+                <ul>
+                    <li><code>name</code> - EPG name</li>
+                    <li><code>dn</code> - Distinguished name (contains tenant and app profile)</li>
+                    <li><code>pcEnfPref</code> - Policy enforcement preference</li>
+                </ul>
+                <p><strong>Analysis Use:</strong> Complexity scoring, migration waves, coupling analysis</p>
+            </div>
+
+            <div class="aci-object-card">
+                <h3>fvRsPathAtt (EPG Path Attachment)</h3>
+                <p><strong>Description:</strong> Links an EPG to a specific physical/virtual interface where endpoints reside.</p>
+                <p><strong>Key Attributes:</strong></p>
+                <ul>
+                    <li><code>tDn</code> - Target distinguished name (path to interface)</li>
+                    <li><code>encap</code> - Encapsulation (VLAN ID)</li>
+                    <li><code>mode</code> - Deployment mode (regular/native/untagged)</li>
+                </ul>
+                <p><strong>Analysis Use:</strong> VLAN distribution, coupling detection, VPC symmetry</p>
+            </div>
+
+            <div class="aci-object-card">
+                <h3>fvBD (Bridge Domain)</h3>
+                <p><strong>Description:</strong> Layer 2 forwarding domain within a tenant.</p>
+                <p><strong>Key Attributes:</strong></p>
+                <ul>
+                    <li><code>name</code> - BD name</li>
+                    <li><code>arpFlood</code> - ARP flooding setting</li>
+                    <li><code>unicastRoute</code> - Enable L3 routing</li>
+                </ul>
+                <p><strong>Analysis Use:</strong> BD-EPG mapping, network segmentation analysis</p>
+            </div>
+
+            <div class="aci-object-card">
+                <h3>vzBrCP (Contract)</h3>
+                <p><strong>Description:</strong> Defines allowed communication between EPGs.</p>
+                <p><strong>Key Attributes:</strong></p>
+                <ul>
+                    <li><code>name</code> - Contract name</li>
+                    <li><code>scope</code> - Scope (context/tenant/global)</li>
+                </ul>
+                <p><strong>Analysis Use:</strong> Cross-tenant dependency detection, migration planning</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Analysis Methods -->
+    <section class="help-section">
+        <h2>Analysis Methods</h2>
+        <div class="help-content">
+            <h3>Port Utilization Analysis</h3>
+            <p>Calculates port usage across all FEX devices and assigns consolidation scores (0-100). Higher scores indicate better consolidation candidates.</p>
+            <p><strong>Scoring Factors:</strong></p>
+            <ul>
+                <li>Port utilization percentage (lower = higher score)</li>
+                <li>Operational status (down devices score higher)</li>
+                <li>Interface count (fewer interfaces = higher score)</li>
+            </ul>
+
+            <h3>Coupling Analysis</h3>
+            <p>Identifies dependencies and coupling issues that impact migration:</p>
+            <ul>
+                <li><strong>Multi-device EPGs:</strong> EPGs deployed across multiple FEX or FEX+leaf</li>
+                <li><strong>Shared VLANs:</strong> VLAN namespace collisions across EPGs</li>
+                <li><strong>Cross-tenant contracts:</strong> Inter-tenant dependencies</li>
+            </ul>
+
+            <h3>Migration Waves</h3>
+            <p>Groups EPGs into migration waves based on complexity and coupling:</p>
+            <ul>
+                <li><strong>Wave 1:</strong> Standalone EPGs (no coupling) - 1 hr/EPG</li>
+                <li><strong>Wave 2:</strong> Low coupling - 2 hrs/EPG</li>
+                <li><strong>Wave 3:</strong> Medium coupling - 4 hrs/EPG</li>
+                <li><strong>Wave 4:</strong> High coupling - 8 hrs/EPG</li>
+            </ul>
+
+            <h3>EPG Complexity Scoring</h3>
+            <p>Multi-factor complexity score (0-100) based on:</p>
+            <ul>
+                <li>Number of path attachments</li>
+                <li>VLAN diversity</li>
+                <li>Node spread (number of devices)</li>
+            </ul>
+            <p>Complexity levels: Low (&lt;40), Medium (40-69), High (70+)</p>
+
+            <h3>VLAN Sharing Analysis</h3>
+            <p>Detects VLAN conflicts and namespace collisions:</p>
+            <ul>
+                <li>Multi-tenant VLAN usage (high risk)</li>
+                <li>Multi-device VLAN usage (medium risk)</li>
+                <li>Multi-EPG VLAN usage (low risk)</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Data Collection Guide -->
+    <section class="help-section">
+        <h2>Data Collection Guide</h2>
+        <div class="help-content">
+            <h3>Collecting ACI Data</h3>
+            <p>Use one of these methods to export ACI fabric data:</p>
+
+            <h4>Method 1: APIC GUI Export</h4>
+            <pre><code>1. Log in to APIC
+2. Navigate to Tenants > Export
+3. Select JSON format
+4. Download the export file</code></pre>
+
+            <h4>Method 2: API Export (Recommended)</h4>
+            <pre><code>curl -X GET "https://&lt;apic-ip&gt;/api/node/class/fvAEPg.json" \
+     -u "username:password" > epgs.json
+
+curl -X GET "https://&lt;apic-ip&gt;/api/node/class/eqptFex.json" \
+     -u "username:password" > fex.json</code></pre>
+
+            <h4>Method 3: moquery (CLI)</h4>
+            <pre><code>moquery -c fvAEPg -o json > epgs.json
+moquery -c eqptFex -o json > fex.json
+moquery -c fabricNode -o json > nodes.json</code></pre>
+
+            <h3>Preparing CMDB Data</h3>
+            <p>Create a CSV file with the following columns:</p>
+            <ul>
+                <li><code>device_name</code> - Device hostname</li>
+                <li><code>serial_number</code> - Serial number (for correlation)</li>
+                <li><code>model</code> - Device model</li>
+                <li><code>location</code> - Physical location/datacenter</li>
+                <li><code>rack</code> - Rack location</li>
+                <li><code>status</code> - Operational status</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section class="help-section">
+        <h2>Troubleshooting</h2>
+        <div class="help-content">
+            <h3>Common Issues</h3>
+
+            <h4>Upload Fails with "Invalid JSON"</h4>
+            <p><strong>Solution:</strong> Ensure your JSON file is valid. Use a JSON validator or:</p>
+            <pre><code>python -m json.tool &lt; your_file.json</code></pre>
+
+            <h4>No Objects Found in Data</h4>
+            <p><strong>Solution:</strong> Verify your JSON file contains an "imdata" array with ACI objects.</p>
+
+            <h4>CMDB Correlation Shows 0%</h4>
+            <p><strong>Solution:</strong> Check that:</p>
+            <ul>
+                <li>CSV file has a "serial_number" or "SerialNumber" column</li>
+                <li>Serial numbers match between ACI and CMDB exactly</li>
+                <li>No leading/trailing spaces in serial numbers</li>
+            </ul>
+
+            <h4>Dashboards Not Loading</h4>
+            <p><strong>Solution:</strong></p>
+            <ul>
+                <li>Ensure fabric has uploaded data</li>
+                <li>Check browser console for JavaScript errors</li>
+                <li>Clear browser cache and reload</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="help-section">
+        <h2>Frequently Asked Questions</h2>
+        <div class="help-content">
+            <h4>Q: How long does analysis take?</h4>
+            <p>A: Analysis of 1000+ EPGs typically completes in 10-15 seconds.</p>
+
+            <h4>Q: Can I analyze multiple fabrics?</h4>
+            <p>A: Yes, create separate fabric entries for each datacenter or pod.</p>
+
+            <h4>Q: What's the difference between modes?</h4>
+            <p>A: <strong>Offboard</strong> mode identifies consolidation opportunities. <strong>Onboard</strong> mode helps plan new deployments. <strong>EVPN Migration</strong> mode assists with fabric migration.</p>
+
+            <h4>Q: How accurate is the consolidation scoring?</h4>
+            <p>A: Scoring is based on utilization, operational status, and interface count. Review recommendations manually before decommissioning.</p>
+
+            <h4>Q: Can I export analysis results?</h4>
+            <p>A: Yes, use the Report page to generate HTML, Markdown, or CSV exports.</p>
+        </div>
+    </section>
+
+    <!-- Support -->
+    <section class="help-section">
+        <h2>Support & Feedback</h2>
+        <div class="help-content">
+            <p>For issues, feature requests, or feedback:</p>
+            <ul>
+                <li>GitHub Issues: <a href="https://github.com/sartios-source/acimig/issues" target="_blank">github.com/sartios-source/acimig/issues</a></li>
+                <li>Documentation: Check the README.md and docs/ folder</li>
+                <li>Security Issues: See docs/SECURITY_IMPROVEMENTS.md</li>
+            </ul>
+        </div>
+    </section>
+</div>
+
+<style>
+.help-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.help-section {
+    background: #fff;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.help-section h2 {
+    color: #2c3e50;
+    margin-top: 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #4A90E2;
+}
+
+.help-section h3 {
+    color: #34495e;
+    margin-top: 20px;
+}
+
+.help-section h4 {
+    color: #34495e;
+    margin-top: 16px;
+}
+
+.help-content {
+    line-height: 1.6;
+}
+
+.help-content ul {
+    margin: 12px 0;
+    padding-left: 24px;
+}
+
+.help-content pre {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px;
+    overflow-x: auto;
+}
+
+.help-content code {
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.aci-object-card {
+    background: #f8f9fa;
+    border-left: 4px solid #4A90E2;
+    padding: 16px;
+    margin: 16px 0;
+    border-radius: 4px;
+}
+
+.aci-object-card h3 {
+    margin-top: 0;
+    color: #2c3e50;
+}
+
+.aci-object-card p:first-of-type {
+    margin-top: 8px;
+}
+</style>
 {% endblock %}
