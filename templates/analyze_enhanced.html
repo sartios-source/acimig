@@ -1,0 +1,632 @@
+{% extends "base.html" %}
+
+{% block title %}Analyze & Upload - ACI Analysis Tool{% endblock %}
+
+{% block content %}
+<div class="analyze-container">
+    <h1>📊 Analyze & Upload Data</h1>
+    <p class="subtitle">Upload and validate datasets for <strong>{{ mode|upper }}</strong> mode analysis</p>
+
+    {% if not current_fabric %}
+    <div class="alert alert-warning">
+        <h3>⚠️ No Fabric Selected</h3>
+        <p>Please select or create a fabric from the <a href="{{ url_for('index') }}">home page</a> to continue.</p>
+    </div>
+    {% else %}
+
+    <!-- Upload Section -->
+    <div class="upload-section">
+        <h2>📤 Upload Data Files</h2>
+
+        <!-- Drag & Drop Zone -->
+        <div id="drop-zone" class="drop-zone">
+            <div class="drop-zone-content">
+                <div class="drop-zone-icon">📁</div>
+                <h3>Drag & Drop Files Here</h3>
+                <p>or click to browse</p>
+                <p class="file-types">Supported: JSON, XML, CSV (Max 1GB per file)</p>
+                <input type="file" id="file-input" multiple accept=".json,.xml,.csv,.txt,.cfg,.conf" style="display: none;">
+                <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                    Browse Files
+                </button>
+            </div>
+        </div>
+
+        <!-- File Queue -->
+        <div id="file-queue" class="file-queue" style="display: none;">
+            <div class="queue-header">
+                <h3>Upload Queue</h3>
+                <div class="queue-actions">
+                    <button class="btn btn-sm" onclick="startAllUploads()" id="start-all-btn">
+                        ▶️ Start All
+                    </button>
+                    <button class="btn btn-sm" onclick="pauseAllUploads()" id="pause-all-btn" disabled>
+                        ⏸️ Pause All
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="cancelAllUploads()">
+                        ✖️ Cancel All
+                    </button>
+                </div>
+            </div>
+
+            <div id="file-list" class="file-list">
+                <!-- Files will be added here dynamically -->
+            </div>
+
+            <div class="overall-progress">
+                <div class="progress-info">
+                    <span id="overall-status">Ready to upload</span>
+                    <span id="overall-stats">0 / 0 files, 0 MB</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div id="overall-progress-bar" class="progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Completeness Validation -->
+    <div class="validation-section">
+        <h2>✓ Data Validation & Completeness</h2>
+
+        {% if validation_results %}
+        <div class="validation-card">
+            <div class="validation-header">
+                <h3>Validation Results</h3>
+                <span class="completeness-score" id="completeness-score">
+                    {{ validation_results.get('completeness_score', 0) }}% Complete
+                </span>
+            </div>
+
+            <div class="object-counts">
+                {% for obj_type, info in validation_results.get('object_counts', {}).items() %}
+                <div class="object-count-item {% if info.count == 0 %}missing{% elif info.required %}present{% else %}optional{% endif %}">
+                    <span class="object-icon">{{ '✓' if info.count > 0 else '⚠' }}</span>
+                    <span class="object-name">{{ obj_type }}</span>
+                    <span class="object-count">{{ info.count }} objects</span>
+                    <span class="object-status">
+                        {% if info.count == 0 %}
+                            {% if info.required %}
+                                <span class="badge badge-danger">Missing (Required)</span>
+                            {% else %}
+                                <span class="badge badge-warning">Missing (Optional)</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge badge-success">Present</span>
+                        {% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if validation_results.get('missing_required') %}
+            <div class="validation-warnings">
+                <h4>⚠️ Missing Required Data</h4>
+                {% for missing in validation_results.get('missing_required', []) %}
+                <div class="warning-item">
+                    <strong>{{ missing.type }}:</strong> {{ missing.description }}
+                    <details>
+                        <summary>How to collect this data</summary>
+                        <pre><code>{{ missing.collection_command }}</code></pre>
+                    </details>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if validation_results.get('analysis_capabilities') %}
+            <div class="analysis-capabilities">
+                <h4>📊 Analysis Capabilities</h4>
+                <div class="capabilities-grid">
+                    {% for capability, status in validation_results.get('analysis_capabilities', {}).items() %}
+                    <div class="capability-item {{ 'enabled' if status.enabled else 'disabled' }}">
+                        <span class="capability-icon">{{ '✓' if status.enabled else '✗' }}</span>
+                        <span class="capability-name">{{ capability }}</span>
+                        {% if not status.enabled and status.reason %}
+                        <span class="capability-reason">{{ status.reason }}</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if validation_results.get('suggestions') %}
+            <div class="suggestions">
+                <h4>💡 Suggested Improvements</h4>
+                {% for suggestion in validation_results.get('suggestions', []) %}
+                <div class="suggestion-item">
+                    <span class="suggestion-icon">💡</span>
+                    <p>{{ suggestion.text }}</p>
+                    {% if suggestion.command %}
+                    <pre><code>{{ suggestion.command }}</code></pre>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="validation-empty">
+            <p>No data uploaded yet. Upload files above to see validation results.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Current Datasets -->
+    <div class="datasets-section">
+        <h2>📦 Current Datasets</h2>
+
+        {% if datasets %}
+        <div class="datasets-grid">
+            {% for dataset in datasets %}
+            <div class="dataset-card">
+                <div class="dataset-header">
+                    <span class="dataset-icon">
+                        {% if dataset.type == 'aci' %}📄
+                        {% elif dataset.type == 'cmdb' %}📊
+                        {% elif dataset.type == 'legacy' %}📝
+                        {% endif %}
+                    </span>
+                    <div class="dataset-info">
+                        <h4>{{ dataset.filename }}</h4>
+                        <p class="dataset-type">{{ dataset.type|upper }}</p>
+                    </div>
+                </div>
+                <div class="dataset-body">
+                    {% if dataset.type == 'aci' %}
+                    <div class="dataset-stat">
+                        <span class="stat-label">Objects:</span>
+                        <span class="stat-value">{{ dataset.objects|default(0) }}</span>
+                    </div>
+                    <div class="dataset-stat">
+                        <span class="stat-label">Format:</span>
+                        <span class="stat-value">{{ dataset.format|upper }}</span>
+                    </div>
+                    {% elif dataset.type == 'cmdb' %}
+                    <div class="dataset-stat">
+                        <span class="stat-label">Records:</span>
+                        <span class="stat-value">{{ dataset.records|default(0) }}</span>
+                    </div>
+                    {% elif dataset.type == 'legacy' %}
+                    <div class="dataset-stat">
+                        <span class="stat-label">Platform:</span>
+                        <span class="stat-value">{{ dataset.platform|default('Unknown') }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="dataset-stat">
+                        <span class="stat-label">Uploaded:</span>
+                        <span class="stat-value">{{ dataset.uploaded|default('Unknown') }}</span>
+                    </div>
+                </div>
+                <div class="dataset-actions">
+                    <button class="btn btn-sm" onclick="viewDataset('{{ dataset.filename }}')">
+                        👁️ View
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteDataset('{{ dataset.filename }}')">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="datasets-empty">
+            <p>No datasets uploaded yet. Use the upload zone above to get started.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.analyze-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.subtitle {
+    color: #666;
+    margin-bottom: 30px;
+}
+
+/* Upload Section */
+.upload-section {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.drop-zone {
+    border: 3px dashed #ccc;
+    border-radius: 8px;
+    padding: 60px 40px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.drop-zone:hover {
+    border-color: #4A90E2;
+    background: #f8f9fa;
+}
+
+.drop-zone.drag-over {
+    border-color: #4A90E2;
+    background: #e3f2fd;
+    transform: scale(1.02);
+}
+
+.drop-zone-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.drop-zone h3 {
+    margin: 0 0 8px 0;
+    color: #333;
+}
+
+.drop-zone p {
+    margin: 4px 0;
+    color: #666;
+}
+
+.file-types {
+    font-size: 12px;
+    color: #999;
+    margin-top: 16px !important;
+}
+
+/* File Queue */
+.file-queue {
+    margin-top: 24px;
+}
+
+.queue-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.queue-header h3 {
+    margin: 0;
+}
+
+.queue-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.file-item {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 16px;
+    transition: all 0.2s ease;
+}
+
+.file-item.uploading {
+    border-color: #4A90E2;
+}
+
+.file-item.complete {
+    border-color: #7ED321;
+    background: #f1f8e9;
+}
+
+.file-item.error {
+    border-color: #FF6384;
+    background: #ffebee;
+}
+
+.file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.file-icon {
+    font-size: 24px;
+}
+
+.file-details h4 {
+    margin: 0;
+    font-size: 14px;
+    color: #333;
+}
+
+.file-size {
+    font-size: 12px;
+    color: #666;
+}
+
+.file-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.file-progress {
+    margin-bottom: 8px;
+}
+
+.progress-bar-container {
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4A90E2 0%, #667eea 100%);
+    transition: width 0.3s ease;
+}
+
+.progress-bar.complete {
+    background: linear-gradient(90deg, #7ED321 0%, #a8e063 100%);
+}
+
+.progress-bar.error {
+    background: linear-gradient(90deg, #FF6384 0%, #ff9aa2 100%);
+}
+
+.progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #666;
+}
+
+.overall-progress {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    padding: 16px;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+/* Validation Section */
+.validation-section {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.validation-card {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.validation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.validation-header h3 {
+    margin: 0;
+}
+
+.completeness-score {
+    font-size: 20px;
+    font-weight: 700;
+    color: #4A90E2;
+}
+
+.object-counts {
+    padding: 20px;
+}
+
+.object-count-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.object-count-item:last-child {
+    border-bottom: none;
+}
+
+.object-icon {
+    font-size: 20px;
+}
+
+.object-name {
+    flex: 1;
+    font-weight: 600;
+}
+
+.object-count {
+    color: #666;
+}
+
+.badge {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.badge-success {
+    background: #7ED321;
+    color: white;
+}
+
+.badge-warning {
+    background: #FFCD56;
+    color: #333;
+}
+
+.badge-danger {
+    background: #FF6384;
+    color: white;
+}
+
+.validation-warnings, .analysis-capabilities, .suggestions {
+    padding: 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+
+.validation-warnings h4, .analysis-capabilities h4, .suggestions h4 {
+    margin: 0 0 16px 0;
+}
+
+.warning-item, .suggestion-item {
+    background: white;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+}
+
+.capabilities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 12px;
+}
+
+.capability-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: white;
+    border-radius: 4px;
+}
+
+.capability-item.enabled {
+    border-left: 4px solid #7ED321;
+}
+
+.capability-item.disabled {
+    border-left: 4px solid #FF6384;
+    opacity: 0.6;
+}
+
+/* Datasets Section */
+.datasets-section {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.datasets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.dataset-card {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.dataset-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.dataset-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.dataset-icon {
+    font-size: 32px;
+}
+
+.dataset-info h4 {
+    margin: 0;
+    font-size: 14px;
+}
+
+.dataset-type {
+    margin: 4px 0 0 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+}
+
+.dataset-body {
+    padding: 16px;
+}
+
+.dataset-stat {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.stat-label {
+    color: #666;
+}
+
+.stat-value {
+    font-weight: 600;
+}
+
+.dataset-actions {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+
+.datasets-empty, .validation-empty {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='upload.js') }}"></script>
+{% endblock %}

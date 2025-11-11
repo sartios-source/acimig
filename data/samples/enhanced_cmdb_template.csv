@@ -1,0 +1,19 @@
+device_name,serial_number,model,device_type,datacenter,room,row,cabinet,rack_unit_start,rack_unit_height,total_ports,management_ip,power_watts,status,notes
+leaf-101,SAL1928374,N9K-C93180YC-EX,leaf,NYC-DC1,Room-A,Row-3,Cab-15,10,2,48,10.1.1.101,350,active,Production leaf switch
+leaf-102,SAL1928375,N9K-C93180YC-EX,leaf,NYC-DC1,Room-A,Row-3,Cab-15,22,2,48,10.1.1.102,350,active,Production leaf switch
+fex-201,FCH9283746,N2K-C2348TQ-10GE,fex,NYC-DC1,Room-A,Row-3,Cab-15,2,1,48,10.1.1.201,75,active,Connected to leaf-101
+fex-202,FCH9283747,N2K-C2348TQ-10GE,fex,NYC-DC1,Room-A,Row-3,Cab-15,6,1,48,10.1.1.202,75,active,Connected to leaf-101
+fex-203,FCH9283748,N2K-C2348TQ-10GE,fex,NYC-DC1,Room-A,Row-3,Cab-15,12,1,48,10.1.1.203,75,active,Connected to leaf-102
+fex-204,FCH9283749,N2K-C2348TQ-10GE,fex,NYC-DC1,Room-A,Row-3,Cab-15,15,1,48,10.1.1.204,75,active,Connected to leaf-102
+fex-205,FCH9283750,N2K-C2348TQ-10GE,fex,NYC-DC1,Room-A,Row-3,Cab-15,18,1,48,10.1.1.205,75,active,Connected to leaf-102
+fex-206,FCH9283751,N2K-C2348TQ-10GE,fex,NYC-DC1,Room-A,Row-3,Cab-16,10,1,48,10.1.1.206,75,active,Connected to leaf-103
+leaf-103,SAL1928376,N9K-C93180YC-EX,leaf,NYC-DC1,Room-A,Row-3,Cab-16,20,2,48,10.1.1.103,350,active,Production leaf switch
+fex-207,FCH9283752,N2K-C2348TQ-10GE,fex,NYC-DC1,Room-A,Row-3,Cab-16,5,1,48,10.1.1.207,75,active,Connected to leaf-103
+fex-208,FCH9283753,N2K-C2348TQ-10GE,fex,NYC-DC1,Room-A,Row-3,Cab-17,10,1,48,10.1.1.208,75,active,Connected to leaf-104
+fex-209,FCH9283754,N2K-C2348TQ-10GE,fex,NYC-DC1,Room-A,Row-3,Cab-17,15,1,48,10.1.1.209,75,active,Connected to leaf-104
+leaf-104,SAL1928377,N9K-C93180YC-EX,leaf,NYC-DC1,Room-A,Row-3,Cab-17,20,2,48,10.1.1.104,350,active,Production leaf switch
+spine-01,SAL1928378,N9K-C9336C-FX2,spine,NYC-DC1,Room-A,Row-1,Cab-01,10,2,36,10.1.1.1,450,active,Spine switch
+spine-02,SAL1928379,N9K-C9336C-FX2,spine,NYC-DC1,Room-A,Row-1,Cab-01,15,2,36,10.1.1.2,450,active,Spine switch
+apic-01,SAL1928380,APIC-SERVER-M3,apic,NYC-DC1,Room-A,Row-1,Cab-02,10,2,4,10.1.1.10,200,active,APIC controller
+apic-02,SAL1928381,APIC-SERVER-M3,apic,NYC-DC1,Room-A,Row-1,Cab-02,15,2,4,10.1.1.11,200,active,APIC controller
+apic-03,SAL1928382,APIC-SERVER-M3,apic,NYC-DC1,Room-A,Row-1,Cab-02,20,2,4,10.1.1.12,200,active,APIC controller
