@@ -51,3 +51,8 @@ htmlcov/
 # Temporary files
 *.tmp
 *.bak
+cookies.txt
+add_*.py
+
+# Claude Code local settings
+.claude/*.local.*
