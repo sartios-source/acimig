@@ -1,11 +1,89 @@
 {% extends "base.html" %}
+
+{% block title %}Migration Plan - ACI Analysis Tool{% endblock %}
+
 {% block content %}
-<h1>Plan</h1>
-<p>{{ 'Consolidation' if mode == 'offboard' else 'Onboarding' }} recommendations</p>
-{% for rec in plan_data.get('recommendations', []) %}
-<div class="recommendation-card">
-    <h3>{{ rec.title }}</h3>
-    <p>{{ rec.description }}</p>
+
+<!-- Page Header -->
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+        <svg class="h-8 w-8 mr-3 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+        </svg>
+        {{ 'Consolidation' if mode == 'offboard' else 'Onboarding' }} Plan
+    </h1>
+    <p class="mt-2 text-lg text-gray-600">
+        Automated recommendations and migration planning for {{ mode|upper }} mode
+    </p>
 </div>
-{% endfor %}
+
+<!-- Recommendations -->
+{% if plan_data and plan_data.get('recommendations') %}
+<div class="grid grid-cols-1 gap-6">
+    {% for rec in plan_data.get('recommendations', []) %}
+    <div class="bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-200">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <div class="h-12 w-12 rounded-xl bg-primary-100 flex items-center justify-center">
+                    <svg class="h-6 w-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="ml-6 flex-1">
+                <h3 class="text-xl font-semibold text-gray-900 mb-3">{{ rec.title }}</h3>
+                <p class="text-gray-600 leading-relaxed">{{ rec.description }}</p>
+
+                {% if rec.get('priority') %}
+                <div class="mt-4">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                        {% if rec.priority == 'high' %}bg-red-100 text-red-800
+                        {% elif rec.priority == 'medium' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-green-100 text-green-800{% endif %}">
+                        {{ rec.priority|upper }} Priority
+                    </span>
+                </div>
+                {% endif %}
+
+                {% if rec.get('steps') %}
+                <div class="mt-6">
+                    <h4 class="font-medium text-gray-900 mb-3">Implementation Steps:</h4>
+                    <ol class="space-y-2">
+                        {% for step in rec.steps %}
+                        <li class="flex items-start">
+                            <span class="flex-shrink-0 h-6 w-6 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center text-sm font-medium mr-3">
+                                {{ loop.index }}
+                            </span>
+                            <span class="text-gray-700">{{ step }}</span>
+                        </li>
+                        {% endfor %}
+                    </ol>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<!-- Empty State -->
+<div class="bg-white rounded-2xl shadow-lg p-12">
+    <div class="text-center">
+        <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+        </svg>
+        <h3 class="mt-4 text-lg font-medium text-gray-900">No planning data available</h3>
+        <p class="mt-2 text-sm text-gray-500">Upload and analyze your fabric data to generate migration recommendations.</p>
+        <div class="mt-6">
+            <a href="{{ url_for('analyze') }}" class="inline-flex items-center px-6 py-3 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 shadow-lg transition-all duration-200">
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                Upload Data
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
