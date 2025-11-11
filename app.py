@@ -209,22 +209,26 @@ def set_mode(mode):
 
 @app.route('/analyze')
 def analyze():
-    """Analysis page - upload and validate datasets."""
+    """Analysis page - upload and validate datasets with enhanced UI."""
     mode = session.get('mode', 'offboard')
     current_fabric = session.get('current_fabric')
 
     datasets = []
-    validation_results = []
+    validation_results = None
 
     if current_fabric:
         fabric_data = fm.get_fabric_data(current_fabric)
         datasets = fabric_data.get('datasets', [])
 
-        # Run validation
-        analyzer = engine.ACIAnalyzer(fabric_data)
-        validation_results = analyzer.validate()
+        # Run comprehensive data completeness validation
+        try:
+            analyzer = engine.ACIAnalyzer(fabric_data)
+            validation_results = analyzer.get_data_completeness()
+        except Exception as e:
+            app.logger.error(f"Error during validation: {str(e)}", exc_info=True)
+            validation_results = None
 
-    return render_template('analyze.html',
+    return render_template('analyze_enhanced.html',
                          mode=mode,
                          current_fabric=current_fabric,
                          datasets=datasets,
@@ -232,6 +236,7 @@ def analyze():
 
 
 @app.route('/upload', methods=['POST'])
+@csrf.exempt
 @limiter.limit("10 per minute")
 def upload():
     """Handle file uploads - ACI JSON/XML, legacy configs, CMDB CSV."""
@@ -374,6 +379,7 @@ def visualize():
             migration_flags = analyzer.analyze_migration_flags()
             vpc_symmetry = analyzer.analyze_vpc_symmetry()
             leaf_fex = analyzer.analyze_leaf_fex_mapping()
+            device_mapping = analyzer.analyze_device_epg_vlan_mapping()
 
             # Add comprehensive statistics
             viz_data['statistics'] = {
@@ -398,6 +404,7 @@ def visualize():
             viz_data['migration_flags'] = migration_flags
             viz_data['vpc_symmetry'] = vpc_symmetry
             viz_data['leaf_fex_mapping'] = leaf_fex
+            viz_data['device_mapping'] = device_mapping
 
             app.logger.info(f"Generated visualization data for fabric {current_fabric}")
 
@@ -563,6 +570,7 @@ def list_fabrics():
 
 
 @app.route('/fabrics', methods=['POST'])
+@csrf.exempt
 def create_fabric():
     """Create a new fabric."""
     data = request.get_json()
@@ -584,6 +592,7 @@ def create_fabric():
 
 
 @app.route('/fabrics/<fabric_name>', methods=['DELETE'])
+@csrf.exempt
 def delete_fabric(fabric_name):
     """Delete a fabric."""
     try:
@@ -600,6 +609,7 @@ def delete_fabric(fabric_name):
 
 
 @app.route('/fabrics/<fabric_name>/select', methods=['POST'])
+@csrf.exempt
 def select_fabric(fabric_name):
     """Select a fabric as current."""
     try:

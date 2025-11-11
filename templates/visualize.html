@@ -27,6 +27,8 @@
     <div class="dashboard-tabs">
         <button class="dashboard-tab active" data-tab="overview">Overview</button>
         <button class="dashboard-tab" data-tab="topology">Topology</button>
+        <button class="dashboard-tab" data-tab="mapping">Leaf-FEX Mapping</button>
+        <button class="dashboard-tab" data-tab="hierarchy">Device Hierarchy</button>
         <button class="dashboard-tab" data-tab="utilization">Port Utilization</button>
         <button class="dashboard-tab" data-tab="vlans">VLANs</button>
         <button class="dashboard-tab" data-tab="complexity">EPG Complexity</button>
@@ -73,19 +75,334 @@
     <!-- Topology Dashboard -->
     <div id="topology-dashboard" class="dashboard-panel">
         <div class="topology-controls">
-            <button class="btn btn-sm" onclick="zoomIn()">🔍 Zoom In</button>
-            <button class="btn btn-sm" onclick="zoomOut()">🔍 Zoom Out</button>
-            <button class="btn btn-sm" onclick="resetView()">🔄 Reset View</button>
-            <label>
-                <input type="checkbox" id="show-labels" checked onchange="toggleLabels()">
-                Show Labels
-            </label>
+            <div class="control-group">
+                <label for="leaf-filter">Filter by Leaf:</label>
+                <select id="leaf-filter" onchange="filterTopology()">
+                    <option value="all">All Leafs</option>
+                    <!-- Populated by JavaScript -->
+                </select>
+            </div>
+            <div class="control-group">
+                <button class="btn btn-sm" onclick="zoomIn()">🔍 Zoom In</button>
+                <button class="btn btn-sm" onclick="zoomOut()">🔍 Zoom Out</button>
+                <button class="btn btn-sm" onclick="resetView()">🔄 Reset View</button>
+            </div>
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="show-labels" checked onchange="toggleLabels()">
+                    Show Labels
+                </label>
+                <label>
+                    <input type="checkbox" id="highlight-overloaded" onchange="highlightOverloaded()">
+                    Highlight Overloaded (&gt;12 FEX)
+                </label>
+            </div>
+        </div>
+        <div id="topology-stats" class="topology-stats">
+            <div class="stat-item">
+                <span class="stat-label">Leafs Shown:</span>
+                <span class="stat-value" id="leafs-shown">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">FEX Shown:</span>
+                <span class="stat-value" id="fex-shown">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Avg FEX/Leaf:</span>
+                <span class="stat-value" id="avg-fex-leaf">0</span>
+            </div>
         </div>
         <div id="topology-canvas"></div>
         <div class="topology-legend">
             <div class="legend-item"><span class="legend-color leaf"></span> Leaf Switch</div>
             <div class="legend-item"><span class="legend-color fex"></span> FEX Device</div>
             <div class="legend-item"><span class="legend-color edge"></span> Connection</div>
+            <div class="legend-item"><span class="legend-color overloaded"></span> Overloaded (&gt;12 FEX)</div>
+        </div>
+    </div>
+
+    <!-- Leaf-FEX Mapping Dashboard -->
+    <div id="mapping-dashboard" class="dashboard-panel">
+        <div class="mapping-controls">
+            <input type="text" id="mapping-search" placeholder="Search leaf or FEX..." onkeyup="filterMappingTable()">
+            <label>
+                <input type="checkbox" id="show-overloaded-only" onchange="filterMappingTable()">
+                Show Overloaded Only (&gt;12 FEX)
+            </label>
+        </div>
+
+        <div class="mapping-summary">
+            <div class="summary-card">
+                <h3>{{ viz_data.get('leaf_fex_mapping', {}).get('statistics', {}).get('total_leafs', 0) }}</h3>
+                <p>Total Leafs</p>
+            </div>
+            <div class="summary-card">
+                <h3>{{ viz_data.get('leaf_fex_mapping', {}).get('statistics', {}).get('total_fex', 0) }}</h3>
+                <p>Total FEX</p>
+            </div>
+            <div class="summary-card">
+                <h3>{{ viz_data.get('leaf_fex_mapping', {}).get('statistics', {}).get('avg_fex_per_leaf', 0) }}</h3>
+                <p>Avg FEX per Leaf</p>
+            </div>
+            <div class="summary-card warning">
+                <h3>{{ viz_data.get('leaf_fex_mapping', {}).get('statistics', {}).get('overloaded_leafs', 0) }}</h3>
+                <p>Overloaded Leafs</p>
+            </div>
+        </div>
+
+        <div class="mapping-table-container">
+            <table class="mapping-table" id="mapping-table">
+                <thead>
+                    <tr>
+                        <th>Leaf ID</th>
+                        <th>Leaf Name</th>
+                        <th>Model</th>
+                        <th>FEX Count</th>
+                        <th>FEX Devices</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mapping in viz_data.get('leaf_fex_mapping', {}).get('mappings', []) %}
+                    <tr class="mapping-row {% if mapping.overloaded %}overloaded{% endif %}"
+                        data-leaf-id="{{ mapping.leaf_id }}"
+                        data-fex-count="{{ mapping.fex_count }}">
+                        <td><strong>{{ mapping.leaf_id }}</strong></td>
+                        <td>{{ mapping.leaf_name }}</td>
+                        <td><span class="model-badge">{{ mapping.leaf_model }}</span></td>
+                        <td>
+                            <span class="fex-count {% if mapping.overloaded %}warning{% endif %}">
+                                {{ mapping.fex_count }}
+                                {% if mapping.overloaded %}<span class="warning-icon">⚠️</span>{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="fex-list">
+                                {% for fex in mapping.attached_fex %}
+                                <div class="fex-item" title="{{ fex.model }} - {{ fex.status }}">
+                                    <span class="fex-id">FEX-{{ fex.fex_id }}</span>
+                                    <span class="fex-status status-{{ fex.status }}">{{ fex.status }}</span>
+                                </div>
+                                {% endfor %}
+                                {% if mapping.fex_count == 0 %}
+                                <span class="no-fex">No FEX attached</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if mapping.overloaded %}
+                            <span class="status-badge warning">Overloaded</span>
+                            {% elif mapping.fex_count == 0 %}
+                            <span class="status-badge info">No FEX</span>
+                            {% else %}
+                            <span class="status-badge success">Normal</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm" onclick="viewLeafTopology('{{ mapping.leaf_id }}')">
+                                View Topology
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Device Hierarchy Dashboard (Comprehensive View) -->
+    <div id="hierarchy-dashboard" class="dashboard-panel">
+        <div class="hierarchy-header">
+            <h2>Complete Device-EPG-VLAN Hierarchy</h2>
+            <p class="subtitle">Comprehensive view of Leaf → FEX → EPG → VLAN deployment</p>
+        </div>
+
+        <!-- Filters and Search -->
+        <div class="hierarchy-controls">
+            <div class="control-row">
+                <div class="control-group">
+                    <label for="hierarchy-leaf-filter">Filter by Leaf:</label>
+                    <select id="hierarchy-leaf-filter" onchange="filterHierarchy()">
+                        <option value="all">All Leafs</option>
+                        {% for leaf_data in viz_data.get('device_mapping', {}).get('hierarchy', []) %}
+                        <option value="{{ leaf_data.leaf_id }}">Leaf-{{ leaf_data.leaf_id }} ({{ leaf_data.leaf_name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="hierarchy-tenant-filter">Filter by Tenant:</label>
+                    <select id="hierarchy-tenant-filter" onchange="filterHierarchy()">
+                        <option value="all">All Tenants</option>
+                        <!-- Populated by JavaScript -->
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="hierarchy-vlan-filter">Filter by VLAN:</label>
+                    <input type="text" id="hierarchy-vlan-filter" placeholder="e.g., 100 or 100-200" onkeyup="filterHierarchy()">
+                </div>
+                <div class="control-group">
+                    <input type="text" id="hierarchy-search" placeholder="Search EPG, leaf, or FEX..." onkeyup="filterHierarchy()">
+                </div>
+            </div>
+            <div class="control-row">
+                <label>
+                    <input type="checkbox" id="show-empty-devices" onchange="filterHierarchy()">
+                    Show devices with no EPGs
+                </label>
+                <label>
+                    <input type="checkbox" id="expand-all" onchange="toggleExpandAll()">
+                    Expand all
+                </label>
+                <button class="btn btn-sm" onclick="exportHierarchyData()">📥 Export CSV</button>
+            </div>
+        </div>
+
+        <!-- Summary Statistics -->
+        <div class="hierarchy-summary">
+            <div class="summary-card">
+                <h3>{{ viz_data.get('device_mapping', {}).get('statistics', {}).get('total_devices', 0) }}</h3>
+                <p>Total Devices</p>
+            </div>
+            <div class="summary-card">
+                <h3>{{ viz_data.get('device_mapping', {}).get('statistics', {}).get('total_epgs_mapped', 0) }}</h3>
+                <p>EPGs Deployed</p>
+            </div>
+            <div class="summary-card">
+                <h3>{{ viz_data.get('device_mapping', {}).get('statistics', {}).get('total_vlans_used', 0) }}</h3>
+                <p>VLANs Used</p>
+            </div>
+            <div class="summary-card warning">
+                <h3>{{ viz_data.get('device_mapping', {}).get('statistics', {}).get('devices_with_multiple_tenants', 0) }}</h3>
+                <p>Multi-Tenant Devices</p>
+            </div>
+            <div class="summary-card info">
+                <h3>{{ viz_data.get('device_mapping', {}).get('statistics', {}).get('vlans_spanning_devices', 0) }}</h3>
+                <p>VLANs Spanning Devices</p>
+            </div>
+            <div class="summary-card info">
+                <h3>{{ viz_data.get('device_mapping', {}).get('statistics', {}).get('epgs_spanning_devices', 0) }}</h3>
+                <p>EPGs Spanning Devices</p>
+            </div>
+        </div>
+
+        <!-- Hierarchical Tree View -->
+        <div class="hierarchy-tree">
+            {% for leaf_data in viz_data.get('device_mapping', {}).get('hierarchy', []) %}
+            <div class="hierarchy-node leaf-node" data-leaf-id="{{ leaf_data.leaf_id }}">
+                <div class="node-header leaf-header" onclick="toggleNode(this)">
+                    <span class="toggle-icon">▶</span>
+                    <span class="node-icon">🖧</span>
+                    <span class="node-title">
+                        <strong>Leaf-{{ leaf_data.leaf_id }}</strong> ({{ leaf_data.leaf_name }})
+                    </span>
+                    <span class="node-badge">{{ leaf_data.leaf_model }}</span>
+                    <span class="node-stats">
+                        {{ leaf_data.total_fex }} FEX | {{ leaf_data.total_epgs }} EPGs
+                    </span>
+                </div>
+                <div class="node-content" style="display: none;">
+                    <!-- Direct EPGs on Leaf -->
+                    {% if leaf_data.direct_epgs %}
+                    <div class="epg-section">
+                        <h4>EPGs directly on Leaf-{{ leaf_data.leaf_id }}:</h4>
+                        <div class="epg-list">
+                            {% for epg in leaf_data.direct_epgs %}
+                            <div class="epg-item" data-tenant="{{ epg.tenant }}" data-vlan="{{ epg.vlan }}">
+                                <span class="epg-icon">📦</span>
+                                <span class="epg-name">{{ epg.epg }}</span>
+                                <span class="tenant-badge">{{ epg.tenant }}</span>
+                                <span class="vlan-badge">VLAN {{ epg.vlan if epg.vlan else 'N/A' }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- FEX Devices under this Leaf -->
+                    {% for fex in leaf_data.fex_devices %}
+                    <div class="hierarchy-node fex-node" data-fex-id="{{ fex.fex_id }}">
+                        <div class="node-header fex-header" onclick="toggleNode(this)">
+                            <span class="toggle-icon">▶</span>
+                            <span class="node-icon">📡</span>
+                            <span class="node-title">
+                                <strong>FEX-{{ fex.fex_id }}</strong>
+                            </span>
+                            <span class="node-badge">{{ fex.fex_model }}</span>
+                            <span class="status-badge status-{{ fex.status }}">{{ fex.status }}</span>
+                            <span class="node-stats">
+                                {{ fex.epg_count }} EPGs | {{ fex.vlan_count }} VLANs | {{ fex.tenant_count }} Tenants
+                            </span>
+                        </div>
+                        <div class="node-content" style="display: none;">
+                            {% if fex.epgs %}
+                            <div class="epg-list">
+                                {% for epg in fex.epgs %}
+                                <div class="epg-item" data-tenant="{{ epg.tenant }}" data-vlan="{{ epg.vlan }}">
+                                    <span class="epg-icon">📦</span>
+                                    <span class="epg-name">{{ epg.epg }}</span>
+                                    <span class="tenant-badge">{{ epg.tenant }}</span>
+                                    <span class="vlan-badge">VLAN {{ epg.vlan if epg.vlan else 'N/A' }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="no-data">No EPGs deployed on this FEX</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if not leaf_data.fex_devices and not leaf_data.direct_epgs %}
+                    <p class="no-data">No FEX or EPGs on this leaf</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Quick Stats Table -->
+        <div class="quick-stats-section">
+            <h3>Quick Statistics by Device</h3>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Device ID</th>
+                        <th>Device Type</th>
+                        <th>EPG Count</th>
+                        <th>VLAN Count</th>
+                        <th>Tenant Count</th>
+                        <th>VLANs Used</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for device_id, device_data in viz_data.get('device_mapping', {}).get('device_map', {}).items() %}
+                    <tr data-device-type="{{ device_data.device_type }}">
+                        <td><strong>{{ device_id }}</strong></td>
+                        <td><span class="type-badge {{ device_data.device_type }}">{{ device_data.device_type }}</span></td>
+                        <td>{{ device_data.epg_count }}</td>
+                        <td>{{ device_data.vlan_count }}</td>
+                        <td>
+                            {{ device_data.tenant_count }}
+                            {% if device_data.tenant_count > 1 %}
+                            <span class="warning-icon" title="Multi-tenant device">⚠️</span>
+                            {% endif %}
+                        </td>
+                        <td class="vlan-range">
+                            {% if device_data.vlans %}
+                                {{ device_data.vlans[0] }}{% if device_data.vlans|length > 1 %}-{{ device_data.vlans[-1] }}{% endif %}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-xs" onclick="scrollToDevice('{{ device_id }}')">🔍 View</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 

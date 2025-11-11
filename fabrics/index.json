@@ -1,7 +1,7 @@
 {
   "test_fabric": {
     "created": "2025-11-10T15:20:00",
-    "modified": "2025-11-10T15:20:00",
+    "modified": "2025-11-11T18:26:15.719384",
     "datasets": [
       {
         "filename": "aci_data.json",
@@ -17,6 +17,14 @@
         "path": "fabrics/test_fabric/cmdb_data.csv",
         "uploaded": "2025-11-10T15:20:00",
         "records": 426
+      },
+      {
+        "filename": "sample_aci.json",
+        "type": "aci",
+        "format": "json",
+        "uploaded": "2025-11-11T18:26:15.718381",
+        "objects": 3,
+        "path": "C:\\Users\\shabb\\aciv2\\fabrics\\test_fabric\\sample_aci.json"
       }
     ]
   }

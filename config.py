@@ -18,7 +18,12 @@ class Config:
 
     # Flask configuration
     SECRET_KEY = os.environ.get('SECRET_KEY')
-    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_UPLOAD_SIZE', 100 * 1024 * 1024))  # 100MB default
+    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_UPLOAD_SIZE', 1024 * 1024 * 1024))  # 1GB default
+
+    # Upload configuration
+    CHUNK_SIZE = 5 * 1024 * 1024  # 5MB chunks for large files
+    MAX_PARALLEL_UPLOADS = 3
+    UPLOAD_TIMEOUT = 3600  # 1 hour for large files
 
     # Session configuration
     SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS

@@ -1357,3 +1357,353 @@ class ACIAnalyzer:
             "wave4_high_coupling": "Highly coupled EPGs - complex migration requiring careful planning"
         }
         return descriptions.get(wave_name, "Unknown wave")
+
+    def analyze_device_epg_vlan_mapping(self) -> Dict[str, Any]:
+        """
+        Comprehensive device -> EPG -> VLAN mapping analysis.
+        Shows complete deployment picture: which EPGs are on which devices with which VLANs.
+
+        Returns hierarchical mapping:
+        - Leaf/FEX -> EPGs deployed -> VLANs used
+        - Allows filtering and drill-down by any dimension
+        """
+        self._load_data()
+
+        # Build comprehensive mapping structure
+        device_map = {}  # device_id -> {epgs: [], vlans: set(), tenants: set()}
+        epg_map = {}     # epg_dn -> {devices: [], vlans: [], tenant: str}
+        vlan_map = {}    # vlan -> {devices: [], epgs: [], tenants: set()}
+
+        # Process all path attachments
+        for path in self._path_attachments:
+            path_dn = path.get('dn', '')
+            target_dn = path.get('tDn', '')
+            encap = path.get('encap', '')
+
+            # Extract EPG info
+            epg_dn = path_dn.split('/rspathAtt')[0] if '/rspathAtt' in path_dn else ''
+            epg_name = self._extract_epg_from_path_dn(path_dn)
+            tenant = self._extract_tenant_from_dn(epg_dn)
+
+            # Extract device
+            device_id = 'unknown'
+            device_type = 'unknown'
+            if 'fex-' in target_dn:
+                match = re.search(r'node-(\d+).*fex-(\d+)', target_dn)
+                if match:
+                    leaf_id, fex_id = match.groups()
+                    device_id = f'fex-{fex_id}'
+                    device_type = 'fex'
+            elif 'node-' in target_dn:
+                match = re.search(r'node-(\d+)', target_dn)
+                if match:
+                    device_id = f'leaf-{match.group(1)}'
+                    device_type = 'leaf'
+
+            # Extract VLAN
+            vlan = None
+            if 'vlan-' in encap:
+                vlan = encap.split('vlan-')[1]
+
+            # Build device mapping
+            if device_id not in device_map:
+                device_map[device_id] = {
+                    'device_id': device_id,
+                    'device_type': device_type,
+                    'epgs': set(),
+                    'vlans': set(),
+                    'tenants': set(),
+                    'epg_details': []
+                }
+
+            device_map[device_id]['epgs'].add(epg_name)
+            device_map[device_id]['tenants'].add(tenant)
+            if vlan:
+                device_map[device_id]['vlans'].add(vlan)
+
+            device_map[device_id]['epg_details'].append({
+                'epg': epg_name,
+                'epg_dn': epg_dn,
+                'tenant': tenant,
+                'vlan': vlan
+            })
+
+            # Build EPG mapping
+            if epg_dn not in epg_map:
+                epg_map[epg_dn] = {
+                    'epg_name': epg_name,
+                    'tenant': tenant,
+                    'devices': set(),
+                    'vlans': set()
+                }
+
+            epg_map[epg_dn]['devices'].add(device_id)
+            if vlan:
+                epg_map[epg_dn]['vlans'].add(vlan)
+
+            # Build VLAN mapping
+            if vlan:
+                if vlan not in vlan_map:
+                    vlan_map[vlan] = {
+                        'vlan': vlan,
+                        'devices': set(),
+                        'epgs': set(),
+                        'tenants': set()
+                    }
+
+                vlan_map[vlan]['devices'].add(device_id)
+                vlan_map[vlan]['epgs'].add(epg_name)
+                vlan_map[vlan]['tenants'].add(tenant)
+
+        # Convert sets to lists for JSON serialization
+        for device_id, data in device_map.items():
+            data['epgs'] = list(data['epgs'])
+            data['vlans'] = sorted([int(v) for v in data['vlans']]) if data['vlans'] else []
+            data['tenants'] = list(data['tenants'])
+            data['epg_count'] = len(data['epgs'])
+            data['vlan_count'] = len(data['vlans'])
+            data['tenant_count'] = len(data['tenants'])
+
+        for epg_dn, data in epg_map.items():
+            data['devices'] = list(data['devices'])
+            data['vlans'] = sorted([int(v) for v in data['vlans']]) if data['vlans'] else []
+            data['device_count'] = len(data['devices'])
+            data['vlan_count'] = len(data['vlans'])
+
+        for vlan, data in vlan_map.items():
+            data['devices'] = list(data['devices'])
+            data['epgs'] = list(data['epgs'])
+            data['tenants'] = list(data['tenants'])
+            data['device_count'] = len(data['devices'])
+            data['epg_count'] = len(data['epgs'])
+            data['tenant_count'] = len(data['tenants'])
+
+        # Build hierarchical view: Leaf -> FEX -> EPGs
+        hierarchy = []
+        for leaf in self._leafs:
+            leaf_id = f"leaf-{leaf.get('id')}"
+            leaf_data = {
+                'leaf_id': leaf.get('id'),
+                'leaf_name': leaf.get('name'),
+                'leaf_model': leaf.get('model'),
+                'fex_devices': [],
+                'direct_epgs': []
+            }
+
+            # Add EPGs directly on this leaf
+            if leaf_id in device_map:
+                leaf_data['direct_epgs'] = device_map[leaf_id]['epg_details']
+
+            # Find FEX attached to this leaf
+            for fex in self._fexes:
+                fex_dn = fex.get('dn', '')
+                if f"node-{leaf.get('id')}" in fex_dn:
+                    fex_id = f"fex-{fex.get('id')}"
+                    fex_data = {
+                        'fex_id': fex.get('id'),
+                        'fex_model': fex.get('model'),
+                        'fex_serial': fex.get('ser'),
+                        'status': fex.get('operSt'),
+                        'epgs': []
+                    }
+
+                    # Add EPGs on this FEX
+                    if fex_id in device_map:
+                        fex_data['epgs'] = device_map[fex_id]['epg_details']
+                        fex_data['epg_count'] = len(device_map[fex_id]['epgs'])
+                        fex_data['vlan_count'] = len(device_map[fex_id]['vlans'])
+                        fex_data['tenant_count'] = len(device_map[fex_id]['tenants'])
+                    else:
+                        fex_data['epg_count'] = 0
+                        fex_data['vlan_count'] = 0
+                        fex_data['tenant_count'] = 0
+
+                    leaf_data['fex_devices'].append(fex_data)
+
+            # Calculate leaf totals
+            leaf_data['total_epgs'] = len(leaf_data['direct_epgs'])
+            leaf_data['total_fex'] = len(leaf_data['fex_devices'])
+            for fex in leaf_data['fex_devices']:
+                leaf_data['total_epgs'] += fex.get('epg_count', 0)
+
+            hierarchy.append(leaf_data)
+
+        # Statistics
+        total_devices = len(device_map)
+        devices_with_multiple_tenants = sum(1 for d in device_map.values() if d['tenant_count'] > 1)
+        vlans_spanning_devices = sum(1 for v in vlan_map.values() if v['device_count'] > 1)
+        epgs_spanning_devices = sum(1 for e in epg_map.values() if e['device_count'] > 1)
+
+        return {
+            'device_map': device_map,
+            'epg_map': {k: v for k, v in epg_map.items()},
+            'vlan_map': vlan_map,
+            'hierarchy': hierarchy,
+            'statistics': {
+                'total_devices': total_devices,
+                'total_epgs_mapped': len(epg_map),
+                'total_vlans_used': len(vlan_map),
+                'devices_with_multiple_tenants': devices_with_multiple_tenants,
+                'vlans_spanning_devices': vlans_spanning_devices,
+                'epgs_spanning_devices': epgs_spanning_devices
+            }
+        }
+
+    def get_data_completeness(self) -> Dict[str, Any]:
+        """
+        Comprehensive data completeness analysis.
+        Returns detailed validation results for UI display.
+        """
+        self._load_data()
+
+        # Define required and optional object types
+        object_types = {
+            'EPGs (fvAEPg)': {
+                'count': len(self._epgs),
+                'required': True,
+                'description': 'Application Endpoint Groups - defines workload placement',
+                'collection_command': 'moquery -c fvAEPg -o json > epgs.json'
+            },
+            'Leafs (fabricNode)': {
+                'count': len(self._leafs),
+                'required': True,
+                'description': 'Leaf switches - fabric infrastructure',
+                'collection_command': 'moquery -c fabricNode -o json > nodes.json'
+            },
+            'Path Attachments (fvRsPathAtt)': {
+                'count': len(self._path_attachments),
+                'required': True,
+                'description': 'EPG bindings to physical interfaces',
+                'collection_command': 'moquery -c fvRsPathAtt -o json > paths.json'
+            },
+            'FEX Devices (eqptFex)': {
+                'count': len(self._fexes),
+                'required': False,
+                'description': 'Fabric Extenders - required for offboard mode',
+                'collection_command': 'moquery -c eqptFex -o json > fex.json'
+            },
+            'Bridge Domains (fvBD)': {
+                'count': len(self._bds),
+                'required': False,
+                'description': 'Layer 2 forwarding domains',
+                'collection_command': 'moquery -c fvBD -o json > bridge_domains.json'
+            },
+            'VRFs (fvCtx)': {
+                'count': len(self._vrfs),
+                'required': False,
+                'description': 'Layer 3 routing contexts',
+                'collection_command': 'moquery -c fvCtx -o json > vrfs.json'
+            },
+            'Contracts (vzBrCP)': {
+                'count': len(self._contracts),
+                'required': False,
+                'description': 'Inter-EPG communication policies',
+                'collection_command': 'moquery -c vzBrCP -o json > contracts.json'
+            },
+            'Subnets (fvSubnet)': {
+                'count': len(self._subnets),
+                'required': False,
+                'description': 'IP subnet definitions',
+                'collection_command': 'moquery -c fvSubnet -o json > subnets.json'
+            },
+            'Tenants (fvTenant)': {
+                'count': len(self._tenants),
+                'required': False,
+                'description': 'Multi-tenancy containers',
+                'collection_command': 'moquery -c fvTenant -o json > tenants.json'
+            }
+        }
+
+        # Calculate completeness score
+        total_required = sum(1 for obj in object_types.values() if obj['required'])
+        present_required = sum(1 for obj in object_types.values() if obj['required'] and obj['count'] > 0)
+        optional_present = sum(1 for obj in object_types.values() if not obj['required'] and obj['count'] > 0)
+
+        # Weighted score: required=70%, optional=30%
+        required_score = (present_required / total_required * 70) if total_required > 0 else 0
+        optional_score = (optional_present / (len(object_types) - total_required) * 30) if len(object_types) > total_required else 0
+        completeness_score = round(required_score + optional_score)
+
+        # Missing required data
+        missing_required = [
+            {
+                'type': obj_name,
+                'description': obj_info['description'],
+                'collection_command': obj_info['collection_command']
+            }
+            for obj_name, obj_info in object_types.items()
+            if obj_info['required'] and obj_info['count'] == 0
+        ]
+
+        # Analysis capabilities
+        capabilities = {
+            'Port Utilization': {
+                'enabled': len(self._fexes) > 0 and len(self._interfaces) > 0,
+                'reason': 'Missing FEX devices or interfaces' if not (len(self._fexes) > 0) else None
+            },
+            'Topology Mapping': {
+                'enabled': len(self._leafs) > 0,
+                'reason': 'Missing leaf switches' if len(self._leafs) == 0 else None
+            },
+            'EPG Complexity': {
+                'enabled': len(self._epgs) > 0 and len(self._path_attachments) > 0,
+                'reason': 'Missing EPGs or path attachments' if not (len(self._epgs) > 0 and len(self._path_attachments) > 0) else None
+            },
+            'BD-EPG Mapping': {
+                'enabled': len(self._bds) > 0 and len(self._epgs) > 0,
+                'reason': 'Missing bridge domains' if len(self._bds) == 0 else None
+            },
+            'Contract Analysis': {
+                'enabled': len(self._contracts) > 0,
+                'reason': 'Missing contracts' if len(self._contracts) == 0 else None
+            },
+            'VLAN Distribution': {
+                'enabled': len(self._path_attachments) > 0,
+                'reason': 'Missing path attachments' if len(self._path_attachments) == 0 else None
+            },
+            'Migration Planning': {
+                'enabled': len(self._epgs) > 0 and len(self._path_attachments) > 0,
+                'reason': 'Missing EPGs or path attachments' if not (len(self._epgs) > 0 and len(self._path_attachments) > 0) else None
+            },
+            'CMDB Correlation': {
+                'enabled': self._cmdb_records is not None and len(self._cmdb_records) > 0,
+                'reason': 'Missing CMDB data' if not (self._cmdb_records and len(self._cmdb_records) > 0) else None
+            }
+        }
+
+        # Suggestions
+        suggestions = []
+
+        if len(self._bds) == 0:
+            suggestions.append({
+                'text': 'Upload Bridge Domain data to enable BD-EPG mapping analysis',
+                'command': 'moquery -c fvBD -o json > bridge_domains.json'
+            })
+
+        if len(self._contracts) == 0:
+            suggestions.append({
+                'text': 'Upload Contract data to detect inter-tenant dependencies',
+                'command': 'moquery -c vzBrCP -o json > contracts.json'
+            })
+
+        if not self._cmdb_records:
+            suggestions.append({
+                'text': 'Upload CMDB data (CSV) for rack-level correlation and physical location mapping',
+                'command': None
+            })
+
+        if len(self._fexes) == 0:
+            suggestions.append({
+                'text': 'Upload FEX data for port utilization and consolidation analysis',
+                'command': 'moquery -c eqptFex -o json > fex.json'
+            })
+
+        return {
+            'completeness_score': completeness_score,
+            'object_counts': object_types,
+            'missing_required': missing_required,
+            'analysis_capabilities': capabilities,
+            'suggestions': suggestions,
+            'total_objects': len(self._aci_objects) if self._aci_objects else 0,
+            'has_cmdb': self._cmdb_records is not None and len(self._cmdb_records) > 0
+        }

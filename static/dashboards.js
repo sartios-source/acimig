@@ -36,6 +36,7 @@ function initializeDashboards() {
     initializeVLANDashboard();
     initializeComplexityDashboard();
     initializeMigrationDashboard();
+    initializeHierarchyDashboard();
 }
 
 // ===== Tab Navigation =====
@@ -796,6 +797,331 @@ function populateMigrationFlagsList() {
             <div class="flag-recommendation">💡 ${flag.recommendation}</div>
         </div>
     `).join('');
+}
+
+// ===== Hierarchy Dashboard =====
+function initializeHierarchyDashboard() {
+    if (!vizData.device_mapping || !vizData.device_mapping.hierarchy) {
+        console.log('No device mapping data available');
+        return;
+    }
+
+    // Populate tenant filter dropdown
+    const tenantFilter = document.getElementById('hierarchy-tenant-filter');
+    if (tenantFilter) {
+        const tenants = new Set();
+        Object.values(vizData.device_mapping.device_map || {}).forEach(device => {
+            device.tenants.forEach(tenant => tenants.add(tenant));
+        });
+
+        Array.from(tenants).sort().forEach(tenant => {
+            const option = document.createElement('option');
+            option.value = tenant;
+            option.textContent = tenant;
+            tenantFilter.appendChild(option);
+        });
+    }
+
+    console.log('Hierarchy dashboard initialized');
+}
+
+function toggleNode(headerElement) {
+    const contentElement = headerElement.nextElementSibling;
+    const toggleIcon = headerElement.querySelector('.toggle-icon');
+
+    if (contentElement.style.display === 'none') {
+        contentElement.style.display = 'block';
+        toggleIcon.textContent = '▼';
+        headerElement.classList.add('expanded');
+    } else {
+        contentElement.style.display = 'none';
+        toggleIcon.textContent = '▶';
+        headerElement.classList.remove('expanded');
+    }
+}
+
+function toggleExpandAll() {
+    const expandAll = document.getElementById('expand-all');
+    const allNodes = document.querySelectorAll('.hierarchy-node .node-header');
+
+    allNodes.forEach(header => {
+        const contentElement = header.nextElementSibling;
+        const toggleIcon = header.querySelector('.toggle-icon');
+
+        if (expandAll.checked) {
+            contentElement.style.display = 'block';
+            toggleIcon.textContent = '▼';
+            header.classList.add('expanded');
+        } else {
+            contentElement.style.display = 'none';
+            toggleIcon.textContent = '▶';
+            header.classList.remove('expanded');
+        }
+    });
+}
+
+function filterHierarchy() {
+    const leafFilter = document.getElementById('hierarchy-leaf-filter').value;
+    const tenantFilter = document.getElementById('hierarchy-tenant-filter').value;
+    const vlanFilter = document.getElementById('hierarchy-vlan-filter').value.trim();
+    const searchText = document.getElementById('hierarchy-search').value.toLowerCase();
+    const showEmpty = document.getElementById('show-empty-devices').checked;
+
+    // Parse VLAN filter (supports "100" or "100-200")
+    let vlanMin = null, vlanMax = null;
+    if (vlanFilter) {
+        if (vlanFilter.includes('-')) {
+            const parts = vlanFilter.split('-');
+            vlanMin = parseInt(parts[0]);
+            vlanMax = parseInt(parts[1]);
+        } else {
+            vlanMin = vlanMax = parseInt(vlanFilter);
+        }
+    }
+
+    // Filter leaf nodes
+    const leafNodes = document.querySelectorAll('.leaf-node');
+    let visibleCount = 0;
+
+    leafNodes.forEach(leafNode => {
+        const leafId = leafNode.getAttribute('data-leaf-id');
+        const leafTitle = leafNode.querySelector('.node-title').textContent.toLowerCase();
+
+        // Check leaf filter
+        if (leafFilter !== 'all' && leafId !== leafFilter) {
+            leafNode.style.display = 'none';
+            return;
+        }
+
+        // Check search text
+        if (searchText && !leafTitle.includes(searchText)) {
+            let matchFound = false;
+
+            // Check FEX and EPG names
+            const fexNodes = leafNode.querySelectorAll('.fex-node');
+            fexNodes.forEach(fexNode => {
+                const fexTitle = fexNode.querySelector('.node-title').textContent.toLowerCase();
+                if (fexTitle.includes(searchText)) {
+                    matchFound = true;
+                }
+            });
+
+            const epgItems = leafNode.querySelectorAll('.epg-item');
+            epgItems.forEach(epgItem => {
+                const epgName = epgItem.querySelector('.epg-name').textContent.toLowerCase();
+                if (epgName.includes(searchText)) {
+                    matchFound = true;
+                }
+            });
+
+            if (!matchFound) {
+                leafNode.style.display = 'none';
+                return;
+            }
+        }
+
+        // Filter FEX nodes and EPG items within this leaf
+        let hasVisibleContent = false;
+
+        // Filter FEX nodes
+        const fexNodes = leafNode.querySelectorAll('.fex-node');
+        fexNodes.forEach(fexNode => {
+            const epgItems = fexNode.querySelectorAll('.epg-item');
+            let fexHasVisibleEpgs = false;
+
+            epgItems.forEach(epgItem => {
+                const tenant = epgItem.getAttribute('data-tenant');
+                const vlan = epgItem.getAttribute('data-vlan');
+                const epgName = epgItem.querySelector('.epg-name').textContent.toLowerCase();
+
+                let visible = true;
+
+                // Apply tenant filter
+                if (tenantFilter !== 'all' && tenant !== tenantFilter) {
+                    visible = false;
+                }
+
+                // Apply VLAN filter
+                if (vlanMin !== null && vlan && vlan !== 'None') {
+                    const vlanNum = parseInt(vlan);
+                    if (vlanNum < vlanMin || vlanNum > vlanMax) {
+                        visible = false;
+                    }
+                }
+
+                // Apply search filter
+                if (searchText && !epgName.includes(searchText)) {
+                    visible = false;
+                }
+
+                epgItem.style.display = visible ? 'flex' : 'none';
+                if (visible) {
+                    fexHasVisibleEpgs = true;
+                    hasVisibleContent = true;
+                }
+            });
+
+            // Show/hide FEX based on whether it has visible EPGs
+            if (!showEmpty && !fexHasVisibleEpgs) {
+                fexNode.style.display = 'none';
+            } else {
+                fexNode.style.display = 'block';
+                hasVisibleContent = true;
+            }
+        });
+
+        // Filter direct EPG items on leaf
+        const directEpgs = leafNode.querySelectorAll('.epg-section .epg-item');
+        directEpgs.forEach(epgItem => {
+            const tenant = epgItem.getAttribute('data-tenant');
+            const vlan = epgItem.getAttribute('data-vlan');
+            const epgName = epgItem.querySelector('.epg-name').textContent.toLowerCase();
+
+            let visible = true;
+
+            if (tenantFilter !== 'all' && tenant !== tenantFilter) {
+                visible = false;
+            }
+
+            if (vlanMin !== null && vlan && vlan !== 'None') {
+                const vlanNum = parseInt(vlan);
+                if (vlanNum < vlanMin || vlanNum > vlanMax) {
+                    visible = false;
+                }
+            }
+
+            if (searchText && !epgName.includes(searchText)) {
+                visible = false;
+            }
+
+            epgItem.style.display = visible ? 'flex' : 'none';
+            if (visible) {
+                hasVisibleContent = true;
+            }
+        });
+
+        // Show/hide leaf based on content
+        if (!showEmpty && !hasVisibleContent) {
+            leafNode.style.display = 'none';
+        } else {
+            leafNode.style.display = 'block';
+            visibleCount++;
+        }
+    });
+
+    // Filter the stats table
+    const tableRows = document.querySelectorAll('.stats-table tbody tr');
+    tableRows.forEach(row => {
+        const deviceId = row.querySelector('td:first-child strong').textContent;
+        const searchable = row.textContent.toLowerCase();
+
+        let visible = true;
+
+        if (searchText && !searchable.includes(searchText)) {
+            visible = false;
+        }
+
+        row.style.display = visible ? 'table-row' : 'none';
+    });
+
+    console.log(`Filtered hierarchy: ${visibleCount} leafs visible`);
+}
+
+function scrollToDevice(deviceId) {
+    // Find the device in the hierarchy
+    const deviceNode = document.querySelector(`[data-leaf-id="${deviceId}"], [data-fex-id="${deviceId}"]`);
+
+    if (deviceNode) {
+        // Expand parent nodes
+        let parent = deviceNode.parentElement;
+        while (parent) {
+            if (parent.classList && parent.classList.contains('node-content')) {
+                parent.style.display = 'block';
+                const header = parent.previousElementSibling;
+                if (header) {
+                    const toggleIcon = header.querySelector('.toggle-icon');
+                    if (toggleIcon) {
+                        toggleIcon.textContent = '▼';
+                    }
+                    header.classList.add('expanded');
+                }
+            }
+            parent = parent.parentElement;
+        }
+
+        // Scroll to device
+        deviceNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Highlight briefly
+        deviceNode.classList.add('highlight');
+        setTimeout(() => {
+            deviceNode.classList.remove('highlight');
+        }, 2000);
+    }
+}
+
+function exportHierarchyData() {
+    if (!vizData.device_mapping) {
+        alert('No device mapping data available to export');
+        return;
+    }
+
+    // Build CSV data
+    const rows = [
+        ['Device Type', 'Device ID', 'EPG Name', 'Tenant', 'VLAN', 'EPG DN']
+    ];
+
+    vizData.device_mapping.hierarchy.forEach(leaf => {
+        // Direct EPGs on leaf
+        if (leaf.direct_epgs) {
+            leaf.direct_epgs.forEach(epg => {
+                rows.push([
+                    'Leaf',
+                    `leaf-${leaf.leaf_id}`,
+                    epg.epg,
+                    epg.tenant,
+                    epg.vlan || 'N/A',
+                    epg.epg_dn || 'N/A'
+                ]);
+            });
+        }
+
+        // EPGs on FEX
+        if (leaf.fex_devices) {
+            leaf.fex_devices.forEach(fex => {
+                if (fex.epgs) {
+                    fex.epgs.forEach(epg => {
+                        rows.push([
+                            'FEX',
+                            `fex-${fex.fex_id}`,
+                            epg.epg,
+                            epg.tenant,
+                            epg.vlan || 'N/A',
+                            epg.epg_dn || 'N/A'
+                        ]);
+                    });
+                }
+            });
+        }
+    });
+
+    // Convert to CSV string
+    const csvContent = rows.map(row =>
+        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+
+    // Download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `device_hierarchy_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    console.log(`Exported ${rows.length - 1} records to CSV`);
 }
 
 // Cleanup on page unload
