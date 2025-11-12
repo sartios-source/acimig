@@ -2,19 +2,21 @@
 
 {% block content %}
 
-<!-- Hero Section -->
+<!-- Hero Section with Animated Network Topology -->
 <div class="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 rounded-2xl shadow-2xl mb-8">
-    <div class="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]"></div>
-    <div class="relative px-8 py-16 sm:px-12 sm:py-20">
+    <!-- Animated Network Canvas Background -->
+    <canvas id="network-canvas" class="absolute inset-0 w-full h-full"></canvas>
+
+    <div class="relative px-8 py-16 sm:px-12 sm:py-20 z-10">
         <div class="max-w-3xl">
-            <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
+            <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl animate-fade-in">
                 ACI Analysis Tool
             </h1>
-            <p class="mt-6 text-xl text-primary-100 max-w-2xl">
+            <p class="mt-6 text-xl text-primary-100 max-w-2xl animate-fade-in-delay">
                 Professional network fabric analysis for onboarding, offboarding, and EVPN migration.
                 Analyze, visualize, and optimize your Cisco ACI infrastructure with confidence.
             </p>
-            <div class="mt-10 flex items-center gap-x-6">
+            <div class="mt-10 flex items-center gap-x-6 animate-fade-in-delay-2">
                 <a href="{{ url_for('analyze') }}" class="rounded-lg bg-white px-6 py-3 text-sm font-semibold text-primary-600 shadow-lg hover:bg-primary-50 transition-all duration-200 hover:shadow-xl hover:scale-105">
                     Start Analyzing
                     <svg class="inline-block ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -29,9 +31,71 @@
     </div>
 </div>
 
+<!-- Animated Statistics Section -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+    <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-105">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600 mb-1">EPGs Analyzed</p>
+                <p class="text-3xl font-bold text-primary-600 counter" data-target="1000">0</p>
+            </div>
+            <div class="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                <svg class="h-6 w-6 text-blue-600 animate-pulse-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-105">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600 mb-1">FEX Devices</p>
+                <p class="text-3xl font-bold text-green-600 counter" data-target="250">0</p>
+            </div>
+            <div class="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
+                <svg class="h-6 w-6 text-green-600 animate-bounce-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-105">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600 mb-1">Migrations</p>
+                <p class="text-3xl font-bold text-purple-600 counter" data-target="150">0</p>
+            </div>
+            <div class="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                <svg class="h-6 w-6 text-purple-600 animate-spin-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-105">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600 mb-1">Uptime</p>
+                <p class="text-3xl font-bold text-yellow-600"><span class="counter" data-target="99">0</span>.<span class="counter" data-target="9">0</span>%</p>
+            </div>
+            <div class="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
+                <svg class="h-6 w-6 text-yellow-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Mode Selection Cards -->
 <div class="mb-12">
-    <h2 class="text-2xl font-bold text-gray-900 mb-6">Select Your Mode</h2>
+    <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+        <span class="h-1 w-8 bg-primary-600 mr-4 rounded-full"></span>
+        Select Your Mode
+    </h2>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
         <!-- Offboard Mode -->
@@ -39,13 +103,13 @@
             <div class="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl opacity-0 group-hover:opacity-100 blur transition duration-300 {% if mode == 'offboard' %}opacity-75{% endif %}"></div>
             <div class="relative bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all duration-300 {% if mode == 'offboard' %}ring-2 ring-primary-600{% endif %}">
                 <div class="flex items-center justify-between mb-4">
-                    <div class="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <div class="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300">
                         <svg class="h-7 w-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                         </svg>
                     </div>
                     {% if mode == 'offboard' %}
-                    <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+                    <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 animate-pulse">
                         Active
                     </span>
                     {% endif %}
@@ -74,13 +138,13 @@
             <div class="absolute -inset-0.5 bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl opacity-0 group-hover:opacity-100 blur transition duration-300 {% if mode == 'onboard' %}opacity-75{% endif %}"></div>
             <div class="relative bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all duration-300 {% if mode == 'onboard' %}ring-2 ring-green-600{% endif %}">
                 <div class="flex items-center justify-between mb-4">
-                    <div class="h-12 w-12 rounded-xl bg-green-100 flex items-center justify-center">
+                    <div class="h-12 w-12 rounded-xl bg-green-100 flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300">
                         <svg class="h-7 w-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                         </svg>
                     </div>
                     {% if mode == 'onboard' %}
-                    <span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                    <span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 animate-pulse">
                         Active
                     </span>
                     {% endif %}
@@ -109,13 +173,13 @@
             <div class="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl opacity-0 group-hover:opacity-100 blur transition duration-300 {% if mode == 'evpn' %}opacity-75{% endif %}"></div>
             <div class="relative bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all duration-300 {% if mode == 'evpn' %}ring-2 ring-purple-600{% endif %}">
                 <div class="flex items-center justify-between mb-4">
-                    <div class="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                    <div class="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300">
                         <svg class="h-7 w-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                         </svg>
                     </div>
                     {% if mode == 'evpn' %}
-                    <span class="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700">
+                    <span class="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700 animate-pulse">
                         Active
                     </span>
                     {% endif %}
@@ -142,8 +206,11 @@
 <div class="bg-white rounded-2xl shadow-lg p-8">
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h2 class="text-2xl font-bold text-gray-900">Fabric Manager</h2>
-            <p class="mt-1 text-sm text-gray-500">Manage your network fabrics and datasets</p>
+            <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+                <span class="h-1 w-8 bg-primary-600 mr-4 rounded-full"></span>
+                Fabric Manager
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 ml-12">Manage your network fabrics and datasets</p>
         </div>
         <button onclick="showCreateFabricDialog()" class="inline-flex items-center px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
             <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,7 +223,7 @@
     {% if fabrics %}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for fabric in fabrics %}
-        <div class="group relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 hover:shadow-lg transition-all duration-200 border border-gray-200 hover:border-primary-300">
+        <div class="group relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 hover:shadow-lg transition-all duration-200 border border-gray-200 hover:border-primary-300 animate-slide-in" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
             <div class="flex items-start justify-between mb-4">
                 <div class="flex-1">
                     <h3 class="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
@@ -190,7 +257,7 @@
     </div>
     {% else %}
     <div class="text-center py-12">
-        <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="mx-auto h-16 w-16 text-gray-400 animate-bounce-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
         </svg>
         <h3 class="mt-4 text-lg font-medium text-gray-900">No fabrics yet</h3>
@@ -209,7 +276,7 @@
 
 <!-- Create Fabric Modal -->
 <div id="create-fabric-dialog" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity duration-300">
-    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 transform transition-all duration-300 animate-slide-down">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 transform transition-all duration-300">
         <div class="flex items-center justify-between mb-6">
             <h3 class="text-2xl font-bold text-gray-900">Create New Fabric</h3>
             <button onclick="hideCreateFabricDialog()" class="text-gray-400 hover:text-gray-600 transition-colors">
@@ -240,10 +307,249 @@
     </div>
 </div>
 
+<style>
+/* Custom Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.8s ease-out;
+}
+
+.animate-fade-in-delay {
+    animation: fadeIn 0.8s ease-out 0.2s both;
+}
+
+.animate-fade-in-delay-2 {
+    animation: fadeIn 0.8s ease-out 0.4s both;
+}
+
+.animate-slide-in {
+    animation: slideIn 0.5s ease-out both;
+}
+
+.animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-bounce-slow {
+    animation: bounce 2s infinite;
+}
+
+.animate-spin-slow {
+    animation: spin 6s linear infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .7; }
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+        animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+    50% {
+        transform: translateY(-10px);
+        animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+    }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Network Topology Animation
+const canvas = document.getElementById('network-canvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// Network nodes
+class Node {
+    constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.type = type;
+        this.radius = type === 'core' ? 8 : 5;
+        this.vx = (Math.random() - 0.5) * 0.5;
+        this.vy = (Math.random() - 0.5) * 0.5;
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Bounce off edges
+        if (this.x < this.radius || this.x > canvas.width - this.radius) this.vx *= -1;
+        if (this.y < this.radius || this.y > canvas.height - this.radius) this.vy *= -1;
+    }
+
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.type === 'core' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.6)';
+        ctx.fill();
+
+        // Glow effect
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+}
+
+// Create network nodes
+const nodes = [];
+const coreNodes = 4;
+const edgeNodes = 20;
+
+// Core nodes (larger, center-focused)
+for (let i = 0; i < coreNodes; i++) {
+    const angle = (i / coreNodes) * Math.PI * 2;
+    const radius = Math.min(canvas.width, canvas.height) * 0.2;
+    nodes.push(new Node(
+        canvas.width / 2 + Math.cos(angle) * radius,
+        canvas.height / 2 + Math.sin(angle) * radius,
+        'core'
+    ));
+}
+
+// Edge nodes (smaller, distributed)
+for (let i = 0; i < edgeNodes; i++) {
+    nodes.push(new Node(
+        Math.random() * canvas.width,
+        Math.random() * canvas.height,
+        'edge'
+    ));
+}
+
+// Particle for data flow
+class Particle {
+    constructor(start, end) {
+        this.start = start;
+        this.end = end;
+        this.progress = 0;
+        this.speed = 0.01 + Math.random() * 0.02;
+    }
+
+    update() {
+        this.progress += this.speed;
+        if (this.progress > 1) this.progress = 0;
+    }
+
+    draw() {
+        const x = this.start.x + (this.end.x - this.start.x) * this.progress;
+        const y = this.start.y + (this.end.y - this.start.y) * this.progress;
+
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.fill();
+
+        // Trail
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+}
+
+// Create particles for data flow
+const particles = [];
+for (let i = 0; i < coreNodes; i++) {
+    for (let j = 0; j < 3; j++) {
+        const randomEdge = nodes[coreNodes + Math.floor(Math.random() * edgeNodes)];
+        particles.push(new Particle(nodes[i], randomEdge));
+    }
+}
+
+// Animation loop
+function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw connections
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+            const dx = nodes[i].x - nodes[j].x;
+            const dy = nodes[i].y - nodes[j].y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 150) {
+                ctx.beginPath();
+                ctx.moveTo(nodes[i].x, nodes[i].y);
+                ctx.lineTo(nodes[j].x, nodes[j].y);
+                ctx.globalAlpha = 1 - (distance / 150);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+        }
+    }
+
+    // Update and draw particles
+    particles.forEach(particle => {
+        particle.update();
+        particle.draw();
+    });
+
+    // Update and draw nodes
+    nodes.forEach(node => {
+        node.update();
+        node.draw();
+    });
+
+    requestAnimationFrame(animate);
+}
+animate();
+
+// Counter Animation
+function animateCounter(element) {
+    const target = parseInt(element.getAttribute('data-target'));
+    const duration = 2000;
+    const step = target / (duration / 16);
+    let current = 0;
+
+    const timer = setInterval(() => {
+        current += step;
+        if (current >= target) {
+            element.textContent = target;
+            clearInterval(timer);
+        } else {
+            element.textContent = Math.floor(current);
+        }
+    }, 16);
+}
+
+// Start counters when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    const counters = document.querySelectorAll('.counter');
+    setTimeout(() => {
+        counters.forEach(counter => animateCounter(counter));
+    }, 500);
+});
+
+// Fabric Management Functions
 function showCreateFabricDialog() {
     const dialog = document.getElementById('create-fabric-dialog');
     dialog.classList.remove('hidden');
