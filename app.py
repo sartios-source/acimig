@@ -194,15 +194,15 @@ def health_check():
 @app.route('/')
 def index():
     """Landing page with mode selection and recent fabrics."""
-    mode = session.get('mode', 'offboard')
+    mode = session.get('mode', 'evpn')
     fabrics = fm.list_fabrics()
     return render_template('index.html', mode=mode, fabrics=fabrics)
 
 
 @app.route('/set_mode/<mode>')
 def set_mode(mode):
-    """Toggle between onboard, offboard, and evpn modes."""
-    if mode in ['onboard', 'offboard', 'evpn']:
+    """Toggle between onboard and evpn modes."""
+    if mode in ['onboard', 'evpn']:
         session['mode'] = mode
     return redirect(url_for('index'))
 
@@ -210,7 +210,7 @@ def set_mode(mode):
 @app.route('/analyze')
 def analyze():
     """Analysis page - upload and validate datasets with enhanced UI."""
-    mode = session.get('mode', 'offboard')
+    mode = session.get('mode', 'evpn')
     current_fabric = session.get('current_fabric')
 
     datasets = []
@@ -360,7 +360,7 @@ def upload():
 @app.route('/visualize')
 def visualize():
     """Visualization page - interactive dashboards with charts and graphs."""
-    mode = session.get('mode', 'offboard')
+    mode = session.get('mode', 'evpn')
     current_fabric = session.get('current_fabric')
 
     viz_data = {}
@@ -421,7 +421,7 @@ def visualize():
 @app.route('/plan')
 def plan():
     """Planning page - recommendations and what-if scenarios."""
-    mode = session.get('mode', 'offboard')
+    mode = session.get('mode', 'evpn')
     current_fabric = session.get('current_fabric')
 
     plan_data = {}
@@ -443,7 +443,7 @@ def plan():
 @app.route('/report')
 def report():
     """Report generation page - HTML, Markdown, CSV exports."""
-    mode = session.get('mode', 'offboard')
+    mode = session.get('mode', 'evpn')
     current_fabric = session.get('current_fabric')
 
     report_data = {}
@@ -460,7 +460,7 @@ def report():
 @app.route('/evpn_migration')
 def evpn_migration_page():
     """EVPN migration planning and configuration generation."""
-    mode = session.get('mode', 'offboard')
+    mode = session.get('mode', 'evpn')
     current_fabric = session.get('current_fabric')
 
     evpn_data = {}
@@ -523,7 +523,7 @@ def download_report(format):
         return "No fabric selected", 400
 
     fabric_data = fm.get_fabric_data(current_fabric)
-    mode = session.get('mode', 'offboard')
+    mode = session.get('mode', 'evpn')
 
     if format == 'markdown':
         content = reporting.generate_markdown_report(fabric_data, mode)
@@ -557,8 +557,94 @@ def download_offline_collector():
 @app.route('/help')
 def help_page():
     """In-app documentation and ACI object reference."""
-    mode = session.get('mode', 'offboard')
+    mode = session.get('mode', 'evpn')
     return render_template('help.html', mode=mode)
+
+
+# ==================== Advanced Migration Analysis API ====================
+
+@app.route('/api/analyze/vpc/<fabric_id>')
+def analyze_vpc(fabric_id):
+    """VPC and port-channel configuration analysis for migration."""
+    try:
+        fabric_id = validate_fabric_name(fabric_id)
+        fabric_data = fm.get_fabric_data(fabric_id)
+        analyzer = engine.ACIAnalyzer(fabric_data)
+        results = analyzer.analyze_vpc_configuration()
+        return jsonify(results)
+    except Exception as e:
+        app.logger.error(f"VPC analysis failed: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analyze/contracts/<fabric_id>')
+def analyze_contracts(fabric_id):
+    """Contract-to-ACL translation analysis."""
+    try:
+        fabric_id = validate_fabric_name(fabric_id)
+        fabric_data = fm.get_fabric_data(fabric_id)
+        analyzer = engine.ACIAnalyzer(fabric_data)
+        results = analyzer.analyze_contract_to_acl_translation()
+        return jsonify(results)
+    except Exception as e:
+        app.logger.error(f"Contract analysis failed: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analyze/l3out/<fabric_id>')
+def analyze_l3out(fabric_id):
+    """L3Out and external connectivity analysis."""
+    try:
+        fabric_id = validate_fabric_name(fabric_id)
+        fabric_data = fm.get_fabric_data(fabric_id)
+        analyzer = engine.ACIAnalyzer(fabric_data)
+        results = analyzer.analyze_l3out_connectivity()
+        return jsonify(results)
+    except Exception as e:
+        app.logger.error(f"L3Out analysis failed: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analyze/vlans/<fabric_id>')
+def analyze_vlans(fabric_id):
+    """VLAN pool and namespace management analysis."""
+    try:
+        fabric_id = validate_fabric_name(fabric_id)
+        fabric_data = fm.get_fabric_data(fabric_id)
+        analyzer = engine.ACIAnalyzer(fabric_data)
+        results = analyzer.analyze_vlan_pools()
+        return jsonify(results)
+    except Exception as e:
+        app.logger.error(f"VLAN analysis failed: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analyze/physical/<fabric_id>')
+def analyze_physical(fabric_id):
+    """Physical connectivity and interface policy analysis."""
+    try:
+        fabric_id = validate_fabric_name(fabric_id)
+        fabric_data = fm.get_fabric_data(fabric_id)
+        analyzer = engine.ACIAnalyzer(fabric_data)
+        results = analyzer.analyze_physical_connectivity()
+        return jsonify(results)
+    except Exception as e:
+        app.logger.error(f"Physical connectivity analysis failed: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/migration-assessment/<fabric_id>')
+def migration_assessment(fabric_id):
+    """Comprehensive migration readiness assessment."""
+    try:
+        fabric_id = validate_fabric_name(fabric_id)
+        fabric_data = fm.get_fabric_data(fabric_id)
+        analyzer = engine.ACIAnalyzer(fabric_data)
+        assessment = analyzer.generate_complete_migration_assessment()
+        return jsonify(assessment)
+    except Exception as e:
+        app.logger.error(f"Migration assessment failed: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 
 # Fabric Management API

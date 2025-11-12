@@ -1707,3 +1707,232 @@ class ACIAnalyzer:
             'total_objects': len(self._aci_objects) if self._aci_objects else 0,
             'has_cmdb': self._cmdb_records is not None and len(self._cmdb_records) > 0
         }
+
+    # ==================== Advanced Migration Analysis Methods ====================
+    # These methods use the new analysis modules for complete ACI migration
+
+    def analyze_vpc_configuration(self) -> Dict[str, Any]:
+        """
+        Analyze VPC and port-channel configurations for migration.
+
+        Returns comprehensive VPC topology, port-channel details, dual-homed endpoints,
+        and ESI mapping recommendations for EVPN migration.
+        """
+        self._load_data()
+
+        try:
+            from .vpc_analysis import VPCAnalyzer
+            analyzer = VPCAnalyzer(self._aci_objects)
+            return analyzer.get_summary()
+        except Exception as e:
+            logger.error(f"VPC analysis failed: {str(e)}")
+            return {'error': str(e)}
+
+    def analyze_contract_to_acl_translation(self) -> Dict[str, Any]:
+        """
+        Translate ACI contracts to traditional ACLs for non-ACI platforms.
+
+        Returns contract analysis, ACL translations, and multi-vendor ACL configurations.
+        """
+        self._load_data()
+
+        try:
+            from .contract_translation import ContractTranslator
+            translator = ContractTranslator(self._aci_objects)
+            return translator.get_summary()
+        except Exception as e:
+            logger.error(f"Contract translation failed: {str(e)}")
+            return {'error': str(e)}
+
+    def analyze_l3out_connectivity(self) -> Dict[str, Any]:
+        """
+        Analyze L3Out configurations and external connectivity.
+
+        Returns L3Out inventory, BGP/OSPF configurations, border leaf identification,
+        and migration recommendations for external connectivity.
+        """
+        self._load_data()
+
+        try:
+            from .l3out_analysis import L3OutAnalyzer
+            analyzer = L3OutAnalyzer(self._aci_objects)
+            return analyzer.get_summary()
+        except Exception as e:
+            logger.error(f"L3Out analysis failed: {str(e)}")
+            return {'error': str(e)}
+
+    def analyze_vlan_pools(self) -> Dict[str, Any]:
+        """
+        Analyze VLAN pool configurations and namespace management.
+
+        Returns VLAN pool inventory, usage analysis, conflict detection,
+        and VLAN migration planning recommendations.
+        """
+        self._load_data()
+
+        try:
+            from .vlan_pool_analysis import VLANPoolAnalyzer
+            analyzer = VLANPoolAnalyzer(self._aci_objects)
+            return analyzer.get_summary()
+        except Exception as e:
+            logger.error(f"VLAN pool analysis failed: {str(e)}")
+            return {'error': str(e)}
+
+    def analyze_physical_connectivity(self) -> Dict[str, Any]:
+        """
+        Analyze physical connectivity and interface policies.
+
+        Returns interface inventory, policy group analysis, neighbor discovery,
+        and cabling migration plan.
+        """
+        self._load_data()
+
+        try:
+            from .physical_connectivity import PhysicalConnectivityAnalyzer
+            analyzer = PhysicalConnectivityAnalyzer(self._aci_objects)
+            return analyzer.get_summary()
+        except Exception as e:
+            logger.error(f"Physical connectivity analysis failed: {str(e)}")
+            return {'error': str(e)}
+
+    def generate_complete_migration_assessment(self) -> Dict[str, Any]:
+        """
+        Generate comprehensive migration assessment combining all analysis modules.
+
+        Returns unified migration readiness report with recommendations across
+        all dimensions: VPC/port-channels, contracts, L3Out, VLANs, and physical connectivity.
+        """
+        self._load_data()
+
+        assessment = {
+            'summary': {
+                'fabric_name': self.fabric_data.get('name', 'Unknown'),
+                'assessment_date': self.fabric_data.get('uploaded_at', 'Unknown'),
+                'total_objects': len(self._aci_objects) if self._aci_objects else 0
+            },
+            'vpc_assessment': {},
+            'contract_assessment': {},
+            'l3out_assessment': {},
+            'vlan_assessment': {},
+            'physical_assessment': {},
+            'overall_readiness': {},
+            'critical_issues': [],
+            'recommendations': []
+        }
+
+        # Run all analyses
+        try:
+            assessment['vpc_assessment'] = self.analyze_vpc_configuration()
+        except Exception as e:
+            logger.error(f"VPC assessment failed: {str(e)}")
+            assessment['critical_issues'].append({
+                'category': 'vpc',
+                'message': 'VPC analysis failed',
+                'details': str(e)
+            })
+
+        try:
+            assessment['contract_assessment'] = self.analyze_contract_to_acl_translation()
+        except Exception as e:
+            logger.error(f"Contract assessment failed: {str(e)}")
+            assessment['critical_issues'].append({
+                'category': 'contracts',
+                'message': 'Contract translation failed',
+                'details': str(e)
+            })
+
+        try:
+            assessment['l3out_assessment'] = self.analyze_l3out_connectivity()
+        except Exception as e:
+            logger.error(f"L3Out assessment failed: {str(e)}")
+            assessment['critical_issues'].append({
+                'category': 'l3out',
+                'message': 'L3Out analysis failed',
+                'details': str(e)
+            })
+
+        try:
+            assessment['vlan_assessment'] = self.analyze_vlan_pools()
+        except Exception as e:
+            logger.error(f"VLAN assessment failed: {str(e)}")
+            assessment['critical_issues'].append({
+                'category': 'vlan',
+                'message': 'VLAN analysis failed',
+                'details': str(e)
+            })
+
+        try:
+            assessment['physical_assessment'] = self.analyze_physical_connectivity()
+        except Exception as e:
+            logger.error(f"Physical assessment failed: {str(e)}")
+            assessment['critical_issues'].append({
+                'category': 'physical',
+                'message': 'Physical connectivity analysis failed',
+                'details': str(e)
+            })
+
+        # Calculate overall readiness score
+        readiness_scores = []
+
+        # VPC readiness (if available)
+        if 'migration_readiness' in assessment.get('vpc_assessment', {}):
+            vpc_readiness = assessment['vpc_assessment']['migration_readiness']
+            if isinstance(vpc_readiness, dict) and 'percentage' in vpc_readiness:
+                readiness_scores.append(vpc_readiness['percentage'])
+
+        # Contract translation complexity
+        if 'migration_readiness' in assessment.get('contract_assessment', {}):
+            contract_readiness = assessment['contract_assessment']['migration_readiness']
+            if isinstance(contract_readiness, dict):
+                # Convert contracts to readiness score (inverse of complexity)
+                avg_rules = contract_readiness.get('average_rules_per_contract', 0)
+                score = 100 - min(avg_rules * 2, 50)  # Cap at 50% penalty
+                readiness_scores.append(score)
+
+        # L3Out complexity
+        if 'migration_readiness' in assessment.get('l3out_assessment', {}):
+            l3out_readiness = assessment['l3out_assessment']['migration_readiness']
+            if isinstance(l3out_readiness, dict) and 'percentage' in l3out_readiness:
+                readiness_scores.append(l3out_readiness['percentage'])
+
+        # VLAN migration complexity
+        if 'migration_summary' in assessment.get('vlan_assessment', {}):
+            vlan_migration = assessment['vlan_assessment']['migration_summary']
+            if isinstance(vlan_migration, dict):
+                risk_level = vlan_migration.get('risk_level', 'medium')
+                score = {'low': 90, 'medium': 60, 'high': 30}.get(risk_level, 50)
+                readiness_scores.append(score)
+
+        # Calculate overall score
+        overall_score = sum(readiness_scores) / len(readiness_scores) if readiness_scores else 50
+
+        assessment['overall_readiness'] = {
+            'score': round(overall_score, 2),
+            'level': 'high' if overall_score >= 80 else 'medium' if overall_score >= 50 else 'low',
+            'component_scores': {
+                'vpc': readiness_scores[0] if len(readiness_scores) > 0 else 0,
+                'contracts': readiness_scores[1] if len(readiness_scores) > 1 else 0,
+                'l3out': readiness_scores[2] if len(readiness_scores) > 2 else 0,
+                'vlan': readiness_scores[3] if len(readiness_scores) > 3 else 0
+            },
+            'ready_for_migration': overall_score >= 70
+        }
+
+        # Generate unified recommendations
+        if overall_score < 70:
+            assessment['recommendations'].append({
+                'priority': 'critical',
+                'category': 'overall',
+                'title': 'Additional data collection required before migration',
+                'details': f'Overall readiness score: {overall_score:.1f}%. Aim for 70%+ before proceeding.'
+            })
+
+        if len(assessment['critical_issues']) > 0:
+            assessment['recommendations'].append({
+                'priority': 'critical',
+                'category': 'data_collection',
+                'title': 'Resolve analysis failures',
+                'details': f'{len(assessment["critical_issues"])} analysis modules failed. Check data completeness.'
+            })
+
+        return assessment

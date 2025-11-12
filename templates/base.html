@@ -170,14 +170,11 @@
                 <div class="flex items-center">
                     <div class="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
                         <span class="text-xs font-medium text-gray-600 px-2">Mode:</span>
-                        <a href="{{ url_for('set_mode', mode='offboard') }}" class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if mode == 'offboard' %}bg-white text-primary-600 shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
-                            Offboard
+                        <a href="{{ url_for('set_mode', mode='evpn') }}" class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if mode == 'evpn' %}bg-white text-purple-600 shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
+                            EVPN Migration
                         </a>
                         <a href="{{ url_for('set_mode', mode='onboard') }}" class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if mode == 'onboard' %}bg-white text-green-600 shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
                             Onboard
-                        </a>
-                        <a href="{{ url_for('set_mode', mode='evpn') }}" class="mode-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if mode == 'evpn' %}bg-white text-purple-600 shadow-sm{% else %}text-gray-600 hover:text-gray-900{% endif %}">
-                            EVPN
                         </a>
                     </div>
                 </div>

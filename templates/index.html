@@ -13,7 +13,7 @@
                 ACI Analysis Tool
             </h1>
             <p class="mt-6 text-xl text-primary-100 max-w-2xl animate-fade-in-delay">
-                Professional network fabric analysis for onboarding, offboarding, and EVPN migration.
+                Professional network fabric analysis for onboarding, EVPN/VXLAN migration, and complete ACI migration planning.
                 Analyze, visualize, and optimize your Cisco ACI infrastructure with confidence.
             </p>
             <div class="mt-10 flex items-center gap-x-6 animate-fade-in-delay-2">
@@ -96,34 +96,34 @@
         <span class="h-1 w-8 bg-primary-600 mr-4 rounded-full"></span>
         Select Your Mode
     </h2>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        <!-- Offboard Mode -->
+        <!-- EVPN/VXLAN Migration Mode -->
         <div class="relative group">
-            <div class="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl opacity-0 group-hover:opacity-100 blur transition duration-300 {% if mode == 'offboard' %}opacity-75{% endif %}"></div>
-            <div class="relative bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all duration-300 {% if mode == 'offboard' %}ring-2 ring-primary-600{% endif %}">
+            <div class="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl opacity-0 group-hover:opacity-100 blur transition duration-300 {% if mode == 'evpn' %}opacity-75{% endif %}"></div>
+            <div class="relative bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all duration-300 {% if mode == 'evpn' %}ring-2 ring-purple-600{% endif %}">
                 <div class="flex items-center justify-between mb-4">
-                    <div class="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300">
-                        <svg class="h-7 w-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    <div class="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300">
+                        <svg class="h-7 w-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                         </svg>
                     </div>
-                    {% if mode == 'offboard' %}
-                    <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 animate-pulse">
+                    {% if mode == 'evpn' %}
+                    <span class="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700 animate-pulse">
                         Active
                     </span>
                     {% endif %}
                 </div>
-                <h3 class="text-xl font-semibold text-gray-900 mb-3">Offboard Mode</h3>
+                <h3 class="text-xl font-semibold text-gray-900 mb-3">EVPN/VXLAN Migration</h3>
                 <p class="text-gray-600 mb-6 leading-relaxed">
-                    Analyze existing FEX deployments, identify consolidation opportunities, and plan decommissioning with detailed port utilization analytics.
+                    Complete ACI migration analysis with VPC translation, contract-to-ACL conversion, L3Out documentation, and EVPN/VXLAN configuration generation.
                 </p>
-                {% if mode != 'offboard' %}
-                <a href="{{ url_for('set_mode', mode='offboard') }}" class="inline-flex items-center justify-center w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors duration-200">
-                    Switch to Offboard
+                {% if mode != 'evpn' %}
+                <a href="{{ url_for('set_mode', mode='evpn') }}" class="inline-flex items-center justify-center w-full rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-purple-700 transition-colors duration-200">
+                    Switch to EVPN
                 </a>
                 {% else %}
-                <div class="flex items-center justify-center text-sm font-medium text-blue-600">
+                <div class="flex items-center justify-center text-sm font-medium text-purple-600">
                     <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
@@ -164,38 +164,6 @@
                     </svg>
                     Currently Active
                 </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- EVPN Mode -->
-        <div class="relative group">
-            <div class="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl opacity-0 group-hover:opacity-100 blur transition duration-300 {% if mode == 'evpn' %}opacity-75{% endif %}"></div>
-            <div class="relative bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all duration-300 {% if mode == 'evpn' %}ring-2 ring-purple-600{% endif %}">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300">
-                        <svg class="h-7 w-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                        </svg>
-                    </div>
-                    {% if mode == 'evpn' %}
-                    <span class="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700 animate-pulse">
-                        Active
-                    </span>
-                    {% endif %}
-                </div>
-                <h3 class="text-xl font-semibold text-gray-900 mb-3">EVPN Migration</h3>
-                <p class="text-gray-600 mb-6 leading-relaxed">
-                    Migrate from ACI to standards-based EVPN/VXLAN fabric with automated config generation for multiple vendors.
-                </p>
-                {% if mode != 'evpn' %}
-                <a href="{{ url_for('set_mode', mode='evpn') }}" class="inline-flex items-center justify-center w-full rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-purple-700 transition-colors duration-200">
-                    Switch to EVPN
-                </a>
-                {% else %}
-                <a href="{{ url_for('evpn_migration_page') }}" class="inline-flex items-center justify-center w-full rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-purple-700 transition-colors duration-200">
-                    Go to EVPN Migration
-                </a>
                 {% endif %}
             </div>
         </div>
