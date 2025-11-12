@@ -3,276 +3,449 @@
 {% block title %}EVPN Migration - ACI Analysis Tool{% endblock %}
 
 {% block content %}
-<div class="evpn-migration-page">
-    <header class="page-header">
-        <h1>ACI to EVPN Migration</h1>
-        <p>Plan and execute your migration from ACI to standard EVPN/VXLAN fabric</p>
-    </header>
 
-    {% if not current_fabric %}
-    <div class="alert alert-warning">
-        <strong>No fabric selected.</strong> Please return to the <a href="{{ url_for('index') }}">home page</a> and select a fabric.
-    </div>
-    {% else %}
+<!-- Page Header -->
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+        <svg class="h-8 w-8 mr-3 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+        </svg>
+        ACI to EVPN Migration
+    </h1>
+    <p class="mt-2 text-lg text-gray-600">
+        Plan and execute your migration from ACI to standard EVPN/VXLAN fabric
+    </p>
+</div>
 
-    <!-- Platform Selection -->
-    <section class="platform-selection">
-        <h2>Target Platform</h2>
-        <div class="platform-options">
-            <button onclick="selectPlatform('nxos')" class="platform-btn {% if evpn_data.target_platform == 'nxos' %}active{% endif %}">
-                Cisco NX-OS
-            </button>
-            <button onclick="selectPlatform('eos')" class="platform-btn {% if evpn_data.target_platform == 'eos' %}active{% endif %}">
-                Arista EOS
-            </button>
-            <button onclick="selectPlatform('junos')" class="platform-btn {% if evpn_data.target_platform == 'junos' %}active{% endif %}">
-                Juniper Junos
-            </button>
+{% if not current_fabric %}
+<!-- No Fabric Warning -->
+<div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-6">
+    <div class="flex items-start">
+        <svg class="h-6 w-6 text-yellow-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <div>
+            <h3 class="text-lg font-semibold text-yellow-800 mb-2">No Fabric Selected</h3>
+            <p class="text-yellow-700">Please return to the <a href="{{ url_for('index') }}" class="underline hover:text-yellow-900">home page</a> and select a fabric.</p>
         </div>
-    </section>
+    </div>
+</div>
 
-    {% if evpn_data %}
+{% else %}
 
-    <!-- Migration Complexity -->
-    <section class="complexity-section">
-        <h2>Migration Complexity Assessment</h2>
-        <div class="complexity-card complexity-{{ evpn_data.complexity.level }}">
-            <div class="complexity-header">
-                <h3>Complexity Level: {{ evpn_data.complexity.level|upper }}</h3>
-                <span class="complexity-score">Score: {{ evpn_data.complexity.score }}/100</span>
+<!-- Platform Selection -->
+<div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 mb-8">
+    <h2 class="text-2xl font-bold text-gray-900 mb-4">Target Platform</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <button onclick="selectPlatform('nxos')" class="platform-btn group relative overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-6 border-2 {% if evpn_data.target_platform == 'nxos' %}border-blue-500 bg-blue-100{% else %}border-blue-200{% endif %} transition-all duration-200">
+            <div class="flex flex-col items-center text-center">
+                <svg class="h-12 w-12 text-blue-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+                <h3 class="text-lg font-semibold text-gray-900">Cisco NX-OS</h3>
+                <p class="text-sm text-gray-600 mt-2">Nexus 9000 Series</p>
             </div>
-            <div class="complexity-factors">
-                <h4>Complexity Factors:</h4>
-                <ul>
+        </button>
+        <button onclick="selectPlatform('eos')" class="platform-btn group relative overflow-hidden bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 rounded-xl p-6 border-2 {% if evpn_data.target_platform == 'eos' %}border-green-500 bg-green-100{% else %}border-green-200{% endif %} transition-all duration-200">
+            <div class="flex flex-col items-center text-center">
+                <svg class="h-12 w-12 text-green-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+                <h3 class="text-lg font-semibold text-gray-900">Arista EOS</h3>
+                <p class="text-sm text-gray-600 mt-2">Arista 7000 Series</p>
+            </div>
+        </button>
+        <button onclick="selectPlatform('junos')" class="platform-btn group relative overflow-hidden bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 rounded-xl p-6 border-2 {% if evpn_data.target_platform == 'junos' %}border-purple-500 bg-purple-100{% else %}border-purple-200{% endif %} transition-all duration-200">
+            <div class="flex flex-col items-center text-center">
+                <svg class="h-12 w-12 text-purple-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+                <h3 class="text-lg font-semibold text-gray-900">Juniper Junos</h3>
+                <p class="text-sm text-gray-600 mt-2">QFX Series</p>
+            </div>
+        </button>
+    </div>
+</div>
+
+{% if evpn_data %}
+
+<!-- Migration Complexity -->
+<div class="bg-white rounded-xl shadow-lg p-8 border border-gray-100 mb-8">
+    <h2 class="text-2xl font-bold text-gray-900 mb-6">Migration Complexity Assessment</h2>
+
+    <div class="{% if evpn_data.complexity.level == 'low' %}bg-green-50 border-green-200{% elif evpn_data.complexity.level == 'medium' %}bg-yellow-50 border-yellow-200{% else %}bg-red-50 border-red-200{% endif %} border-2 rounded-xl p-6">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h3 class="text-2xl font-bold {% if evpn_data.complexity.level == 'low' %}text-green-900{% elif evpn_data.complexity.level == 'medium' %}text-yellow-900{% else %}text-red-900{% endif %}">
+                    Complexity Level: {{ evpn_data.complexity.level|upper }}
+                </h3>
+            </div>
+            <div class="text-right">
+                <p class="text-sm {% if evpn_data.complexity.level == 'low' %}text-green-700{% elif evpn_data.complexity.level == 'medium' %}text-yellow-700{% else %}text-red-700{% endif %} font-medium">Complexity Score</p>
+                <p class="text-4xl font-bold {% if evpn_data.complexity.level == 'low' %}text-green-900{% elif evpn_data.complexity.level == 'medium' %}text-yellow-900{% else %}text-red-900{% endif %}">
+                    {{ evpn_data.complexity.score }}<span class="text-2xl">/100</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+                <h4 class="text-lg font-semibold {% if evpn_data.complexity.level == 'low' %}text-green-900{% elif evpn_data.complexity.level == 'medium' %}text-yellow-900{% else %}text-red-900{% endif %} mb-3">Complexity Factors:</h4>
+                <ul class="space-y-2">
                     {% for factor in evpn_data.complexity.factors %}
-                    <li>{{ factor }}</li>
+                    <li class="flex items-start">
+                        <svg class="h-5 w-5 {% if evpn_data.complexity.level == 'low' %}text-green-600{% elif evpn_data.complexity.level == 'medium' %}text-yellow-600{% else %}text-red-600{% endif %} mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <span class="{% if evpn_data.complexity.level == 'low' %}text-green-800{% elif evpn_data.complexity.level == 'medium' %}text-yellow-800{% else %}text-red-800{% endif %}">{{ factor }}</span>
+                    </li>
                     {% endfor %}
                 </ul>
             </div>
+
             {% if evpn_data.complexity.risks %}
-            <div class="complexity-risks">
-                <h4>Key Risks:</h4>
-                <ul>
+            <div>
+                <h4 class="text-lg font-semibold {% if evpn_data.complexity.level == 'low' %}text-green-900{% elif evpn_data.complexity.level == 'medium' %}text-yellow-900{% else %}text-red-900{% endif %} mb-3">Key Risks:</h4>
+                <ul class="space-y-2">
                     {% for risk in evpn_data.complexity.risks %}
-                    <li class="risk-item">⚠️ {{ risk }}</li>
+                    <li class="flex items-start">
+                        <svg class="h-5 w-5 text-red-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <span class="{% if evpn_data.complexity.level == 'low' %}text-green-800{% elif evpn_data.complexity.level == 'medium' %}text-yellow-800{% else %}text-red-800{% endif %}">{{ risk }}</span>
+                    </li>
                     {% endfor %}
                 </ul>
             </div>
             {% endif %}
         </div>
-    </section>
+    </div>
+</div>
 
-    <!-- ACI to EVPN Mapping -->
-    <section class="mapping-section">
-        <h2>ACI to EVPN Object Mapping</h2>
+<!-- ACI to EVPN Mapping -->
+<div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-2xl font-bold text-gray-900">ACI to EVPN Object Mapping</h2>
+    </div>
 
-        <div class="mapping-tabs">
-            <button class="tab-btn active" onclick="showMappingTab('l3')">VRFs (L3 VNIs)</button>
-            <button class="tab-btn" onclick="showMappingTab('l2')">Bridge Domains (L2 VNIs)</button>
-            <button class="tab-btn" onclick="showMappingTab('vlans')">EPGs (VLANs)</button>
+    <!-- Mapping Tabs -->
+    <div class="border-b border-gray-200">
+        <div class="flex flex-wrap">
+            <button class="mapping-tab-btn px-6 py-4 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b-2 border-transparent transition-colors active" onclick="showMappingTab('l3')">
+                <svg class="h-5 w-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+                </svg>
+                VRFs (L3 VNIs)
+            </button>
+            <button class="mapping-tab-btn px-6 py-4 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b-2 border-transparent transition-colors" onclick="showMappingTab('l2')">
+                <svg class="h-5 w-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                </svg>
+                Bridge Domains (L2 VNIs)
+            </button>
+            <button class="mapping-tab-btn px-6 py-4 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b-2 border-transparent transition-colors" onclick="showMappingTab('vlans')">
+                <svg class="h-5 w-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                EPGs (VLANs)
+            </button>
         </div>
+    </div>
 
-        <div id="l3-mapping" class="mapping-tab-content active">
-            <h3>VRF to L3 VNI Mapping</h3>
-            <table class="mapping-table">
-                <thead>
-                    <tr>
-                        <th>ACI VRF Name</th>
-                        <th>L3 VNI</th>
-                        <th>Route Distinguisher</th>
-                        <th>Route Target</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for vrf_dn, vrf in evpn_data.mapping.l3_vnis.items() %}
-                    <tr>
-                        <td>{{ vrf.name }}</td>
-                        <td><span class="vni-badge">{{ vrf.l3_vni }}</span></td>
-                        <td>{{ vrf.rd }}</td>
-                        <td>{{ vrf.rt_import }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <div id="l2-mapping" class="mapping-tab-content">
-            <h3>Bridge Domain to L2 VNI Mapping</h3>
-            <table class="mapping-table">
-                <thead>
-                    <tr>
-                        <th>ACI BD Name</th>
-                        <th>L2 VNI</th>
-                        <th>VLAN</th>
-                        <th>VRF</th>
-                        <th>Subnets</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for bd_dn, bd in evpn_data.mapping.l2_vnis.items() %}
-                    <tr>
-                        <td>{{ bd.name }}</td>
-                        <td><span class="vni-badge">{{ bd.l2_vni }}</span></td>
-                        <td><span class="vlan-badge">{{ bd.vlan }}</span></td>
-                        <td>{{ bd.vrf }}</td>
-                        <td>
-                            {% for subnet in bd.subnets %}
-                            <div>{{ subnet.ip }}</div>
-                            {% endfor %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <div id="vlans-mapping" class="mapping-tab-content">
-            <h3>EPG to VLAN Mapping</h3>
-            <table class="mapping-table">
-                <thead>
-                    <tr>
-                        <th>ACI EPG Name</th>
-                        <th>VLAN</th>
-                        <th>L2 VNI</th>
-                        <th>Bridge Domain</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for epg_dn, epg in evpn_data.mapping.vlans.items() %}
-                    <tr>
-                        <td>{{ epg.name }}</td>
-                        <td><span class="vlan-badge">{{ epg.vlan }}</span></td>
-                        <td><span class="vni-badge">{{ epg.l2_vni }}</span></td>
-                        <td>{{ epg.bd }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <!-- Migration Steps -->
-    <section class="steps-section">
-        <h2>Migration Plan</h2>
-        <div class="migration-timeline">
-            {% for step in evpn_data.steps %}
-            <div class="timeline-item phase-{{ step.phase|lower|replace(' ', '-') }}">
-                <div class="timeline-marker">
-                    <span class="step-number">{{ step.step }}</span>
-                </div>
-                <div class="timeline-content">
-                    <div class="step-header">
-                        <h3>{{ step.title }}</h3>
-                        <span class="step-phase">{{ step.phase }}</span>
-                        <span class="step-duration">Duration: {{ step.duration }}</span>
-                        <span class="step-risk risk-{{ step.risk }}">Risk: {{ step.risk|upper }}</span>
-                    </div>
-                    <p class="step-description">{{ step.description }}</p>
-                    <div class="step-tasks">
-                        <h4>Tasks:</h4>
-                        <ul>
-                            {% for task in step.tasks %}
-                            <li>{{ task }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% if step.warnings %}
-                    <div class="step-warnings">
-                        <h4>Warnings:</h4>
-                        {% for warning in step.warnings %}
-                        <p class="warning-text">⚠️ {{ warning }}</p>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </section>
-
-    <!-- Configuration Samples -->
-    <section class="config-section">
-        <h2>EVPN Configuration Samples</h2>
-        <p>Download configuration templates for {{ evpn_data.target_platform|upper }} devices</p>
-
-        <div class="config-downloads">
-            <div class="config-card">
-                <h3>Leaf Switch Configuration</h3>
-                <p>Complete EVPN configuration for leaf/VTEP switches</p>
-                <a href="{{ url_for('download_evpn_config', device_role='leaf_switch', platform=evpn_data.target_platform) }}"
-                   class="btn btn-primary">Download Leaf Config</a>
-            </div>
-            <div class="config-card">
-                <h3>Spine Switch Configuration</h3>
-                <p>BGP route reflector configuration for spine switches</p>
-                <a href="{{ url_for('download_evpn_config', device_role='spine_switch', platform=evpn_data.target_platform) }}"
-                   class="btn btn-primary">Download Spine Config</a>
-            </div>
-            <div class="config-card">
-                <h3>Border Leaf Configuration</h3>
-                <p>Configuration for border leafs with external connectivity</p>
-                <a href="{{ url_for('download_evpn_config', device_role='border_leaf', platform=evpn_data.target_platform) }}"
-                   class="btn btn-primary">Download Border Config</a>
-            </div>
-        </div>
-
-        <div class="config-preview">
-            <h3>Sample Leaf Configuration Preview</h3>
-            <pre class="config-text">{{ evpn_data.config_samples.leaf_switch }}</pre>
-        </div>
-    </section>
-
-    <!-- Validation Checklist -->
-    <section class="validation-section">
-        <h2>Post-Migration Validation Checklist</h2>
-        <div class="validation-categories">
-            {% for category in evpn_data.validation %}
-            <div class="validation-category">
-                <h3>{{ category.category }}</h3>
-                <table class="validation-table">
-                    <thead>
+    <!-- L3 VNI Mapping -->
+    <div id="l3-mapping" class="mapping-tab-content">
+        <div class="p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">VRF to L3 VNI Mapping</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
                         <tr>
-                            <th>Check</th>
-                            <th>Command</th>
-                            <th>Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACI VRF Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">L3 VNI</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Route Distinguisher</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Route Target</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {% for check in category.checks %}
-                        <tr>
-                            <td>{{ check.item }}</td>
-                            <td><code>{{ check.command }}</code></td>
-                            <td><input type="checkbox"></td>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for vrf_dn, vrf in evpn_data.mapping.l3_vnis.items() %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ vrf.name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-medium rounded-full bg-blue-100 text-blue-800">
+                                    VNI {{ vrf.l3_vni }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">{{ vrf.rd }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">{{ vrf.rt_import }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% endfor %}
         </div>
-    </section>
+    </div>
 
-    {% endif %}
-    {% endif %}
+    <!-- L2 VNI Mapping -->
+    <div id="l2-mapping" class="mapping-tab-content" style="display: none;">
+        <div class="p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Bridge Domain to L2 VNI Mapping</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACI BD Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">L2 VNI</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">VLAN</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">VRF</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subnets</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for bd_dn, bd in evpn_data.mapping.l2_vnis.items() %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ bd.name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-medium rounded-full bg-purple-100 text-purple-800">
+                                    VNI {{ bd.l2_vni }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-medium rounded-full bg-green-100 text-green-800">
+                                    VLAN {{ bd.vlan }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ bd.vrf }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">
+                                {% for subnet in bd.subnets %}
+                                <div class="font-mono">{{ subnet.ip }}</div>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- VLAN Mapping -->
+    <div id="vlans-mapping" class="mapping-tab-content" style="display: none;">
+        <div class="p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">EPG to VLAN Mapping</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACI EPG Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">VLAN</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">L2 VNI</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bridge Domain</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for epg_dn, epg in evpn_data.mapping.vlans.items() %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ epg.name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-medium rounded-full bg-green-100 text-green-800">
+                                    VLAN {{ epg.vlan }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-medium rounded-full bg-purple-100 text-purple-800">
+                                    VNI {{ epg.l2_vni }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ epg.bd }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
-{% endblock %}
 
-{% block context_help %}
-<h4>EVPN Migration</h4>
-<p>This workflow helps you migrate from Cisco ACI to a standards-based EVPN/VXLAN fabric.</p>
-<h4>Key Concepts:</h4>
-<ul>
-    <li><strong>L3 VNI:</strong> VRF identifier (typically 50000+)</li>
-    <li><strong>L2 VNI:</strong> BD/VLAN identifier (typically 10000+)</li>
-    <li><strong>Route Target:</strong> BGP EVPN route filtering</li>
-</ul>
-<h4>Migration Phases:</h4>
-<ol>
-    <li>Pre-Migration planning</li>
-    <li>Parallel fabric build</li>
-    <li>Phased workload migration</li>
-    <li>ACI decommission</li>
-</ol>
+<!-- Migration Steps -->
+<div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 mb-8">
+    <h2 class="text-2xl font-bold text-gray-900 mb-6">Migration Plan</h2>
+
+    <div class="space-y-6">
+        {% for step in evpn_data.steps %}
+        <div class="relative pl-8 pb-6 border-l-2 {% if step.risk == 'low' %}border-green-300{% elif step.risk == 'medium' %}border-yellow-300{% else %}border-red-300{% endif %} last:pb-0">
+            <!-- Step Marker -->
+            <div class="absolute left-0 top-0 -translate-x-1/2 w-8 h-8 rounded-full {% if step.risk == 'low' %}bg-green-500{% elif step.risk == 'medium' %}bg-yellow-500{% else %}bg-red-500{% endif %} flex items-center justify-center text-white font-bold text-sm">
+                {{ step.step }}
+            </div>
+
+            <!-- Step Content -->
+            <div class="bg-gray-50 rounded-lg p-6">
+                <div class="flex flex-wrap items-center gap-3 mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">{{ step.title }}</h3>
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{{ step.phase }}</span>
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-800">{{ step.duration }}</span>
+                    <span class="px-3 py-1 rounded-full text-xs font-medium {% if step.risk == 'low' %}bg-green-100 text-green-800{% elif step.risk == 'medium' %}bg-yellow-100 text-yellow-800{% else %}bg-red-100 text-red-800{% endif %}">
+                        Risk: {{ step.risk|upper }}
+                    </span>
+                </div>
+
+                <p class="text-gray-700 mb-4">{{ step.description }}</p>
+
+                <div class="mb-4">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-2">Tasks:</h4>
+                    <ul class="space-y-1">
+                        {% for task in step.tasks %}
+                        <li class="flex items-start text-sm text-gray-700">
+                            <svg class="h-4 w-4 text-primary-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                            {{ task }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                {% if step.warnings %}
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 rounded p-4">
+                    <h4 class="text-sm font-semibold text-yellow-800 mb-2">Warnings:</h4>
+                    {% for warning in step.warnings %}
+                    <p class="text-sm text-yellow-700 flex items-start mb-2 last:mb-0">
+                        <svg class="h-5 w-5 text-yellow-600 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        {{ warning }}
+                    </p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Configuration Samples -->
+<div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 mb-8">
+    <h2 class="text-2xl font-bold text-gray-900 mb-2">EVPN Configuration Samples</h2>
+    <p class="text-gray-600 mb-6">Download configuration templates for {{ evpn_data.target_platform|upper }} devices</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border-2 border-blue-200">
+            <div class="h-12 w-12 rounded-xl bg-blue-500 flex items-center justify-center mb-4">
+                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Leaf Switch Configuration</h3>
+            <p class="text-sm text-gray-600 mb-4">Complete EVPN configuration for leaf/VTEP switches</p>
+            <a href="{{ url_for('download_evpn_config', device_role='leaf_switch', platform=evpn_data.target_platform) }}"
+               class="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 shadow-lg transition-all duration-200">
+                <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Download Config
+            </a>
+        </div>
+
+        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border-2 border-green-200">
+            <div class="h-12 w-12 rounded-xl bg-green-500 flex items-center justify-center mb-4">
+                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Spine Switch Configuration</h3>
+            <p class="text-sm text-gray-600 mb-4">BGP route reflector configuration for spine switches</p>
+            <a href="{{ url_for('download_evpn_config', device_role='spine_switch', platform=evpn_data.target_platform) }}"
+               class="inline-flex items-center px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 shadow-lg transition-all duration-200">
+                <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Download Config
+            </a>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border-2 border-purple-200">
+            <div class="h-12 w-12 rounded-xl bg-purple-500 flex items-center justify-center mb-4">
+                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Border Leaf Configuration</h3>
+            <p class="text-sm text-gray-600 mb-4">Configuration for border leafs with external connectivity</p>
+            <a href="{{ url_for('download_evpn_config', device_role='border_leaf', platform=evpn_data.target_platform) }}"
+               class="inline-flex items-center px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 shadow-lg transition-all duration-200">
+                <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Download Config
+            </a>
+        </div>
+    </div>
+
+    <!-- Configuration Preview -->
+    <div class="bg-gray-900 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-white mb-4">Sample Leaf Configuration Preview</h3>
+        <pre class="text-green-400 text-sm overflow-x-auto font-mono">{{ evpn_data.config_samples.leaf_switch }}</pre>
+    </div>
+</div>
+
+<!-- Validation Checklist -->
+<div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 mb-8">
+    <h2 class="text-2xl font-bold text-gray-900 mb-6">Post-Migration Validation Checklist</h2>
+
+    <div class="space-y-6">
+        {% for category in evpn_data.validation %}
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ category.category }}</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Command</th>
+                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for check in category.checks %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 text-sm text-gray-900">{{ check.item }}</td>
+                            <td class="px-6 py-4 text-sm">
+                                <code class="px-2 py-1 bg-gray-100 text-gray-800 rounded font-mono text-xs">{{ check.command }}</code>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <input type="checkbox" class="h-5 w-5 text-primary-600 rounded focus:ring-primary-500">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endif %}
+{% endif %}
+
+<style>
+/* Mapping tab active state */
+.mapping-tab-btn.active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+    background-color: #eff6ff;
+}
+
+/* Mapping tab content visibility */
+.mapping-tab-content {
+    display: none;
+}
+.mapping-tab-content.active {
+    display: block;
+}
+</style>
+
 {% endblock %}
 
 {% block scripts %}
@@ -287,13 +460,20 @@ function showMappingTab(tabName) {
     // Hide all tabs
     document.querySelectorAll('.mapping-tab-content').forEach(tab => {
         tab.classList.remove('active');
+        tab.style.display = 'none';
     });
-    document.querySelectorAll('.mapping-tabs .tab-btn').forEach(btn => {
+    document.querySelectorAll('.mapping-tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
 
     // Show selected tab
-    document.getElementById(tabName + '-mapping').classList.add('active');
+    const selectedTab = document.getElementById(tabName + '-mapping');
+    if (selectedTab) {
+        selectedTab.classList.add('active');
+        selectedTab.style.display = 'block';
+    }
+
+    // Mark button as active
     event.target.classList.add('active');
 }
 </script>

@@ -3,343 +3,521 @@
 {% block title %}Help & Documentation - ACI Analysis Tool{% endblock %}
 
 {% block content %}
-<div class="help-container">
-    <h1>Help & Documentation</h1>
 
-    <!-- Quick Start Guide -->
-    <section class="help-section">
-        <h2>Quick Start Guide</h2>
-        <div class="help-content">
-            <h3>1. Create or Select a Fabric</h3>
-            <p>Start by creating a new fabric or selecting an existing one from the home page. Choose your analysis mode:</p>
-            <ul>
-                <li><strong>Offboard:</strong> Analyze FEX consolidation opportunities and decommissioning candidates</li>
-                <li><strong>Onboard:</strong> Plan new FEX deployments and capacity requirements</li>
-                <li><strong>EVPN Migration:</strong> Plan migration from ACI to EVPN fabric</li>
-            </ul>
+<!-- Page Header -->
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+        <svg class="h-8 w-8 mr-3 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Help & Documentation
+    </h1>
+    <p class="mt-2 text-lg text-gray-600">
+        Everything you need to know about using the ACI Analysis Tool
+    </p>
+</div>
 
-            <h3>2. Upload Data</h3>
-            <p>Upload your ACI fabric data in JSON or XML format, and optionally provide CMDB data for enhanced correlation:</p>
-            <ul>
-                <li><strong>ACI Data:</strong> Export from APIC using moquery or API calls</li>
-                <li><strong>CMDB Data:</strong> CSV file with device serial numbers, locations, and metadata</li>
-            </ul>
-
-            <h3>3. Analyze</h3>
-            <p>Navigate to the Analyze page to validate your data and run comprehensive analysis</p>
-
-            <h3>4. Visualize</h3>
-            <p>Explore interactive dashboards with charts, graphs, and topology visualizations</p>
-
-            <h3>5. Plan & Report</h3>
-            <p>Generate migration plans and comprehensive reports for stakeholders</p>
-        </div>
-    </section>
-
-    <!-- ACI Objects Reference -->
-    <section class="help-section">
-        <h2>ACI Objects Reference</h2>
-        <div class="help-content">
-            <div class="aci-object-card">
-                <h3>eqptFex (FEX Equipment)</h3>
-                <p><strong>Description:</strong> Represents a Fabric Extender (FEX) device in the ACI fabric.</p>
-                <p><strong>Key Attributes:</strong></p>
-                <ul>
-                    <li><code>id</code> - Unique FEX identifier</li>
-                    <li><code>model</code> - FEX model (e.g., N2K-C2348TQ)</li>
-                    <li><code>serial</code> - Serial number</li>
-                    <li><code>operSt</code> - Operational status (up/down)</li>
-                </ul>
-                <p><strong>Analysis Use:</strong> Port utilization, consolidation scoring, topology mapping</p>
+<!-- Quick Start Guide -->
+<div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
+    <div class="px-6 py-4 bg-gradient-to-r from-primary-50 to-white border-b border-gray-200">
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+            <svg class="h-6 w-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            Quick Start Guide
+        </h2>
+    </div>
+    <div class="p-6 space-y-6">
+        <div class="flex items-start">
+            <div class="flex-shrink-0 h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold mr-4">
+                1
             </div>
-
-            <div class="aci-object-card">
-                <h3>fabricNode (Fabric Node)</h3>
-                <p><strong>Description:</strong> Represents a fabric node (leaf, spine, or APIC).</p>
-                <p><strong>Key Attributes:</strong></p>
-                <ul>
-                    <li><code>id</code> - Node ID</li>
-                    <li><code>name</code> - Node name</li>
-                    <li><code>role</code> - Node role (leaf/spine/controller)</li>
-                    <li><code>model</code> - Switch model</li>
+            <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Create or Select a Fabric</h3>
+                <p class="text-gray-700 mb-3">Start by creating a new fabric or selecting an existing one from the home page. Choose your analysis mode:</p>
+                <ul class="space-y-2">
+                    <li class="flex items-start">
+                        <svg class="h-5 w-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <span class="text-gray-700"><strong class="text-gray-900">Offboard:</strong> Analyze FEX consolidation opportunities and decommissioning candidates</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="h-5 w-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <span class="text-gray-700"><strong class="text-gray-900">Onboard:</strong> Plan new FEX deployments and capacity requirements</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="h-5 w-5 text-purple-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <span class="text-gray-700"><strong class="text-gray-900">EVPN Migration:</strong> Plan migration from ACI to EVPN fabric</span>
+                    </li>
                 </ul>
-                <p><strong>Analysis Use:</strong> Topology mapping, capacity planning</p>
-            </div>
-
-            <div class="aci-object-card">
-                <h3>fvAEPg (Application EPG)</h3>
-                <p><strong>Description:</strong> Application Endpoint Group - collection of endpoints with common policy requirements.</p>
-                <p><strong>Key Attributes:</strong></p>
-                <ul>
-                    <li><code>name</code> - EPG name</li>
-                    <li><code>dn</code> - Distinguished name (contains tenant and app profile)</li>
-                    <li><code>pcEnfPref</code> - Policy enforcement preference</li>
-                </ul>
-                <p><strong>Analysis Use:</strong> Complexity scoring, migration waves, coupling analysis</p>
-            </div>
-
-            <div class="aci-object-card">
-                <h3>fvRsPathAtt (EPG Path Attachment)</h3>
-                <p><strong>Description:</strong> Links an EPG to a specific physical/virtual interface where endpoints reside.</p>
-                <p><strong>Key Attributes:</strong></p>
-                <ul>
-                    <li><code>tDn</code> - Target distinguished name (path to interface)</li>
-                    <li><code>encap</code> - Encapsulation (VLAN ID)</li>
-                    <li><code>mode</code> - Deployment mode (regular/native/untagged)</li>
-                </ul>
-                <p><strong>Analysis Use:</strong> VLAN distribution, coupling detection, VPC symmetry</p>
-            </div>
-
-            <div class="aci-object-card">
-                <h3>fvBD (Bridge Domain)</h3>
-                <p><strong>Description:</strong> Layer 2 forwarding domain within a tenant.</p>
-                <p><strong>Key Attributes:</strong></p>
-                <ul>
-                    <li><code>name</code> - BD name</li>
-                    <li><code>arpFlood</code> - ARP flooding setting</li>
-                    <li><code>unicastRoute</code> - Enable L3 routing</li>
-                </ul>
-                <p><strong>Analysis Use:</strong> BD-EPG mapping, network segmentation analysis</p>
-            </div>
-
-            <div class="aci-object-card">
-                <h3>vzBrCP (Contract)</h3>
-                <p><strong>Description:</strong> Defines allowed communication between EPGs.</p>
-                <p><strong>Key Attributes:</strong></p>
-                <ul>
-                    <li><code>name</code> - Contract name</li>
-                    <li><code>scope</code> - Scope (context/tenant/global)</li>
-                </ul>
-                <p><strong>Analysis Use:</strong> Cross-tenant dependency detection, migration planning</p>
             </div>
         </div>
-    </section>
 
+        <div class="flex items-start">
+            <div class="flex-shrink-0 h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center text-green-600 font-bold mr-4">
+                2
+            </div>
+            <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Upload Data</h3>
+                <p class="text-gray-700 mb-3">Upload your ACI fabric data in JSON or XML format, and optionally provide CMDB data for enhanced correlation:</p>
+                <ul class="space-y-2">
+                    <li class="flex items-start">
+                        <svg class="h-5 w-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <span class="text-gray-700"><strong class="text-gray-900">ACI Data:</strong> Export from APIC using moquery or API calls</span>
+                    </li>
+                    <li class="flex items-start">
+                        <svg class="h-5 w-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <span class="text-gray-700"><strong class="text-gray-900">CMDB Data:</strong> CSV file with device serial numbers, locations, and metadata</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="flex items-start">
+            <div class="flex-shrink-0 h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 font-bold mr-4">
+                3
+            </div>
+            <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Analyze</h3>
+                <p class="text-gray-700">Navigate to the Analyze page to validate your data and run comprehensive analysis</p>
+            </div>
+        </div>
+
+        <div class="flex items-start">
+            <div class="flex-shrink-0 h-10 w-10 rounded-lg bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold mr-4">
+                4
+            </div>
+            <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Visualize</h3>
+                <p class="text-gray-700">Explore interactive dashboards with charts, graphs, and topology visualizations</p>
+            </div>
+        </div>
+
+        <div class="flex items-start">
+            <div class="flex-shrink-0 h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center text-red-600 font-bold mr-4">
+                5
+            </div>
+            <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Plan & Report</h3>
+                <p class="text-gray-700">Generate migration plans and comprehensive reports for stakeholders</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ACI Objects Reference -->
+<div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
+    <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-white border-b border-gray-200">
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+            <svg class="h-6 w-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+            ACI Objects Reference
+        </h2>
+    </div>
+    <div class="divide-y divide-gray-200">
+        <!-- eqptFex -->
+        <details class="group">
+            <summary class="cursor-pointer px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <svg class="h-5 w-5 text-gray-400 mr-3 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <h3 class="text-lg font-semibold text-gray-900">eqptFex <span class="text-sm font-normal text-gray-600">(FEX Equipment)</span></h3>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">ACI Object</span>
+                </div>
+            </summary>
+            <div class="px-6 py-4 bg-gray-50">
+                <p class="text-gray-700 mb-4"><strong class="text-gray-900">Description:</strong> Represents a Fabric Extender (FEX) device in the ACI fabric.</p>
+                <div class="mb-4">
+                    <p class="text-sm font-semibold text-gray-900 mb-2">Key Attributes:</p>
+                    <ul class="space-y-1">
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">id</code> - Unique FEX identifier</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">model</code> - FEX model (e.g., N2K-C2348TQ)</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">serial</code> - Serial number</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">operSt</code> - Operational status (up/down)</li>
+                    </ul>
+                </div>
+                <p class="text-sm text-gray-700"><strong class="text-gray-900">Analysis Use:</strong> Port utilization, consolidation scoring, topology mapping</p>
+            </div>
+        </details>
+
+        <!-- fabricNode -->
+        <details class="group">
+            <summary class="cursor-pointer px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <svg class="h-5 w-5 text-gray-400 mr-3 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <h3 class="text-lg font-semibold text-gray-900">fabricNode <span class="text-sm font-normal text-gray-600">(Fabric Node)</span></h3>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">ACI Object</span>
+                </div>
+            </summary>
+            <div class="px-6 py-4 bg-gray-50">
+                <p class="text-gray-700 mb-4"><strong class="text-gray-900">Description:</strong> Represents a fabric node (leaf, spine, or APIC).</p>
+                <div class="mb-4">
+                    <p class="text-sm font-semibold text-gray-900 mb-2">Key Attributes:</p>
+                    <ul class="space-y-1">
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">id</code> - Node ID</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">name</code> - Node name</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">role</code> - Node role (leaf/spine/controller)</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">model</code> - Switch model</li>
+                    </ul>
+                </div>
+                <p class="text-sm text-gray-700"><strong class="text-gray-900">Analysis Use:</strong> Topology mapping, capacity planning</p>
+            </div>
+        </details>
+
+        <!-- fvAEPg -->
+        <details class="group">
+            <summary class="cursor-pointer px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <svg class="h-5 w-5 text-gray-400 mr-3 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <h3 class="text-lg font-semibold text-gray-900">fvAEPg <span class="text-sm font-normal text-gray-600">(Application EPG)</span></h3>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">ACI Object</span>
+                </div>
+            </summary>
+            <div class="px-6 py-4 bg-gray-50">
+                <p class="text-gray-700 mb-4"><strong class="text-gray-900">Description:</strong> Application Endpoint Group - collection of endpoints with common policy requirements.</p>
+                <div class="mb-4">
+                    <p class="text-sm font-semibold text-gray-900 mb-2">Key Attributes:</p>
+                    <ul class="space-y-1">
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">name</code> - EPG name</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">dn</code> - Distinguished name (contains tenant and app profile)</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">pcEnfPref</code> - Policy enforcement preference</li>
+                    </ul>
+                </div>
+                <p class="text-sm text-gray-700"><strong class="text-gray-900">Analysis Use:</strong> Complexity scoring, migration waves, coupling analysis</p>
+            </div>
+        </details>
+
+        <!-- fvRsPathAtt -->
+        <details class="group">
+            <summary class="cursor-pointer px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <svg class="h-5 w-5 text-gray-400 mr-3 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <h3 class="text-lg font-semibold text-gray-900">fvRsPathAtt <span class="text-sm font-normal text-gray-600">(EPG Path Attachment)</span></h3>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">ACI Object</span>
+                </div>
+            </summary>
+            <div class="px-6 py-4 bg-gray-50">
+                <p class="text-gray-700 mb-4"><strong class="text-gray-900">Description:</strong> Links an EPG to a specific physical/virtual interface where endpoints reside.</p>
+                <div class="mb-4">
+                    <p class="text-sm font-semibold text-gray-900 mb-2">Key Attributes:</p>
+                    <ul class="space-y-1">
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">tDn</code> - Target distinguished name (path to interface)</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">encap</code> - Encapsulation (VLAN ID)</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">mode</code> - Deployment mode (regular/native/untagged)</li>
+                    </ul>
+                </div>
+                <p class="text-sm text-gray-700"><strong class="text-gray-900">Analysis Use:</strong> VLAN distribution, coupling detection, VPC symmetry</p>
+            </div>
+        </details>
+
+        <!-- fvBD -->
+        <details class="group">
+            <summary class="cursor-pointer px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <svg class="h-5 w-5 text-gray-400 mr-3 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <h3 class="text-lg font-semibold text-gray-900">fvBD <span class="text-sm font-normal text-gray-600">(Bridge Domain)</span></h3>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">ACI Object</span>
+                </div>
+            </summary>
+            <div class="px-6 py-4 bg-gray-50">
+                <p class="text-gray-700 mb-4"><strong class="text-gray-900">Description:</strong> Layer 2 forwarding domain within a tenant.</p>
+                <div class="mb-4">
+                    <p class="text-sm font-semibold text-gray-900 mb-2">Key Attributes:</p>
+                    <ul class="space-y-1">
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">name</code> - BD name</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">arpFlood</code> - ARP flooding setting</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">unicastRoute</code> - Enable L3 routing</li>
+                    </ul>
+                </div>
+                <p class="text-sm text-gray-700"><strong class="text-gray-900">Analysis Use:</strong> BD-EPG mapping, network segmentation analysis</p>
+            </div>
+        </details>
+
+        <!-- vzBrCP -->
+        <details class="group">
+            <summary class="cursor-pointer px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <svg class="h-5 w-5 text-gray-400 mr-3 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <h3 class="text-lg font-semibold text-gray-900">vzBrCP <span class="text-sm font-normal text-gray-600">(Contract)</span></h3>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">ACI Object</span>
+                </div>
+            </summary>
+            <div class="px-6 py-4 bg-gray-50">
+                <p class="text-gray-700 mb-4"><strong class="text-gray-900">Description:</strong> Defines allowed communication between EPGs.</p>
+                <div class="mb-4">
+                    <p class="text-sm font-semibold text-gray-900 mb-2">Key Attributes:</p>
+                    <ul class="space-y-1">
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">name</code> - Contract name</li>
+                        <li class="text-sm text-gray-700"><code class="px-2 py-1 bg-gray-100 rounded text-xs">scope</code> - Scope (context/tenant/global)</li>
+                    </ul>
+                </div>
+                <p class="text-sm text-gray-700"><strong class="text-gray-900">Analysis Use:</strong> Cross-tenant dependency detection, migration planning</p>
+            </div>
+        </details>
+    </div>
+</div>
+
+<!-- Analysis Methods & Data Collection (Side by Side) -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
     <!-- Analysis Methods -->
-    <section class="help-section">
-        <h2>Analysis Methods</h2>
-        <div class="help-content">
-            <h3>Port Utilization Analysis</h3>
-            <p>Calculates port usage across all FEX devices and assigns consolidation scores (0-100). Higher scores indicate better consolidation candidates.</p>
-            <p><strong>Scoring Factors:</strong></p>
-            <ul>
-                <li>Port utilization percentage (lower = higher score)</li>
-                <li>Operational status (down devices score higher)</li>
-                <li>Interface count (fewer interfaces = higher score)</li>
-            </ul>
-
-            <h3>Coupling Analysis</h3>
-            <p>Identifies dependencies and coupling issues that impact migration:</p>
-            <ul>
-                <li><strong>Multi-device EPGs:</strong> EPGs deployed across multiple FEX or FEX+leaf</li>
-                <li><strong>Shared VLANs:</strong> VLAN namespace collisions across EPGs</li>
-                <li><strong>Cross-tenant contracts:</strong> Inter-tenant dependencies</li>
-            </ul>
-
-            <h3>Migration Waves</h3>
-            <p>Groups EPGs into migration waves based on complexity and coupling:</p>
-            <ul>
-                <li><strong>Wave 1:</strong> Standalone EPGs (no coupling) - 1 hr/EPG</li>
-                <li><strong>Wave 2:</strong> Low coupling - 2 hrs/EPG</li>
-                <li><strong>Wave 3:</strong> Medium coupling - 4 hrs/EPG</li>
-                <li><strong>Wave 4:</strong> High coupling - 8 hrs/EPG</li>
-            </ul>
-
-            <h3>EPG Complexity Scoring</h3>
-            <p>Multi-factor complexity score (0-100) based on:</p>
-            <ul>
-                <li>Number of path attachments</li>
-                <li>VLAN diversity</li>
-                <li>Node spread (number of devices)</li>
-            </ul>
-            <p>Complexity levels: Low (&lt;40), Medium (40-69), High (70+)</p>
-
-            <h3>VLAN Sharing Analysis</h3>
-            <p>Detects VLAN conflicts and namespace collisions:</p>
-            <ul>
-                <li>Multi-tenant VLAN usage (high risk)</li>
-                <li>Multi-device VLAN usage (medium risk)</li>
-                <li>Multi-EPG VLAN usage (low risk)</li>
-            </ul>
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 bg-gradient-to-r from-purple-50 to-white border-b border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+                <svg class="h-6 w-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                Analysis Methods
+            </h2>
         </div>
-    </section>
+        <div class="p-6 space-y-4 max-h-96 overflow-y-auto">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Port Utilization Analysis</h3>
+                <p class="text-sm text-gray-700 mb-2">Calculates port usage across all FEX devices and assigns consolidation scores (0-100). Higher scores indicate better consolidation candidates.</p>
+                <p class="text-sm font-semibold text-gray-900 mb-1">Scoring Factors:</p>
+                <ul class="space-y-1 text-sm text-gray-700">
+                    <li>• Port utilization percentage (lower = higher score)</li>
+                    <li>• Operational status (down devices score higher)</li>
+                    <li>• Interface count (fewer interfaces = higher score)</li>
+                </ul>
+            </div>
+
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Coupling Analysis</h3>
+                <p class="text-sm text-gray-700 mb-2">Identifies dependencies and coupling issues that impact migration:</p>
+                <ul class="space-y-1 text-sm text-gray-700">
+                    <li>• Multi-device EPGs: EPGs deployed across multiple FEX or FEX+leaf</li>
+                    <li>• Shared VLANs: VLAN namespace collisions across EPGs</li>
+                    <li>• Cross-tenant contracts: Inter-tenant dependencies</li>
+                </ul>
+            </div>
+
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Migration Waves</h3>
+                <p class="text-sm text-gray-700 mb-2">Groups EPGs into migration waves based on complexity and coupling:</p>
+                <ul class="space-y-1 text-sm text-gray-700">
+                    <li>• Wave 1: Standalone EPGs (no coupling) - 1 hr/EPG</li>
+                    <li>• Wave 2: Low coupling - 2 hrs/EPG</li>
+                    <li>• Wave 3: Medium coupling - 4 hrs/EPG</li>
+                    <li>• Wave 4: High coupling - 8 hrs/EPG</li>
+                </ul>
+            </div>
+
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">EPG Complexity Scoring</h3>
+                <p class="text-sm text-gray-700 mb-2">Multi-factor complexity score (0-100) based on:</p>
+                <ul class="space-y-1 text-sm text-gray-700">
+                    <li>• Number of path attachments</li>
+                    <li>• VLAN diversity</li>
+                    <li>• Node spread (number of devices)</li>
+                </ul>
+                <p class="text-sm text-gray-700 mt-2">Complexity levels: Low (&lt;40), Medium (40-69), High (70+)</p>
+            </div>
+        </div>
+    </div>
 
     <!-- Data Collection Guide -->
-    <section class="help-section">
-        <h2>Data Collection Guide</h2>
-        <div class="help-content">
-            <h3>Collecting ACI Data</h3>
-            <p>Use one of these methods to export ACI fabric data:</p>
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 bg-gradient-to-r from-green-50 to-white border-b border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+                <svg class="h-6 w-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Data Collection Guide
+            </h2>
+        </div>
+        <div class="p-6 space-y-4 max-h-96 overflow-y-auto">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Collecting ACI Data</h3>
+                <p class="text-sm text-gray-700 mb-3">Use one of these methods to export ACI fabric data:</p>
 
-            <h4>Method 1: APIC GUI Export</h4>
-            <pre><code>1. Log in to APIC
+                <h4 class="text-sm font-semibold text-gray-900 mb-2">Method 1: APIC GUI Export</h4>
+                <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto mb-3"><code>1. Log in to APIC
 2. Navigate to Tenants > Export
 3. Select JSON format
 4. Download the export file</code></pre>
 
-            <h4>Method 2: API Export (Recommended)</h4>
-            <pre><code>curl -X GET "https://&lt;apic-ip&gt;/api/node/class/fvAEPg.json" \
+                <h4 class="text-sm font-semibold text-gray-900 mb-2">Method 2: API Export (Recommended)</h4>
+                <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto mb-3"><code>curl -X GET "https://&lt;apic-ip&gt;/api/node/class/fvAEPg.json" \
      -u "username:password" > epgs.json
 
 curl -X GET "https://&lt;apic-ip&gt;/api/node/class/eqptFex.json" \
      -u "username:password" > fex.json</code></pre>
 
-            <h4>Method 3: moquery (CLI)</h4>
-            <pre><code>moquery -c fvAEPg -o json > epgs.json
+                <h4 class="text-sm font-semibold text-gray-900 mb-2">Method 3: moquery (CLI)</h4>
+                <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto mb-3"><code>moquery -c fvAEPg -o json > epgs.json
 moquery -c eqptFex -o json > fex.json
 moquery -c fabricNode -o json > nodes.json</code></pre>
+            </div>
 
-            <h3>Preparing CMDB Data</h3>
-            <p>Create a CSV file with the following columns:</p>
-            <ul>
-                <li><code>device_name</code> - Device hostname</li>
-                <li><code>serial_number</code> - Serial number (for correlation)</li>
-                <li><code>model</code> - Device model</li>
-                <li><code>location</code> - Physical location/datacenter</li>
-                <li><code>rack</code> - Rack location</li>
-                <li><code>status</code> - Operational status</li>
-            </ul>
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Preparing CMDB Data</h3>
+                <p class="text-sm text-gray-700 mb-2">Create a CSV file with the following columns:</p>
+                <ul class="space-y-1 text-sm">
+                    <li><code class="px-2 py-1 bg-gray-100 rounded text-xs">device_name</code> - Device hostname</li>
+                    <li><code class="px-2 py-1 bg-gray-100 rounded text-xs">serial_number</code> - Serial number (for correlation)</li>
+                    <li><code class="px-2 py-1 bg-gray-100 rounded text-xs">model</code> - Device model</li>
+                    <li><code class="px-2 py-1 bg-gray-100 rounded text-xs">location</code> - Physical location/datacenter</li>
+                    <li><code class="px-2 py-1 bg-gray-100 rounded text-xs">rack</code> - Rack location</li>
+                    <li><code class="px-2 py-1 bg-gray-100 rounded text-xs">status</code> - Operational status</li>
+                </ul>
+            </div>
         </div>
-    </section>
-
-    <!-- Troubleshooting -->
-    <section class="help-section">
-        <h2>Troubleshooting</h2>
-        <div class="help-content">
-            <h3>Common Issues</h3>
-
-            <h4>Upload Fails with "Invalid JSON"</h4>
-            <p><strong>Solution:</strong> Ensure your JSON file is valid. Use a JSON validator or:</p>
-            <pre><code>python -m json.tool &lt; your_file.json</code></pre>
-
-            <h4>No Objects Found in Data</h4>
-            <p><strong>Solution:</strong> Verify your JSON file contains an "imdata" array with ACI objects.</p>
-
-            <h4>CMDB Correlation Shows 0%</h4>
-            <p><strong>Solution:</strong> Check that:</p>
-            <ul>
-                <li>CSV file has a "serial_number" or "SerialNumber" column</li>
-                <li>Serial numbers match between ACI and CMDB exactly</li>
-                <li>No leading/trailing spaces in serial numbers</li>
-            </ul>
-
-            <h4>Dashboards Not Loading</h4>
-            <p><strong>Solution:</strong></p>
-            <ul>
-                <li>Ensure fabric has uploaded data</li>
-                <li>Check browser console for JavaScript errors</li>
-                <li>Clear browser cache and reload</li>
-            </ul>
-        </div>
-    </section>
-
-    <!-- FAQ -->
-    <section class="help-section">
-        <h2>Frequently Asked Questions</h2>
-        <div class="help-content">
-            <h4>Q: How long does analysis take?</h4>
-            <p>A: Analysis of 1000+ EPGs typically completes in 10-15 seconds.</p>
-
-            <h4>Q: Can I analyze multiple fabrics?</h4>
-            <p>A: Yes, create separate fabric entries for each datacenter or pod.</p>
-
-            <h4>Q: What's the difference between modes?</h4>
-            <p>A: <strong>Offboard</strong> mode identifies consolidation opportunities. <strong>Onboard</strong> mode helps plan new deployments. <strong>EVPN Migration</strong> mode assists with fabric migration.</p>
-
-            <h4>Q: How accurate is the consolidation scoring?</h4>
-            <p>A: Scoring is based on utilization, operational status, and interface count. Review recommendations manually before decommissioning.</p>
-
-            <h4>Q: Can I export analysis results?</h4>
-            <p>A: Yes, use the Report page to generate HTML, Markdown, or CSV exports.</p>
-        </div>
-    </section>
-
-    <!-- Support -->
-    <section class="help-section">
-        <h2>Support & Feedback</h2>
-        <div class="help-content">
-            <p>For issues, feature requests, or feedback:</p>
-            <ul>
-                <li>GitHub Issues: <a href="https://github.com/sartios-source/acimig/issues" target="_blank">github.com/sartios-source/acimig/issues</a></li>
-                <li>Documentation: Check the README.md and docs/ folder</li>
-                <li>Security Issues: See docs/SECURITY_IMPROVEMENTS.md</li>
-            </ul>
-        </div>
-    </section>
+    </div>
 </div>
 
-<style>
-.help-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
+<!-- Troubleshooting & FAQ (Side by Side) -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    <!-- Troubleshooting -->
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 bg-gradient-to-r from-yellow-50 to-white border-b border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+                <svg class="h-6 w-6 mr-2 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                Troubleshooting
+            </h2>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <h4 class="text-sm font-semibold text-gray-900 mb-2">Upload Fails with "Invalid JSON"</h4>
+                <p class="text-sm text-gray-700 mb-2"><strong>Solution:</strong> Ensure your JSON file is valid. Use a JSON validator or:</p>
+                <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto"><code>python -m json.tool &lt; your_file.json</code></pre>
+            </div>
 
-.help-section {
-    background: #fff;
-    border-radius: 8px;
-    padding: 24px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
+            <div>
+                <h4 class="text-sm font-semibold text-gray-900 mb-2">No Objects Found in Data</h4>
+                <p class="text-sm text-gray-700"><strong>Solution:</strong> Verify your JSON file contains an "imdata" array with ACI objects.</p>
+            </div>
 
-.help-section h2 {
-    color: #2c3e50;
-    margin-top: 0;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #4A90E2;
-}
+            <div>
+                <h4 class="text-sm font-semibold text-gray-900 mb-2">CMDB Correlation Shows 0%</h4>
+                <p class="text-sm text-gray-700 mb-2"><strong>Solution:</strong> Check that:</p>
+                <ul class="space-y-1 text-sm text-gray-700">
+                    <li>• CSV file has a "serial_number" or "SerialNumber" column</li>
+                    <li>• Serial numbers match between ACI and CMDB exactly</li>
+                    <li>• No leading/trailing spaces in serial numbers</li>
+                </ul>
+            </div>
 
-.help-section h3 {
-    color: #34495e;
-    margin-top: 20px;
-}
+            <div>
+                <h4 class="text-sm font-semibold text-gray-900 mb-2">Dashboards Not Loading</h4>
+                <p class="text-sm text-gray-700 mb-2"><strong>Solution:</strong></p>
+                <ul class="space-y-1 text-sm text-gray-700">
+                    <li>• Ensure fabric has uploaded data</li>
+                    <li>• Check browser console for JavaScript errors</li>
+                    <li>• Clear browser cache and reload</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 
-.help-section h4 {
-    color: #34495e;
-    margin-top: 16px;
-}
+    <!-- FAQ -->
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 bg-gradient-to-r from-teal-50 to-white border-b border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+                <svg class="h-6 w-6 mr-2 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Frequently Asked Questions
+            </h2>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <h4 class="text-sm font-semibold text-gray-900 mb-1">Q: How long does analysis take?</h4>
+                <p class="text-sm text-gray-700">A: Analysis of 1000+ EPGs typically completes in 10-15 seconds.</p>
+            </div>
 
-.help-content {
-    line-height: 1.6;
-}
+            <div>
+                <h4 class="text-sm font-semibold text-gray-900 mb-1">Q: Can I analyze multiple fabrics?</h4>
+                <p class="text-sm text-gray-700">A: Yes, create separate fabric entries for each datacenter or pod.</p>
+            </div>
 
-.help-content ul {
-    margin: 12px 0;
-    padding-left: 24px;
-}
+            <div>
+                <h4 class="text-sm font-semibold text-gray-900 mb-1">Q: What's the difference between modes?</h4>
+                <p class="text-sm text-gray-700">A: <strong class="text-gray-900">Offboard</strong> mode identifies consolidation opportunities. <strong class="text-gray-900">Onboard</strong> mode helps plan new deployments. <strong class="text-gray-900">EVPN Migration</strong> mode assists with fabric migration.</p>
+            </div>
 
-.help-content pre {
-    background: #f5f5f5;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 12px;
-    overflow-x: auto;
-}
+            <div>
+                <h4 class="text-sm font-semibold text-gray-900 mb-1">Q: How accurate is the consolidation scoring?</h4>
+                <p class="text-sm text-gray-700">A: Scoring is based on utilization, operational status, and interface count. Review recommendations manually before decommissioning.</p>
+            </div>
 
-.help-content code {
-    background: #f5f5f5;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-family: 'Courier New', monospace;
-    font-size: 0.9em;
-}
+            <div>
+                <h4 class="text-sm font-semibold text-gray-900 mb-1">Q: Can I export analysis results?</h4>
+                <p class="text-sm text-gray-700">A: Yes, use the Report page to generate HTML, Markdown, or CSV exports.</p>
+            </div>
+        </div>
+    </div>
+</div>
 
-.aci-object-card {
-    background: #f8f9fa;
-    border-left: 4px solid #4A90E2;
-    padding: 16px;
-    margin: 16px 0;
-    border-radius: 4px;
-}
+<!-- Support & Feedback -->
+<div class="bg-gradient-to-br from-primary-50 to-blue-50 rounded-xl shadow-lg border border-primary-200 p-8">
+    <div class="flex items-start">
+        <div class="flex-shrink-0">
+            <div class="h-12 w-12 rounded-xl bg-primary-600 flex items-center justify-center">
+                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+            </div>
+        </div>
+        <div class="ml-6">
+            <h2 class="text-2xl font-bold text-gray-900 mb-3">Support & Feedback</h2>
+            <p class="text-gray-700 mb-4">For issues, feature requests, or feedback:</p>
+            <ul class="space-y-2">
+                <li class="flex items-center text-gray-700">
+                    <svg class="h-5 w-5 text-primary-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                    <span><strong class="text-gray-900">GitHub Issues:</strong> <a href="https://github.com/sartios-source/acimig/issues" target="_blank" class="text-primary-600 hover:text-primary-800 underline">github.com/sartios-source/acimig/issues</a></span>
+                </li>
+                <li class="flex items-center text-gray-700">
+                    <svg class="h-5 w-5 text-primary-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                    <span><strong class="text-gray-900">Documentation:</strong> Check the README.md and docs/ folder</span>
+                </li>
+                <li class="flex items-center text-gray-700">
+                    <svg class="h-5 w-5 text-primary-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                    <span><strong class="text-gray-900">Security Issues:</strong> See docs/SECURITY_IMPROVEMENTS.md</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
 
-.aci-object-card h3 {
-    margin-top: 0;
-    color: #2c3e50;
-}
-
-.aci-object-card p:first-of-type {
-    margin-top: 8px;
-}
-</style>
 {% endblock %}
