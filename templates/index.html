@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 
+{% block title %}Home - acimig v1.0{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
 {% block content %}
 
 <!-- Hero Section with Animated Network Topology -->
@@ -10,7 +13,7 @@
     <div class="relative px-8 py-16 sm:px-12 sm:py-20 z-10">
         <div class="max-w-3xl">
             <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl animate-fade-in">
-                ACI Analysis Tool
+                acimig v1.0
             </h1>
             <p class="mt-6 text-xl text-primary-100 max-w-2xl animate-fade-in-delay">
                 Professional network fabric analysis for onboarding, EVPN/VXLAN migration, and complete ACI migration planning.
@@ -168,78 +171,6 @@
             </div>
         </div>
     </div>
-</div>
-
-<!-- Fabric Manager Section -->
-<div class="bg-white rounded-2xl shadow-lg p-8">
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h2 class="text-2xl font-bold text-gray-900 flex items-center">
-                <span class="h-1 w-8 bg-primary-600 mr-4 rounded-full"></span>
-                Fabric Manager
-            </h2>
-            <p class="mt-1 text-sm text-gray-500 ml-12">Manage your network fabrics and datasets</p>
-        </div>
-        <button onclick="showCreateFabricDialog()" class="inline-flex items-center px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
-            <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            Create New Fabric
-        </button>
-    </div>
-
-    {% if fabrics %}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {% for fabric in fabrics %}
-        <div class="group relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 hover:shadow-lg transition-all duration-200 border border-gray-200 hover:border-primary-300 animate-slide-in" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
-            <div class="flex items-start justify-between mb-4">
-                <div class="flex-1">
-                    <h3 class="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
-                        {{ fabric.name }}
-                    </h3>
-                    <p class="text-sm text-gray-500 mt-1">
-                        <span class="inline-flex items-center">
-                            <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
-                            </svg>
-                            {{ fabric.dataset_count }} datasets
-                        </span>
-                    </p>
-                </div>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="selectFabric('{{ fabric.name }}')" class="flex-1 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors duration-200">
-                    <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    Select
-                </button>
-                <button onclick="deleteFabric('{{ fabric.name }}')" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-colors duration-200">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="text-center py-12">
-        <svg class="mx-auto h-16 w-16 text-gray-400 animate-bounce-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-        </svg>
-        <h3 class="mt-4 text-lg font-medium text-gray-900">No fabrics yet</h3>
-        <p class="mt-2 text-sm text-gray-500">Get started by creating your first fabric.</p>
-        <div class="mt-6">
-            <button onclick="showCreateFabricDialog()" class="inline-flex items-center px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 shadow-lg transition-all duration-200">
-                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                Create Your First Fabric
-            </button>
-        </div>
-    </div>
-    {% endif %}
 </div>
 
 <!-- Create Fabric Modal -->

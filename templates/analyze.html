@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Analyze Data - ACI Analysis Tool{% endblock %}
+{% block title %}Analyze Data - acimig v1.0{% endblock %}
+{% block page_title %}Analyze Data{% endblock %}
 
 {% block content %}
 
@@ -36,7 +37,7 @@
 
 <!-- Overview Cards -->
 {% if analysis_data %}
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-fade-in">
     <!-- FEX Card -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
         <div class="flex items-center justify-between">

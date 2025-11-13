@@ -1,6 +1,6 @@
 """
-ACI Analysis Tool - Flask Application
-Supports both Onboard and Offboard workflows with multi-fabric analysis.
+acimig v1.0 - Professional ACI to EVPN/VXLAN Migration Analysis Tool
+Supports both Onboard and EVPN workflows with multi-fabric analysis.
 """
 import os
 import json
@@ -18,6 +18,13 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# Load version from VERSION file
+VERSION_FILE = Path(__file__).parent / 'VERSION'
+try:
+    APP_VERSION = VERSION_FILE.read_text().strip()
+except:
+    APP_VERSION = '1.0.0'
 
 # Import configuration
 from config import get_config
@@ -58,7 +65,7 @@ def setup_logging(app):
         app.logger.addHandler(file_handler)
 
     app.logger.setLevel(logging.INFO)
-    app.logger.info('ACI Analysis Tool startup')
+    app.logger.info(f'acimig v{APP_VERSION} startup')
 
 setup_logging(app)
 
@@ -82,6 +89,13 @@ OUTPUT_DIR = app.config['OUTPUT_DIR']
 
 # Initialize fabric manager
 fm = fabric_manager.FabricManager(FABRICS_DIR)
+
+
+# Template context processor to inject fabrics into all templates
+@app.context_processor
+def inject_fabrics():
+    """Make fabrics list available to all templates for sidebar."""
+    return {'fabrics': fm.list_fabrics()}
 
 
 # Security helper functions
@@ -185,7 +199,8 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
-        'version': '2.0.0',
+        'version': APP_VERSION,
+        'app_name': 'acimig',
         'fabrics_dir_exists': FABRICS_DIR.exists(),
         'output_dir_exists': OUTPUT_DIR.exists()
     })
@@ -805,7 +820,7 @@ def get_analysis(analysis_type):
 
 if __name__ == '__main__':
     print("=" * 70)
-    print("ACI Analysis Tool - Starting")
+    print(f"acimig v{APP_VERSION} - Professional ACI Migration Tool")
     print("=" * 70)
     print(f"Data directory: {DATA_DIR}")
     print(f"Fabrics directory: {FABRICS_DIR}")
