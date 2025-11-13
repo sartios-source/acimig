@@ -11,10 +11,10 @@
         <svg class="h-8 w-8 mr-3 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
         </svg>
-        Analyze Data
+        Unified Data View
     </h1>
     <p class="mt-2 text-lg text-gray-600">
-        View and filter ACI data for <span class="font-semibold text-primary-600">{{ mode|upper }}</span> mode analysis
+        Comprehensive view of all ACI objects for <span class="font-semibold text-primary-600">{{ mode|upper }}</span> mode with advanced filtering
     </p>
 </div>
 
@@ -35,15 +35,15 @@
 </div>
 {% else %}
 
+{% if unified_data %}
 <!-- Overview Cards -->
-{% if analysis_data %}
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-fade-in">
     <!-- FEX Card -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600">FEX Devices</p>
-                <p class="text-3xl font-bold text-gray-900 mt-2">{{ analysis_data.total_counts.fexes }}</p>
+                <p class="text-3xl font-bold text-gray-900 mt-2">{{ type_counts.FEX or 0 }}</p>
             </div>
             <div class="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
                 <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,7 +58,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600">Leaf Switches</p>
-                <p class="text-3xl font-bold text-gray-900 mt-2">{{ analysis_data.total_counts.leafs }}</p>
+                <p class="text-3xl font-bold text-gray-900 mt-2">{{ type_counts.Leaf or 0 }}</p>
             </div>
             <div class="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
                 <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,7 +73,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600">EPGs</p>
-                <p class="text-3xl font-bold text-gray-900 mt-2">{{ analysis_data.total_counts.epgs }}</p>
+                <p class="text-3xl font-bold text-gray-900 mt-2">{{ type_counts.EPG or 0 }}</p>
             </div>
             <div class="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
                 <svg class="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,7 +88,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600">Bridge Domains</p>
-                <p class="text-3xl font-bold text-gray-900 mt-2">{{ analysis_data.total_counts.bridge_domains }}</p>
+                <p class="text-3xl font-bold text-gray-900 mt-2">{{ type_counts.BD or 0 }}</p>
             </div>
             <div class="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
                 <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,7 +103,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600">VRFs</p>
-                <p class="text-3xl font-bold text-gray-900 mt-2">{{ analysis_data.total_counts.vrfs }}</p>
+                <p class="text-3xl font-bold text-gray-900 mt-2">{{ type_counts.VRF or 0 }}</p>
             </div>
             <div class="h-12 w-12 rounded-lg bg-red-100 flex items-center justify-center">
                 <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,7 +118,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600">Contracts</p>
-                <p class="text-3xl font-bold text-gray-900 mt-2">{{ analysis_data.total_counts.contracts }}</p>
+                <p class="text-3xl font-bold text-gray-900 mt-2">{{ type_counts.Contract or 0 }}</p>
             </div>
             <div class="h-12 w-12 rounded-lg bg-indigo-100 flex items-center justify-center">
                 <svg class="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,7 +133,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600">Subnets</p>
-                <p class="text-3xl font-bold text-gray-900 mt-2">{{ analysis_data.total_counts.subnets }}</p>
+                <p class="text-3xl font-bold text-gray-900 mt-2">{{ type_counts.Subnet or 0 }}</p>
             </div>
             <div class="h-12 w-12 rounded-lg bg-pink-100 flex items-center justify-center">
                 <svg class="h-6 w-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,7 +148,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600">Interfaces</p>
-                <p class="text-3xl font-bold text-gray-900 mt-2">{{ analysis_data.total_counts.interfaces }}</p>
+                <p class="text-3xl font-bold text-gray-900 mt-2">{{ type_counts.Interface or 0 }}</p>
             </div>
             <div class="h-12 w-12 rounded-lg bg-teal-100 flex items-center justify-center">
                 <svg class="h-6 w-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,343 +158,240 @@
         </div>
     </div>
 </div>
-{% endif %}
 
-<!-- Tab Navigation -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8 overflow-x-auto">
-    <div class="flex flex-nowrap min-w-full">
-        <button class="data-tab px-6 py-4 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b-2 border-transparent whitespace-nowrap transition-colors active" data-table="fexes">
-            <svg class="inline h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+<!-- Advanced Filters Panel -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-6">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+            <svg class="h-5 w-5 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
             </svg>
-            FEX Devices
-        </button>
-        <button class="data-tab px-6 py-4 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b-2 border-transparent whitespace-nowrap transition-colors" data-table="leafs">
-            <svg class="inline h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>
-            </svg>
-            Leaf Switches
-        </button>
-        <button class="data-tab px-6 py-4 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b-2 border-transparent whitespace-nowrap transition-colors" data-table="epgs">
-            <svg class="inline h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-            </svg>
-            EPGs
-        </button>
-        <button class="data-tab px-6 py-4 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b-2 border-transparent whitespace-nowrap transition-colors" data-table="bridge_domains">
-            <svg class="inline h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-            </svg>
-            Bridge Domains
-        </button>
-        <button class="data-tab px-6 py-4 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b-2 border-transparent whitespace-nowrap transition-colors" data-table="vrfs">
-            <svg class="inline h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
-            </svg>
-            VRFs
-        </button>
-        <button class="data-tab px-6 py-4 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b-2 border-transparent whitespace-nowrap transition-colors" data-table="contracts">
-            <svg class="inline h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
-            Contracts
-        </button>
-        <button class="data-tab px-6 py-4 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b-2 border-transparent whitespace-nowrap transition-colors" data-table="subnets">
-            <svg class="inline h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
-            </svg>
-            Subnets
-        </button>
-        <button class="data-tab px-6 py-4 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 border-b-2 border-transparent whitespace-nowrap transition-colors" data-table="interfaces">
-            <svg class="inline h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-            </svg>
-            Interfaces
+            Filters
+        </h3>
+        <button id="clear-filters" class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+            Clear All
         </button>
     </div>
-</div>
 
-<!-- Data Tables -->
-{% if analysis_data %}
-
-<!-- FEX Devices Table -->
-<div id="fexes-table" class="data-table-container active">
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">FEX Devices ({{ analysis_data.fexes|length }})</h3>
-            <input type="text" id="fexes-search" placeholder="Search FEX..." class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <!-- Global Search -->
+        <div class="lg:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <input type="text" id="global-search" placeholder="Search across all fields..."
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
         </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="fexes-tbody">
-                    {% for fex in analysis_data.fexes %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ fex.id }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ fex.name or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ fex.serial or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ fex.model or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                {{ fex.status or 'Active' }}
-                            </span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+        <!-- Tenant Filter -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Tenant</label>
+            <select id="tenant-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                <option value="">All Tenants</option>
+                {% for tenant in tenants %}
+                <option value="{{ tenant }}">{{ tenant }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- VRF Filter -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">VRF</label>
+            <select id="vrf-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                <option value="">All VRFs</option>
+                {% for vrf in vrfs %}
+                <option value="{{ vrf }}">{{ vrf }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Type Filter - Multi-select Checkboxes -->
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-3">Object Types</label>
+        <div class="flex flex-wrap gap-3">
+            {% for type in types %}
+            <label class="inline-flex items-center px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors">
+                <input type="checkbox" class="type-filter mr-2 rounded text-primary-600 focus:ring-primary-500" value="{{ type }}" checked>
+                <span class="text-sm font-medium text-gray-700">{{ type }}</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Results Count and Actions -->
+    <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+        <div class="text-sm text-gray-600">
+            Showing <span id="results-count" class="font-semibold text-gray-900">0</span> results
+        </div>
+        <div class="flex gap-2">
+            <select id="rows-per-page" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                <option value="50">50 rows</option>
+                <option value="100">100 rows</option>
+                <option value="500">500 rows</option>
+                <option value="all">All rows</option>
+            </select>
+            <button id="export-csv" class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors">
+                Export CSV
+            </button>
+            <button id="export-json" class="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors">
+                Export JSON
+            </button>
+            <button id="toggle-columns" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
+                Columns
+            </button>
         </div>
     </div>
 </div>
 
-<!-- Leaf Switches Table -->
-<div id="leafs-table" class="data-table-container">
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Leaf Switches ({{ analysis_data.leafs|length }})</h3>
-            <input type="text" id="leafs-search" placeholder="Search leafs..." class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-        </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="leafs-tbody">
-                    {% for leaf in analysis_data.leafs %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ leaf.id }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ leaf.name or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ leaf.role or 'Leaf' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ leaf.serial or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ leaf.model or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                {{ leaf.status or 'Active' }}
-                            </span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<!-- Column Visibility Panel (Hidden by default) -->
+<div id="column-visibility-panel" class="hidden bg-white rounded-xl shadow-sm border border-gray-200 mb-6 p-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">Show/Hide Columns</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="type" checked disabled>
+            <span class="ml-2 text-sm text-gray-700">Type</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="name" checked disabled>
+            <span class="ml-2 text-sm text-gray-700">Name</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="id" checked>
+            <span class="ml-2 text-sm text-gray-700">ID</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="tenant" checked>
+            <span class="ml-2 text-sm text-gray-700">Tenant</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="vrf" checked>
+            <span class="ml-2 text-sm text-gray-700">VRF</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="bd" checked>
+            <span class="ml-2 text-sm text-gray-700">BD</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="encap" checked>
+            <span class="ml-2 text-sm text-gray-700">Encap</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="ip_subnet" checked>
+            <span class="ml-2 text-sm text-gray-700">IP/Subnet</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="model" checked>
+            <span class="ml-2 text-sm text-gray-700">Model</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="serial" checked>
+            <span class="ml-2 text-sm text-gray-700">Serial</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="status" checked>
+            <span class="ml-2 text-sm text-gray-700">Status</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="role" checked>
+            <span class="ml-2 text-sm text-gray-700">Role</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="app_profile" checked>
+            <span class="ml-2 text-sm text-gray-700">App Profile</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="scope" checked>
+            <span class="ml-2 text-sm text-gray-700">Scope</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="node" checked>
+            <span class="ml-2 text-sm text-gray-700">Node</span>
+        </label>
+        <label class="inline-flex items-center">
+            <input type="checkbox" class="column-toggle rounded text-primary-600 focus:ring-primary-500" value="speed" checked>
+            <span class="ml-2 text-sm text-gray-700">Speed</span>
+        </label>
     </div>
 </div>
 
-<!-- EPGs Table -->
-<div id="epgs-table" class="data-table-container">
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Endpoint Groups ({{ analysis_data.epgs|length }})</h3>
-            <input type="text" id="epgs-search" placeholder="Search EPGs..." class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-        </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Application Profile</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bridge Domain</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Encap</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="epgs-tbody">
-                    {% for epg in analysis_data.epgs %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ epg.name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ epg.tenant or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ epg.app_profile or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ epg.bd or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ epg.encap or 'N/A' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<!-- Unified Data Table -->
+<div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table id="unified-table" class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                    <th class="col-type px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="type">
+                        Type <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-name px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="name">
+                        Name <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-id px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="id">
+                        ID <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-tenant px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="tenant">
+                        Tenant <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-vrf px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="vrf">
+                        VRF <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-bd px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="bd">
+                        BD <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-encap px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="encap">
+                        Encap <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-ip_subnet px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="ip_subnet">
+                        IP/Subnet <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-model px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="model">
+                        Model <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-serial px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="serial">
+                        Serial <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-status px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="status">
+                        Status <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-role px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="role">
+                        Role <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-app_profile px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="app_profile">
+                        App Profile <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-scope px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="scope">
+                        Scope <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-node px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="node">
+                        Node <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-speed px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" data-column="speed">
+                        Speed <span class="sort-icon">⇅</span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="table-body" class="bg-white divide-y divide-gray-200">
+                <!-- Data will be populated by JavaScript -->
+            </tbody>
+        </table>
     </div>
-</div>
 
-<!-- Bridge Domains Table -->
-<div id="bridge_domains-table" class="data-table-container">
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Bridge Domains ({{ analysis_data.bridge_domains|length }})</h3>
-            <input type="text" id="bridge_domains-search" placeholder="Search BDs..." class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-        </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">VRF</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subnets</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">L2 Unknown</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="bridge_domains-tbody">
-                    {% for bd in analysis_data.bridge_domains %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ bd.name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ bd.tenant or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ bd.vrf or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ bd.subnets|length if bd.subnets else 0 }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ bd.l2_unknown or 'proxy' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- VRFs Table -->
-<div id="vrfs-table" class="data-table-container">
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">VRFs ({{ analysis_data.vrfs|length }})</h3>
-            <input type="text" id="vrfs-search" placeholder="Search VRFs..." class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-        </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PCE Policy</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preferred Group</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="vrfs-tbody">
-                    {% for vrf in analysis_data.vrfs %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ vrf.name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ vrf.tenant or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ vrf.pce_policy or 'enforced' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ vrf.preferred_group or 'disabled' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Contracts Table -->
-<div id="contracts-table" class="data-table-container">
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Contracts ({{ analysis_data.contracts|length }})</h3>
-            <input type="text" id="contracts-search" placeholder="Search contracts..." class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-        </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scope</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subjects</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="contracts-tbody">
-                    {% for contract in analysis_data.contracts %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ contract.name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ contract.tenant or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ contract.scope or 'context' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ contract.subjects|length if contract.subjects else 0 }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Subnets Table -->
-<div id="subnets-table" class="data-table-container">
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Subnets ({{ analysis_data.subnets|length }})</h3>
-            <input type="text" id="subnets-search" placeholder="Search subnets..." class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-        </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bridge Domain</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scope</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preferred</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="subnets-tbody">
-                    {% for subnet in analysis_data.subnets %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ subnet.ip }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ subnet.bd or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ subnet.tenant or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ subnet.scope or 'private' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ subnet.preferred or 'no' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Interfaces Table -->
-<div id="interfaces-table" class="data-table-container">
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Interfaces ({{ analysis_data.interfaces|length }})</h3>
-            <input type="text" id="interfaces-search" placeholder="Search interfaces..." class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-        </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Node</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Speed</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Oper State</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usage</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="interfaces-tbody">
-                    {% for iface in analysis_data.interfaces %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ iface.id }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ iface.node or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ iface.speed or 'N/A' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if iface.oper_state == 'up' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
-                                {{ iface.oper_state or 'down' }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ iface.usage or 'N/A' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <!-- Pagination Controls -->
+    <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+        <div class="flex items-center justify-between">
+            <div class="text-sm text-gray-600">
+                Showing <span id="page-start">0</span> to <span id="page-end">0</span> of <span id="total-filtered">0</span> results
+            </div>
+            <div class="flex gap-2">
+                <button id="prev-page" class="px-4 py-2 bg-white border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Previous
+                </button>
+                <div id="page-numbers" class="flex gap-1">
+                    <!-- Page numbers will be populated by JavaScript -->
+                </div>
+                <button id="next-page" class="px-4 py-2 bg-white border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Next
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -522,77 +419,310 @@
 
 {% block scripts %}
 <script>
-// Tab switching functionality
-const tabs = document.querySelectorAll('.data-tab');
-const tables = document.querySelectorAll('.data-table-container');
+// All data from backend
+const allData = {{ unified_data | tojson | safe }};
 
-tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        // Remove active class from all tabs and tables
-        tabs.forEach(t => {
-            t.classList.remove('active', 'border-primary-600', 'text-primary-600');
-            t.classList.add('border-transparent');
-        });
-        tables.forEach(t => t.classList.remove('active'));
+// State management
+let filteredData = [...allData];
+let currentPage = 1;
+let rowsPerPage = 50;
+let sortColumn = null;
+let sortDirection = 'asc';
 
-        // Add active class to clicked tab
-        tab.classList.add('active', 'border-primary-600', 'text-primary-600');
-        tab.classList.remove('border-transparent');
+// Type badge colors
+const typeColors = {
+    'FEX': 'bg-blue-100 text-blue-800',
+    'Leaf': 'bg-green-100 text-green-800',
+    'EPG': 'bg-purple-100 text-purple-800',
+    'BD': 'bg-yellow-100 text-yellow-800',
+    'VRF': 'bg-red-100 text-red-800',
+    'Contract': 'bg-indigo-100 text-indigo-800',
+    'Subnet': 'bg-pink-100 text-pink-800',
+    'Interface': 'bg-teal-100 text-teal-800'
+};
 
-        // Show corresponding table
-        const tableName = tab.getAttribute('data-table');
-        const tableElement = document.getElementById(`${tableName}-table`);
-        if (tableElement) {
-            tableElement.classList.add('active');
-        }
-    });
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    applyFilters();
+    setupEventListeners();
 });
 
-// Search filter functionality
-function setupSearchFilter(tableName) {
-    const searchInput = document.getElementById(`${tableName}-search`);
-    const tbody = document.getElementById(`${tableName}-tbody`);
+// Setup all event listeners
+function setupEventListeners() {
+    // Search and filter inputs
+    document.getElementById('global-search').addEventListener('input', applyFilters);
+    document.getElementById('tenant-filter').addEventListener('change', applyFilters);
+    document.getElementById('vrf-filter').addEventListener('change', applyFilters);
+    document.querySelectorAll('.type-filter').forEach(cb => {
+        cb.addEventListener('change', applyFilters);
+    });
 
-    if (!searchInput || !tbody) return;
+    // Clear filters button
+    document.getElementById('clear-filters').addEventListener('click', () => {
+        document.getElementById('global-search').value = '';
+        document.getElementById('tenant-filter').value = '';
+        document.getElementById('vrf-filter').value = '';
+        document.querySelectorAll('.type-filter').forEach(cb => cb.checked = true);
+        applyFilters();
+    });
 
-    searchInput.addEventListener('keyup', function() {
-        const filter = this.value.toLowerCase();
-        const rows = tbody.getElementsByTagName('tr');
+    // Rows per page
+    document.getElementById('rows-per-page').addEventListener('change', (e) => {
+        rowsPerPage = e.target.value === 'all' ? filteredData.length : parseInt(e.target.value);
+        currentPage = 1;
+        renderTable();
+    });
 
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            const text = row.textContent.toLowerCase();
+    // Export buttons
+    document.getElementById('export-csv').addEventListener('click', exportCSV);
+    document.getElementById('export-json').addEventListener('click', exportJSON);
 
-            if (text.includes(filter)) {
-                row.style.display = '';
+    // Column visibility toggle
+    document.getElementById('toggle-columns').addEventListener('click', () => {
+        document.getElementById('column-visibility-panel').classList.toggle('hidden');
+    });
+
+    document.querySelectorAll('.column-toggle').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+            const column = e.target.value;
+            const show = e.target.checked;
+            document.querySelectorAll(`.col-${column}`).forEach(el => {
+                el.style.display = show ? '' : 'none';
+            });
+        });
+    });
+
+    // Sorting
+    document.querySelectorAll('th[data-column]').forEach(th => {
+        th.addEventListener('click', () => {
+            const column = th.getAttribute('data-column');
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
             } else {
-                row.style.display = 'none';
+                sortColumn = column;
+                sortDirection = 'asc';
             }
+            sortData();
+            renderTable();
+        });
+    });
+
+    // Pagination
+    document.getElementById('prev-page').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderTable();
+        }
+    });
+
+    document.getElementById('next-page').addEventListener('click', () => {
+        const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderTable();
         }
     });
 }
 
-// Initialize search filters for all tables
-const tableNames = ['fexes', 'leafs', 'epgs', 'bridge_domains', 'vrfs', 'contracts', 'subnets', 'interfaces'];
-tableNames.forEach(tableName => setupSearchFilter(tableName));
+// Apply all filters
+function applyFilters() {
+    const searchTerm = document.getElementById('global-search').value.toLowerCase();
+    const tenantFilter = document.getElementById('tenant-filter').value;
+    const vrfFilter = document.getElementById('vrf-filter').value;
+    const typeFilters = Array.from(document.querySelectorAll('.type-filter:checked')).map(cb => cb.value);
+
+    filteredData = allData.filter(row => {
+        // Type filter
+        if (!typeFilters.includes(row.type)) return false;
+
+        // Tenant filter
+        if (tenantFilter && row.tenant !== tenantFilter) return false;
+
+        // VRF filter
+        if (vrfFilter && row.vrf !== vrfFilter) return false;
+
+        // Global search
+        if (searchTerm) {
+            const searchString = Object.values(row).join(' ').toLowerCase();
+            if (!searchString.includes(searchTerm)) return false;
+        }
+
+        return true;
+    });
+
+    currentPage = 1;
+    renderTable();
+}
+
+// Sort data
+function sortData() {
+    if (!sortColumn) return;
+
+    filteredData.sort((a, b) => {
+        let aVal = a[sortColumn] || '';
+        let bVal = b[sortColumn] || '';
+
+        // Handle numeric values
+        if (!isNaN(aVal) && !isNaN(bVal)) {
+            aVal = parseFloat(aVal);
+            bVal = parseFloat(bVal);
+        } else {
+            aVal = String(aVal).toLowerCase();
+            bVal = String(bVal).toLowerCase();
+        }
+
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+    });
+}
+
+// Render table with current filters and pagination
+function renderTable() {
+    const tbody = document.getElementById('table-body');
+    const start = (currentPage - 1) * rowsPerPage;
+    const end = Math.min(start + rowsPerPage, filteredData.length);
+    const pageData = filteredData.slice(start, end);
+
+    // Clear table
+    tbody.innerHTML = '';
+
+    // Render rows
+    pageData.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-50 transition-colors';
+        tr.innerHTML = `
+            <td class="col-type px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${typeColors[row.type] || 'bg-gray-100 text-gray-800'}">
+                    ${row.type}
+                </span>
+            </td>
+            <td class="col-name px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${row.name || 'N/A'}</td>
+            <td class="col-id px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.id || 'N/A'}</td>
+            <td class="col-tenant px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.tenant || 'N/A'}</td>
+            <td class="col-vrf px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.vrf || 'N/A'}</td>
+            <td class="col-bd px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.bd || 'N/A'}</td>
+            <td class="col-encap px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.encap || 'N/A'}</td>
+            <td class="col-ip_subnet px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.ip_subnet || 'N/A'}</td>
+            <td class="col-model px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.model || 'N/A'}</td>
+            <td class="col-serial px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.serial || 'N/A'}</td>
+            <td class="col-status px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.status || 'N/A'}</td>
+            <td class="col-role px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.role || 'N/A'}</td>
+            <td class="col-app_profile px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.app_profile || 'N/A'}</td>
+            <td class="col-scope px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.scope || 'N/A'}</td>
+            <td class="col-node px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.node || 'N/A'}</td>
+            <td class="col-speed px-6 py-4 whitespace-nowrap text-sm text-gray-700">${row.speed || 'N/A'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Update pagination info
+    document.getElementById('results-count').textContent = filteredData.length;
+    document.getElementById('page-start').textContent = filteredData.length > 0 ? start + 1 : 0;
+    document.getElementById('page-end').textContent = end;
+    document.getElementById('total-filtered').textContent = filteredData.length;
+
+    // Update pagination buttons
+    const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+    document.getElementById('prev-page').disabled = currentPage === 1;
+    document.getElementById('next-page').disabled = currentPage === totalPages || totalPages === 0;
+
+    // Render page numbers
+    renderPageNumbers(totalPages);
+}
+
+// Render page number buttons
+function renderPageNumbers(totalPages) {
+    const container = document.getElementById('page-numbers');
+    container.innerHTML = '';
+
+    const maxButtons = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+    if (endPage - startPage < maxButtons - 1) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        btn.className = `px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+            i === currentPage
+                ? 'bg-primary-600 text-white'
+                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+        }`;
+        btn.addEventListener('click', () => {
+            currentPage = i;
+            renderTable();
+        });
+        container.appendChild(btn);
+    }
+}
+
+// Export to CSV
+function exportCSV() {
+    const headers = ['Type', 'Name', 'ID', 'Tenant', 'VRF', 'BD', 'Encap', 'IP/Subnet', 'Model', 'Serial', 'Status', 'Role', 'App Profile', 'Scope', 'Node', 'Speed'];
+    const rows = filteredData.map(row => [
+        row.type, row.name, row.id, row.tenant, row.vrf, row.bd, row.encap, row.ip_subnet,
+        row.model, row.serial, row.status, row.role, row.app_profile, row.scope, row.node, row.speed
+    ]);
+
+    let csv = headers.join(',') + '\n';
+    rows.forEach(row => {
+        csv += row.map(cell => `"${cell || ''}"`).join(',') + '\n';
+    });
+
+    downloadFile(csv, 'aci_unified_data.csv', 'text/csv');
+}
+
+// Export to JSON
+function exportJSON() {
+    const json = JSON.stringify(filteredData, null, 2);
+    downloadFile(json, 'aci_unified_data.json', 'application/json');
+}
+
+// Download file helper
+function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
 </script>
 
 <style>
-/* Tab and table styling */
-.data-tab.active {
-    border-bottom-color: #2563eb;
-    color: #2563eb;
+/* Sticky header */
+thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
-.data-table-container {
-    display: none;
+/* Sort icon */
+.sort-icon {
+    margin-left: 4px;
+    opacity: 0.3;
 }
 
-.data-table-container.active {
-    display: block;
-    animation: fadeIn 0.3s ease-in;
+th[data-column]:hover .sort-icon {
+    opacity: 1;
 }
 
+/* Smooth transitions */
+tbody tr {
+    transition: all 0.2s ease;
+}
+
+tbody tr:hover {
+    transform: scale(1.005);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Animation */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -604,14 +734,8 @@ tableNames.forEach(tableName => setupSearchFilter(tableName));
     }
 }
 
-/* Table row hover effect */
-tbody tr {
-    transition: all 0.2s ease;
-}
-
-tbody tr:hover {
-    transform: scale(1.01);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-in;
 }
 </style>
 {% endblock %}

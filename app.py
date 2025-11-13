@@ -241,13 +241,16 @@ def upload_page():
 
 @app.route('/analyze')
 def analyze():
-    """Analysis page - view and filter uploaded data."""
+    """Analysis page - unified data view with comprehensive filtering."""
     mode = session.get('mode', 'evpn')
     current_fabric = session.get('current_fabric')
 
     datasets = []
-    validation_results = None
-    analysis_data = {}
+    unified_data = []
+    tenants = []
+    vrfs = []
+    types = ['FEX', 'Leaf', 'EPG', 'BD', 'VRF', 'Contract', 'Subnet', 'Interface']
+    type_counts = {}
 
     if current_fabric:
         fabric_data = fm.get_fabric_data(current_fabric)
@@ -256,42 +259,205 @@ def analyze():
         # Run comprehensive data completeness validation
         try:
             analyzer = engine.ACIAnalyzer(fabric_data)
-            validation_results = analyzer.get_data_completeness()
 
             # Load data for display
             analyzer._load_data()
 
-            # Get all categorized objects for tables
-            analysis_data = {
-                'fexes': analyzer._fexes[:100],  # Limit to 100 per table for performance
-                'leafs': analyzer._leafs[:100],
-                'epgs': analyzer._epgs[:100],
-                'bridge_domains': analyzer._bds[:100],
-                'vrfs': analyzer._vrfs[:100],
-                'contracts': analyzer._contracts[:100],
-                'subnets': analyzer._subnets[:100],
-                'interfaces': analyzer._interfaces[:100],
-                'total_counts': {
-                    'fexes': len(analyzer._fexes),
-                    'leafs': len(analyzer._leafs),
-                    'epgs': len(analyzer._epgs),
-                    'bridge_domains': len(analyzer._bds),
-                    'vrfs': len(analyzer._vrfs),
-                    'contracts': len(analyzer._contracts),
-                    'subnets': len(analyzer._subnets),
-                    'interfaces': len(analyzer._interfaces)
-                }
-            }
+            # Build unified data list with all objects
+            # Add FEX devices
+            for fex in analyzer._fexes:
+                unified_data.append({
+                    'type': 'FEX',
+                    'name': fex.get('name', ''),
+                    'id': str(fex.get('id', '')),
+                    'tenant': '',
+                    'vrf': '',
+                    'bd': '',
+                    'encap': '',
+                    'ip_subnet': '',
+                    'model': fex.get('model', ''),
+                    'serial': fex.get('serial', ''),
+                    'status': fex.get('status', 'Active'),
+                    'role': '',
+                    'app_profile': '',
+                    'scope': '',
+                    'node': '',
+                    'speed': ''
+                })
+
+            # Add Leaf switches
+            for leaf in analyzer._leafs:
+                unified_data.append({
+                    'type': 'Leaf',
+                    'name': leaf.get('name', ''),
+                    'id': str(leaf.get('id', '')),
+                    'tenant': '',
+                    'vrf': '',
+                    'bd': '',
+                    'encap': '',
+                    'ip_subnet': '',
+                    'model': leaf.get('model', ''),
+                    'serial': leaf.get('serial', ''),
+                    'status': leaf.get('status', 'Active'),
+                    'role': leaf.get('role', 'Leaf'),
+                    'app_profile': '',
+                    'scope': '',
+                    'node': '',
+                    'speed': ''
+                })
+
+            # Add EPGs
+            for epg in analyzer._epgs:
+                unified_data.append({
+                    'type': 'EPG',
+                    'name': epg.get('name', ''),
+                    'id': '',
+                    'tenant': epg.get('tenant', ''),
+                    'vrf': '',
+                    'bd': epg.get('bd', ''),
+                    'encap': epg.get('encap', ''),
+                    'ip_subnet': '',
+                    'model': '',
+                    'serial': '',
+                    'status': '',
+                    'role': '',
+                    'app_profile': epg.get('app_profile', ''),
+                    'scope': '',
+                    'node': '',
+                    'speed': ''
+                })
+
+            # Add Bridge Domains
+            for bd in analyzer._bds:
+                # Get subnets if available
+                subnets_list = bd.get('subnets', [])
+                subnet_str = ', '.join(subnets_list) if subnets_list else ''
+
+                unified_data.append({
+                    'type': 'BD',
+                    'name': bd.get('name', ''),
+                    'id': '',
+                    'tenant': bd.get('tenant', ''),
+                    'vrf': bd.get('vrf', ''),
+                    'bd': '',
+                    'encap': '',
+                    'ip_subnet': subnet_str,
+                    'model': '',
+                    'serial': '',
+                    'status': '',
+                    'role': '',
+                    'app_profile': '',
+                    'scope': bd.get('l2_unknown', 'proxy'),
+                    'node': '',
+                    'speed': ''
+                })
+
+            # Add VRFs
+            for vrf in analyzer._vrfs:
+                unified_data.append({
+                    'type': 'VRF',
+                    'name': vrf.get('name', ''),
+                    'id': '',
+                    'tenant': vrf.get('tenant', ''),
+                    'vrf': '',
+                    'bd': '',
+                    'encap': '',
+                    'ip_subnet': '',
+                    'model': '',
+                    'serial': '',
+                    'status': '',
+                    'role': '',
+                    'app_profile': '',
+                    'scope': vrf.get('pce_policy', 'enforced'),
+                    'node': '',
+                    'speed': ''
+                })
+
+            # Add Contracts
+            for contract in analyzer._contracts:
+                unified_data.append({
+                    'type': 'Contract',
+                    'name': contract.get('name', ''),
+                    'id': '',
+                    'tenant': contract.get('tenant', ''),
+                    'vrf': '',
+                    'bd': '',
+                    'encap': '',
+                    'ip_subnet': '',
+                    'model': '',
+                    'serial': '',
+                    'status': '',
+                    'role': '',
+                    'app_profile': '',
+                    'scope': contract.get('scope', 'context'),
+                    'node': '',
+                    'speed': ''
+                })
+
+            # Add Subnets
+            for subnet in analyzer._subnets:
+                unified_data.append({
+                    'type': 'Subnet',
+                    'name': '',
+                    'id': '',
+                    'tenant': subnet.get('tenant', ''),
+                    'vrf': '',
+                    'bd': subnet.get('bd', ''),
+                    'encap': '',
+                    'ip_subnet': subnet.get('ip', ''),
+                    'model': '',
+                    'serial': '',
+                    'status': '',
+                    'role': '',
+                    'app_profile': '',
+                    'scope': subnet.get('scope', 'private'),
+                    'node': '',
+                    'speed': ''
+                })
+
+            # Add Interfaces
+            for iface in analyzer._interfaces:
+                unified_data.append({
+                    'type': 'Interface',
+                    'name': '',
+                    'id': iface.get('id', ''),
+                    'tenant': '',
+                    'vrf': '',
+                    'bd': '',
+                    'encap': '',
+                    'ip_subnet': '',
+                    'model': '',
+                    'serial': '',
+                    'status': iface.get('oper_state', 'down'),
+                    'role': iface.get('usage', ''),
+                    'app_profile': '',
+                    'scope': '',
+                    'node': iface.get('node', ''),
+                    'speed': iface.get('speed', '')
+                })
+
+            # Extract unique values for filters
+            tenants = sorted(set(item['tenant'] for item in unified_data if item['tenant']))
+            vrfs = sorted(set(item['vrf'] for item in unified_data if item['vrf']))
+
+            # Count objects by type
+            type_counts = {}
+            for obj_type in types:
+                type_counts[obj_type] = sum(1 for item in unified_data if item['type'] == obj_type)
+
         except Exception as e:
-            app.logger.error(f"Error during validation: {str(e)}", exc_info=True)
-            validation_results = None
+            app.logger.error(f"Error during analysis: {str(e)}", exc_info=True)
+            unified_data = []
 
     return render_template('analyze.html',
                          mode=mode,
                          current_fabric=current_fabric,
                          datasets=datasets,
-                         validation_results=validation_results,
-                         analysis_data=analysis_data)
+                         unified_data=unified_data,
+                         tenants=tenants,
+                         vrfs=vrfs,
+                         types=types,
+                         type_counts=type_counts)
 
 
 @app.route('/upload', methods=['POST'])
