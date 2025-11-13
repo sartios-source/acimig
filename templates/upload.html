@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Data - ACI Analysis Tool{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+        <svg class="h-8 w-8 mr-3 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+        </svg>
+        Upload Data Files
+    </h1>
+    <p class="mt-2 text-lg text-gray-600">
+        Upload ACI data for <span class="font-semibold text-primary-600">{{ mode|upper }}</span> mode analysis
+    </p>
+</div>
+
+{% if not current_fabric %}
+<!-- No Fabric Selected Warning -->
+<div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-6 mb-8">
+    <div class="flex items-start">
+        <svg class="h-6 w-6 text-yellow-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <div>
+            <h3 class="text-lg font-semibold text-yellow-800 mb-2">No Fabric Selected</h3>
+            <p class="text-yellow-700">
+                Please select or create a fabric from the <a href="{{ url_for('index') }}" class="underline hover:text-yellow-900 font-semibold">home page</a> to upload data.
+            </p>
+        </div>
+    </div>
+</div>
+{% else %}
+
+<!-- Upload Section -->
+<div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h2 class="text-xl font-bold text-gray-900">Upload Data Files</h2>
+            <p class="mt-1 text-sm text-gray-500">Current Fabric: <span class="font-semibold text-gray-900">{{ current_fabric }}</span></p>
+        </div>
+        <a href="{{ url_for('analyze') }}" class="inline-flex items-center px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors">
+            <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            View Analyzed Data
+        </a>
+    </div>
+
+    <!-- Drag & Drop Zone -->
+    <div id="drop-zone" class="border-3 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-primary-500 hover:bg-primary-50 transition-all duration-300 cursor-pointer group">
+        <div class="flex flex-col items-center">
+            <div class="h-20 w-20 rounded-full bg-primary-100 flex items-center justify-center mb-4 group-hover:bg-primary-200 group-hover:scale-110 transition-all duration-300">
+                <svg class="h-10 w-10 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">Drag & Drop Files Here</h3>
+            <p class="text-gray-600 mb-4">or click to browse your computer</p>
+            <p class="text-sm text-gray-500 mb-6">Supported: JSON, XML, CSV, TXT, CFG, CONF (Max 1GB per file)</p>
+            <input type="file" id="file-input" multiple accept=".json,.xml,.csv,.txt,.cfg,.conf" class="hidden">
+            <button onclick="document.getElementById('file-input').click()" class="inline-flex items-center px-6 py-3 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Browse Files
+            </button>
+        </div>
+    </div>
+
+    <!-- File Queue (Hidden by default) -->
+    <div id="file-queue" class="hidden mt-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Upload Queue</h3>
+            <div class="flex gap-2">
+                <button onclick="startAllUploads()" id="start-all-btn" class="inline-flex items-center px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors">
+                    <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Start All
+                </button>
+                <button onclick="pauseAllUploads()" id="pause-all-btn" disabled class="inline-flex items-center px-4 py-2 rounded-lg bg-yellow-600 text-white text-sm font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Pause All
+                </button>
+                <button onclick="cancelAllUploads()" class="inline-flex items-center px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors">
+                    <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    Cancel All
+                </button>
+            </div>
+        </div>
+
+        <!-- File List -->
+        <div id="file-list" class="space-y-3">
+            <!-- Files will be added here dynamically -->
+        </div>
+    </div>
+</div>
+
+<!-- Current Datasets -->
+{% if datasets %}
+<div class="bg-white rounded-2xl shadow-lg p-8">
+    <h2 class="text-xl font-bold text-gray-900 mb-6">Uploaded Datasets</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for dataset in datasets %}
+        <div class="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center">
+                    <div class="h-10 w-10 rounded-lg bg-primary-100 flex items-center justify-center mr-3">
+                        <svg class="h-5 w-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-900 text-sm">{{ dataset.filename }}</p>
+                        <p class="text-xs text-gray-500">{{ dataset.type|upper }} • {{ dataset.format|upper }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center justify-between text-xs text-gray-500">
+                <span>{{ dataset.size }}</span>
+                <span>{{ dataset.uploaded_at }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+
+<!-- Include upload.js -->
+<script src="{{ url_for('static', filename='upload.js') }}"></script>
+
+<style>
+/* Upload.js specific styles */
+.file-item {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    transition: all 0.3s ease;
+}
+
+.file-item.uploading {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.file-item.complete {
+    border-color: #10b981;
+    background: #ecfdf5;
+}
+
+.file-item.error {
+    border-color: #ef4444;
+    background: #fef2f2;
+}
+
+.file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.file-icon {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.file-details h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 0.25rem 0;
+}
+
+.file-size {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.file-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.file-actions button {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #d1d5db;
+    background: white;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.file-actions button:hover {
+    background: #f3f4f6;
+}
+
+.file-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.file-progress {
+    margin-top: 0.75rem;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 0.5rem;
+    background: #e5e7eb;
+    border-radius: 0.25rem;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+    transition: width 0.3s ease;
+    border-radius: 0.25rem;
+}
+
+.progress-bar.complete {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.progress-bar.error {
+    background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+/* Drag over state */
+#drop-zone.drag-over {
+    border-color: #2563eb !important;
+    background-color: #eff6ff !important;
+}
+</style>
+
+{% endblock %}

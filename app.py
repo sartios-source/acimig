@@ -207,14 +207,32 @@ def set_mode(mode):
     return redirect(url_for('index'))
 
 
+@app.route('/upload_page')
+def upload_page():
+    """Upload page - file upload interface."""
+    mode = session.get('mode', 'evpn')
+    current_fabric = session.get('current_fabric')
+
+    datasets = []
+    if current_fabric:
+        fabric_data = fm.get_fabric_data(current_fabric)
+        datasets = fabric_data.get('datasets', [])
+
+    return render_template('upload.html',
+                         mode=mode,
+                         current_fabric=current_fabric,
+                         datasets=datasets)
+
+
 @app.route('/analyze')
 def analyze():
-    """Analysis page - upload and validate datasets with enhanced UI."""
+    """Analysis page - view and filter uploaded data."""
     mode = session.get('mode', 'evpn')
     current_fabric = session.get('current_fabric')
 
     datasets = []
     validation_results = None
+    analysis_data = {}
 
     if current_fabric:
         fabric_data = fm.get_fabric_data(current_fabric)
@@ -224,15 +242,41 @@ def analyze():
         try:
             analyzer = engine.ACIAnalyzer(fabric_data)
             validation_results = analyzer.get_data_completeness()
+
+            # Load data for display
+            analyzer._load_data()
+
+            # Get all categorized objects for tables
+            analysis_data = {
+                'fexes': analyzer._fexes[:100],  # Limit to 100 per table for performance
+                'leafs': analyzer._leafs[:100],
+                'epgs': analyzer._epgs[:100],
+                'bridge_domains': analyzer._bds[:100],
+                'vrfs': analyzer._vrfs[:100],
+                'contracts': analyzer._contracts[:100],
+                'subnets': analyzer._subnets[:100],
+                'interfaces': analyzer._interfaces[:100],
+                'total_counts': {
+                    'fexes': len(analyzer._fexes),
+                    'leafs': len(analyzer._leafs),
+                    'epgs': len(analyzer._epgs),
+                    'bridge_domains': len(analyzer._bds),
+                    'vrfs': len(analyzer._vrfs),
+                    'contracts': len(analyzer._contracts),
+                    'subnets': len(analyzer._subnets),
+                    'interfaces': len(analyzer._interfaces)
+                }
+            }
         except Exception as e:
             app.logger.error(f"Error during validation: {str(e)}", exc_info=True)
             validation_results = None
 
-    return render_template('analyze_enhanced.html',
+    return render_template('analyze.html',
                          mode=mode,
                          current_fabric=current_fabric,
                          datasets=datasets,
-                         validation_results=validation_results)
+                         validation_results=validation_results,
+                         analysis_data=analysis_data)
 
 
 @app.route('/upload', methods=['POST'])

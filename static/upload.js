@@ -360,11 +360,20 @@ function updateOverallProgress() {
     const uploadedBytes = uploadQueue.reduce((sum, f) => sum + f.uploadedBytes, 0);
     const overallProgress = totalBytes > 0 ? (uploadedBytes / totalBytes) * 100 : 0;
 
-    document.getElementById('overall-status').textContent =
-        `${completeFiles} / ${totalFiles} files complete`;
-    document.getElementById('overall-stats').textContent =
-        `${formatBytes(uploadedBytes)} / ${formatBytes(totalBytes)}`;
-    document.getElementById('overall-progress-bar').style.width = `${overallProgress}%`;
+    // Update if elements exist
+    const overallStatus = document.getElementById('overall-status');
+    const overallStats = document.getElementById('overall-stats');
+    const overallProgressBar = document.getElementById('overall-progress-bar');
+
+    if (overallStatus) {
+        overallStatus.textContent = `${completeFiles} / ${totalFiles} files complete`;
+    }
+    if (overallStats) {
+        overallStats.textContent = `${formatBytes(uploadedBytes)} / ${formatBytes(totalBytes)}`;
+    }
+    if (overallProgressBar) {
+        overallProgressBar.style.width = `${overallProgress}%`;
+    }
 }
 
 function pauseUpload(fileId) {
