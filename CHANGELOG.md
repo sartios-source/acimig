@@ -9,13 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.01] - 2024-11-14
 
-### Major Rebranding & UI Reorganization
+### Branding Refinement & Version Display
 
-Complete rebranding from "acimig v1.0" to "ACI Migrator v1.01" with enhanced fabric management prominence and fabric-specific statistics.
+Corrected branding to separate product name from version number for cleaner, more professional presentation.
 
 ### Changed
-- **Product Name**: Rebranded from "acimig v1.0" to "ACI Migrator"
-- **Version**: Updated from 1.0.0 to 1.01
+- **Product Name**: Clean "ACI Migrator" branding (no version suffix in product name)
+- **Version Display**: "v1.01" shown only at bottom left of homepage
+- **Sidebar Branding**: Removed version from sidebar logo/title area
+- **Footer Text**: Changed to "© 2024-2025 ACI Migrator" (no version)
+- **Startup Banner**: Separated product name and version display
+- **All Page Titles**: Show "ACI Migrator" without version suffix
 - **Sidebar Navigation**: Moved Fabric Manager to top of sidebar (directly below Home link) for better visibility and workflow
   - Fabric Manager now expanded by default instead of collapsed
   - Positioned as second item in navigation for easier access

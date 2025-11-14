@@ -1,6 +1,7 @@
-# ACI Migrator v1.01 - Technical Documentation
+# ACI Migrator - Technical Documentation
 
 > Comprehensive technical documentation for developers and system administrators
+> Version: 1.01
 
 ---
 
@@ -22,7 +23,7 @@
 
 ### What is ACI Migrator?
 
-ACI Migrator v1.01 is a professional web-based analysis and migration planning tool for Cisco ACI (Application Centric Infrastructure) environments. It provides comprehensive analysis, visualization, and automated configuration generation for:
+ACI Migrator is a professional web-based analysis and migration planning tool for Cisco ACI (Application Centric Infrastructure) environments. It provides comprehensive analysis, visualization, and automated configuration generation for:
 
 - **EVPN/VXLAN Migration**: Migrate from ACI to standards-based EVPN fabric
 - **Onboard Planning**: Plan new FEX/leaf deployments and capacity

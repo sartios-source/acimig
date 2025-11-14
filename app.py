@@ -1,5 +1,5 @@
 """
-ACI Migrator v1.01 - Professional ACI to EVPN/VXLAN Migration Analysis Tool
+ACI Migrator - Professional ACI to EVPN/VXLAN Migration Analysis Tool
 Supports both Onboard and EVPN workflows with multi-fabric analysis.
 """
 import os
@@ -65,7 +65,7 @@ def setup_logging(app):
         app.logger.addHandler(file_handler)
 
     app.logger.setLevel(logging.INFO)
-    app.logger.info(f'ACI Migrator v{APP_VERSION} startup')
+    app.logger.info(f'ACI Migrator startup - Version {APP_VERSION}')
 
 setup_logging(app)
 
@@ -1046,7 +1046,8 @@ def get_analysis(analysis_type):
 
 if __name__ == '__main__':
     print("=" * 70)
-    print(f"ACI Migrator v{APP_VERSION} - Professional ACI Migration Tool")
+    print("ACI Migrator - Professional ACI Migration Tool")
+    print(f"Version: {APP_VERSION}")
     print("=" * 70)
     print(f"Data directory: {DATA_DIR}")
     print(f"Fabrics directory: {FABRICS_DIR}")
