@@ -1,4 +1,4 @@
-# acimig v1.0 - Technical Documentation
+# ACI Migrator v1.01 - Technical Documentation
 
 > Comprehensive technical documentation for developers and system administrators
 
@@ -20,9 +20,9 @@
 
 ## Overview
 
-### What is acimig v1.0?
+### What is ACI Migrator?
 
-acimig v1.0 is a professional web-based analysis and migration planning tool for Cisco ACI (Application Centric Infrastructure) environments. It provides comprehensive analysis, visualization, and automated configuration generation for:
+ACI Migrator v1.01 is a professional web-based analysis and migration planning tool for Cisco ACI (Application Centric Infrastructure) environments. It provides comprehensive analysis, visualization, and automated configuration generation for:
 
 - **EVPN/VXLAN Migration**: Migrate from ACI to standards-based EVPN fabric
 - **Onboard Planning**: Plan new FEX/leaf deployments and capacity
@@ -170,7 +170,7 @@ Upload → Parse → Validate → Categorize → Store → Analyze → Visualize
 
 ```bash
 git clone <repository-url>
-cd acimig
+cd ACI Migrator
 ```
 
 #### 2. Create Virtual Environment
@@ -211,7 +211,7 @@ python app.py
 Expected output:
 ```
 ======================================================================
-acimig v1.0.0 - Professional ACI Migration Tool
+ACI Migrator v1.0.0 - Professional ACI Migration Tool
 ======================================================================
 Data directory: C:\Users\...\aciv2\data
 Fabrics directory: C:\Users\...\aciv2\fabrics
@@ -243,8 +243,8 @@ CMD ["python", "app.py"]
 
 ```bash
 # Build and run
-docker build -t acimig:1.0 .
-docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics acimig:1.0
+docker build -t ACI Migrator:1.0 .
+docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics ACI Migrator:1.0
 ```
 
 ---
@@ -389,7 +389,7 @@ curl http://localhost:5000/api/migration-assessment/fabric_name
 
 ### Authentication
 
-Currently, acimig v1.0 does not require authentication. For production deployment, implement authentication middleware or use reverse proxy with authentication.
+Currently, ACI Migrator v1.0 does not require authentication. For production deployment, implement authentication middleware or use reverse proxy with authentication.
 
 ### Endpoints
 
@@ -405,7 +405,7 @@ GET /health
   "status": "healthy",
   "timestamp": "2025-11-13T10:00:00",
   "version": "1.0.0",
-  "app_name": "acimig",
+  "app_name": "ACI Migrator",
   "fabrics_dir_exists": true,
   "output_dir_exists": true
 }
@@ -575,7 +575,7 @@ TESTING = True
 ### Directory Structure
 
 ```
-acimig/
+ACI Migrator/
 ├── fabrics/          # Fabric data storage
 │   ├── fabric1/
 │   │   ├── manifest.json
@@ -619,7 +619,7 @@ acimig/
 ```nginx
 server {
     listen 443 ssl;
-    server_name acimig.example.com;
+    server_name ACI Migrator.example.com;
 
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;
@@ -633,8 +633,8 @@ server {
     }
 
     # Rate limiting
-    limit_req_zone $binary_remote_addr zone=acimig:10m rate=10r/s;
-    limit_req zone=acimig burst=20;
+    limit_req_zone $binary_remote_addr zone=ACI Migrator:10m rate=10r/s;
+    limit_req zone=ACI Migrator burst=20;
 }
 ```
 
@@ -759,7 +759,7 @@ python app.py
 ### Code Structure
 
 ```
-acimig/
+ACI Migrator/
 ├── app.py                 # Main Flask app
 ├── config.py              # Configuration classes
 ├── requirements.txt       # Dependencies
@@ -890,6 +890,6 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ---
 
-**acimig v1.0** - Professional ACI to EVPN/VXLAN Migration Analysis Tool
+**ACI Migrator v1.0** - Professional ACI to EVPN/VXLAN Migration Analysis Tool
 
 Copyright 2025 - All Rights Reserved

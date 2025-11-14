@@ -1,10 +1,10 @@
-# acimig v1.0
+# ACI Migrator v1.01
 
 > **Professional ACI to EVPN/VXLAN Migration Analysis Tool**
 
 A comprehensive, web-based application for analyzing Cisco ACI fabrics and generating migration plans to standards-based EVPN/VXLAN architectures. Streamline your network infrastructure modernization with automated configuration generation, intelligent recommendations, and detailed analysis.
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.01-blue.svg)](#)
 [![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/flask-3.0%2B-black.svg)](https://flask.palletsprojects.com/)
 [![License](https://img.shields.io/badge/license-Internal-red.svg)](#)
@@ -127,7 +127,7 @@ Multi-format report generation (HTML, Markdown, CSV) for documentation and analy
 1. **Clone or download the repository:**
    ```bash
    git clone <repository-url>
-   cd acimig
+   cd aciv2
    ```
 
 2. **Install dependencies:**
@@ -193,7 +193,7 @@ Multi-format report generation (HTML, Markdown, CSV) for documentation and analy
 ### Application Structure
 
 ```
-acimig/
+aciv2/
 ├── app.py                 # Main Flask application
 ├── config.py              # Configuration management
 ├── VERSION                # Version file (1.0.0)
@@ -425,7 +425,7 @@ Returns application health status and version:
   "status": "healthy",
   "timestamp": "2025-11-13T10:00:00",
   "version": "1.0.0",
-  "app_name": "acimig"
+  "app_name": "ACI Migrator"
 }
 ```
 
@@ -599,7 +599,7 @@ mypy app.py
 
 ### Version 1.0.0 (2025-11-13)
 - Complete UI overhaul with professional sidebar navigation
-- Rebranded to "acimig v1.0"
+- Rebranded to "ACI Migrator v1.0"
 - Added comprehensive animations throughout the UI
 - Improved mobile responsiveness
 - Enhanced data visualization dashboards
@@ -640,4 +640,4 @@ Built with:
 
 ---
 
-**acimig v1.0** - Professional ACI to EVPN/VXLAN Migration Analysis Tool
+**ACI Migrator v1.01** - Professional ACI to EVPN/VXLAN Migration Analysis Tool

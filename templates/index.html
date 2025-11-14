@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Home - acimig v1.0{% endblock %}
+{% block title %}Home - ACI Migrator{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
@@ -13,11 +13,11 @@
     <div class="relative px-8 py-16 sm:px-12 sm:py-20 z-10">
         <div class="max-w-3xl">
             <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl animate-fade-in">
-                acimig v1.0
+                ACI Migrator
             </h1>
             <p class="mt-6 text-xl text-primary-100 max-w-2xl animate-fade-in-delay">
-                Professional network fabric analysis for onboarding, EVPN/VXLAN migration, and complete ACI migration planning.
-                Analyze, visualize, and optimize your Cisco ACI infrastructure with confidence.
+                Professional ACI to EVPN/VXLAN migration analysis tool. Transform your Cisco ACI infrastructure with
+                comprehensive planning, automated configuration generation, and expert guidance.
             </p>
             <div class="mt-10 flex items-center gap-x-6 animate-fade-in-delay-2">
                 <a href="{{ url_for('analyze') }}" class="rounded-lg bg-white px-6 py-3 text-sm font-semibold text-primary-600 shadow-lg hover:bg-primary-50 transition-all duration-200 hover:shadow-xl hover:scale-105">
@@ -34,64 +34,129 @@
     </div>
 </div>
 
-<!-- Animated Statistics Section -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-    <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-105">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-gray-600 mb-1">EPGs Analyzed</p>
-                <p class="text-3xl font-bold text-primary-600 counter" data-target="1000">0</p>
+<!-- Fabric-Specific Statistics Section -->
+{% if current_fabric and fabric_stats %}
+<div class="mb-12">
+    <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+        <span class="h-1 w-8 bg-primary-600 mr-4 rounded-full"></span>
+        {{ current_fabric }} Statistics
+    </h2>
+
+    <!-- Primary Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600 mb-1">FEX Devices</p>
+                    <p class="text-3xl font-bold text-green-600">{{ fabric_stats.fex_count }}</p>
+                </div>
+                <div class="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
+                    <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
             </div>
-            <div class="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                <svg class="h-6 w-6 text-blue-600 animate-pulse-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                </svg>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600 mb-1">Leaf Switches</p>
+                    <p class="text-3xl font-bold text-blue-600">{{ fabric_stats.leaf_count }}</p>
+                </div>
+                <div class="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600 mb-1">EPGs</p>
+                    <p class="text-3xl font-bold text-purple-600">{{ fabric_stats.epg_count }}</p>
+                </div>
+                <div class="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <svg class="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600 mb-1">Total Objects</p>
+                    <p class="text-3xl font-bold text-orange-600">{{ fabric_stats.total_objects }}</p>
+                </div>
+                <div class="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center">
+                    <svg class="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-105">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-gray-600 mb-1">FEX Devices</p>
-                <p class="text-3xl font-bold text-green-600 counter" data-target="250">0</p>
-            </div>
-            <div class="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
-                <svg class="h-6 w-6 text-green-600 animate-bounce-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                </svg>
-            </div>
+    <!-- Secondary Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg shadow p-4">
+            <p class="text-xs font-medium text-gray-600 mb-1">Bridge Domains</p>
+            <p class="text-2xl font-bold text-gray-900">{{ fabric_stats.bd_count }}</p>
+        </div>
+        <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg shadow p-4">
+            <p class="text-xs font-medium text-gray-600 mb-1">VRFs</p>
+            <p class="text-2xl font-bold text-gray-900">{{ fabric_stats.vrf_count }}</p>
+        </div>
+        <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg shadow p-4">
+            <p class="text-xs font-medium text-gray-600 mb-1">Contracts</p>
+            <p class="text-2xl font-bold text-gray-900">{{ fabric_stats.contract_count }}</p>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-105">
-        <div class="flex items-center justify-between">
+    <!-- Fabric Info -->
+    <div class="mt-6 bg-white rounded-lg shadow p-4 border-l-4 border-primary-600">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div>
-                <p class="text-sm font-medium text-gray-600 mb-1">Migrations</p>
-                <p class="text-3xl font-bold text-purple-600 counter" data-target="150">0</p>
+                <span class="font-medium text-gray-700">Datasets:</span>
+                <span class="text-gray-900 ml-2">{{ fabric_stats.total_datasets }}</span>
             </div>
-            <div class="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center">
-                <svg class="h-6 w-6 text-purple-600 animate-spin-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                </svg>
-            </div>
-        </div>
-    </div>
-
-    <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-105">
-        <div class="flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-gray-600 mb-1">Uptime</p>
-                <p class="text-3xl font-bold text-yellow-600"><span class="counter" data-target="99">0</span>.<span class="counter" data-target="9">0</span>%</p>
+                <span class="font-medium text-gray-700">Last Upload:</span>
+                <span class="text-gray-900 ml-2">{{ fabric_stats.last_upload }}</span>
             </div>
-            <div class="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center">
-                <svg class="h-6 w-6 text-yellow-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                </svg>
+            <div>
+                <span class="font-medium text-gray-700">Fabric Created:</span>
+                <span class="text-gray-900 ml-2">{{ fabric_stats.fabric_created }}</span>
             </div>
         </div>
     </div>
 </div>
+{% else %}
+<!-- Welcome Message when no fabric selected -->
+<div class="mb-12">
+    <div class="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl shadow-lg p-12 text-center">
+        <div class="max-w-2xl mx-auto">
+            <svg class="h-16 w-16 text-primary-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+            <h2 class="text-3xl font-bold text-gray-900 mb-3">Welcome to ACI Migrator</h2>
+            <p class="text-lg text-gray-700 mb-6">
+                Professional ACI Migration Analysis Tool - Get started by selecting or creating a fabric from the Fabric Manager in the sidebar.
+            </p>
+            <button onclick="toggleFabricManager()" class="inline-flex items-center px-6 py-3 rounded-lg bg-primary-600 text-white font-semibold shadow-lg hover:bg-primary-700 transition-colors">
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Create or Select Fabric
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Mode Selection Cards -->
 <div class="mb-12">
@@ -171,6 +236,13 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- Version Footer -->
+<div class="mt-12 text-center py-6 border-t border-gray-200">
+    <p class="text-sm text-gray-500 font-medium">
+        ACI Migrator v1.01 | &copy; 2024-2025 | Professional ACI Migration Tool
+    </p>
 </div>
 
 <!-- Create Fabric Modal -->
@@ -421,32 +493,6 @@ function animate() {
     requestAnimationFrame(animate);
 }
 animate();
-
-// Counter Animation
-function animateCounter(element) {
-    const target = parseInt(element.getAttribute('data-target'));
-    const duration = 2000;
-    const step = target / (duration / 16);
-    let current = 0;
-
-    const timer = setInterval(() => {
-        current += step;
-        if (current >= target) {
-            element.textContent = target;
-            clearInterval(timer);
-        } else {
-            element.textContent = Math.floor(current);
-        }
-    }, 16);
-}
-
-// Start counters when page loads
-document.addEventListener('DOMContentLoaded', () => {
-    const counters = document.querySelectorAll('.counter');
-    setTimeout(() => {
-        counters.forEach(counter => animateCounter(counter));
-    }, 500);
-});
 
 // Fabric Management Functions
 function showCreateFabricDialog() {

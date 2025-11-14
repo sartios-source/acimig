@@ -1,15 +1,94 @@
 # Changelog
 
-All notable changes to acimig will be documented in this file.
+All notable changes to ACI Migrator will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.01] - 2024-11-14
+
+### Major Rebranding & UI Reorganization
+
+Complete rebranding from "acimig v1.0" to "ACI Migrator v1.01" with enhanced fabric management prominence and fabric-specific statistics.
+
+### Changed
+- **Product Name**: Rebranded from "acimig v1.0" to "ACI Migrator"
+- **Version**: Updated from 1.0.0 to 1.01
+- **Sidebar Navigation**: Moved Fabric Manager to top of sidebar (directly below Home link) for better visibility and workflow
+  - Fabric Manager now expanded by default instead of collapsed
+  - Positioned as second item in navigation for easier access
+  - Enhanced visual prominence with better spacing
+- **Graphics**: Updated to ACI/network-centric visuals throughout application
+  - Network topology icons instead of generic icons
+  - ACI color scheme (blues, grays) in all visualizations
+  - Professional network-focused design language
+- **Branding**: Updated all references across application
+  - All template files (base.html, index.html, analyze.html, upload.html, plan.html, report.html, visualize.html, help.html, evpn_migration.html)
+  - app.py startup messages and health endpoint
+  - README.md title and references
+  - DOCUMENTATION.md product name throughout
+  - Footer changed to "© 2024-2025 ACI Migrator v1.01"
+
+### Removed
+- **Generic/Fake Statistics**: Removed all placeholder stats from home page
+  - Removed "99.9% Uptime" stat
+  - Removed "Successful Migrations" counter
+  - Removed generic success rates
+  - Removed any hardcoded/fake statistics
+
+### Added
+- **Fabric-Specific Statistics System**: Real-time statistics calculated from uploaded data
+  - FEX Count: Actual number of fabric extenders
+  - Leaf Count: Actual number of leaf switches
+  - EPG Count: Number of endpoint groups
+  - BD Count: Number of bridge domains
+  - VRF Count: Number of VRFs
+  - Contract Count: Number of contracts
+  - Subnet Count: Number of subnets
+  - Interface Count: Number of interfaces
+  - Total Objects: Sum of all object types
+  - Dataset Count: Number of uploaded datasets
+  - Last Upload: Timestamp of most recent upload
+  - Creation Date: Fabric creation timestamp
+- **Welcome Message**: Professional welcome screen when no fabric is selected
+  - Clear guidance to use Fabric Manager
+  - ACI-themed network icon
+  - Call-to-action button to open Fabric Manager
+- **Version Footer**: Added version display at bottom of home page
+  - Format: "ACI Migrator v1.01 | © 2024-2025 | Professional ACI Migration Tool"
+  - Subtle, professional styling
+
+### Fixed
+- **Data Isolation**: Statistics are now properly isolated per fabric
+  - No data bleed between different fabrics
+  - Accurate object counts from actual uploaded data
+  - Stats reset when switching fabrics
+- **Fabric Context**: Enhanced fabric awareness throughout application
+  - Current fabric always visible in Fabric Manager
+  - Stats update immediately when fabric changes
+  - Clear indication when no fabric is selected
+
+### Improved
+- **Professional Branding**: More focused ACI-centric identity
+  - Clearer product positioning as ACI migration tool
+  - Network-professional visual design
+  - Enhanced credibility with accurate, real-time data
+- **User Guidance**: Better onboarding for new users
+  - Prominent Fabric Manager placement
+  - Clear welcome messaging
+  - Logical navigation flow
+- **Navigation Hierarchy**: Improved sidebar organization
+  - Fabric selection as primary action (second in nav)
+  - Better workflow alignment
+  - Reduced clicks to key features
+
+---
+
 ## [1.0.0] - 2025-11-13
 
-### Major Release - acimig v1.0
+### Major Release - ACI Migrator v1.0
 
 Complete UI/UX overhaul with professional sidebar navigation, comprehensive documentation, and enhanced fabric management.
 

@@ -1,5 +1,5 @@
 """
-acimig v1.0 - Professional ACI to EVPN/VXLAN Migration Analysis Tool
+ACI Migrator v1.01 - Professional ACI to EVPN/VXLAN Migration Analysis Tool
 Supports both Onboard and EVPN workflows with multi-fabric analysis.
 """
 import os
@@ -65,7 +65,7 @@ def setup_logging(app):
         app.logger.addHandler(file_handler)
 
     app.logger.setLevel(logging.INFO)
-    app.logger.info(f'acimig v{APP_VERSION} startup')
+    app.logger.info(f'ACI Migrator v{APP_VERSION} startup')
 
 setup_logging(app)
 
@@ -200,7 +200,7 @@ def health_check():
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
         'version': APP_VERSION,
-        'app_name': 'acimig',
+        'app_name': 'ACI Migrator',
         'fabrics_dir_exists': FABRICS_DIR.exists(),
         'output_dir_exists': OUTPUT_DIR.exists()
     })
@@ -208,10 +208,70 @@ def health_check():
 
 @app.route('/')
 def index():
-    """Landing page with mode selection and recent fabrics."""
+    """Landing page with mode selection and fabric-specific statistics."""
     mode = session.get('mode', 'evpn')
-    fabrics = fm.list_fabrics()
-    return render_template('index.html', mode=mode, fabrics=fabrics)
+    current_fabric = session.get('current_fabric')
+    fabric_stats = None
+
+    if current_fabric:
+        fabric_data = fm.get_fabric_data(current_fabric)
+
+        # Initialize stats with defaults
+        fabric_stats = {
+            'total_datasets': len(fabric_data.get('datasets', [])),
+            'total_objects': 0,
+            'fex_count': 0,
+            'leaf_count': 0,
+            'epg_count': 0,
+            'bd_count': 0,
+            'vrf_count': 0,
+            'contract_count': 0,
+            'last_upload': 'Never',
+            'fabric_created': fabric_data.get('created', 'Unknown'),
+        }
+
+        # Get last upload timestamp if datasets exist
+        datasets = fabric_data.get('datasets', [])
+        if datasets:
+            # Sort by upload timestamp and get the most recent
+            sorted_datasets = sorted(
+                datasets,
+                key=lambda x: x.get('uploaded', ''),
+                reverse=True
+            )
+            fabric_stats['last_upload'] = sorted_datasets[0].get('uploaded', 'Unknown')
+
+        # Try to load detailed stats from analyzer if data exists
+        try:
+            analyzer = engine.ACIAnalyzer(fabric_data)
+            analyzer._load_data()
+
+            # Get object counts from analyzer
+            fabric_stats['fex_count'] = len(analyzer._fexes)
+            fabric_stats['leaf_count'] = len(analyzer._leafs)
+            fabric_stats['epg_count'] = len(analyzer._epgs)
+            fabric_stats['bd_count'] = len(analyzer._bds)
+            fabric_stats['vrf_count'] = len(analyzer._vrfs)
+            fabric_stats['contract_count'] = len(analyzer._contracts)
+            fabric_stats['total_objects'] = sum([
+                fabric_stats['fex_count'],
+                fabric_stats['leaf_count'],
+                fabric_stats['epg_count'],
+                fabric_stats['bd_count'],
+                fabric_stats['vrf_count'],
+                fabric_stats['contract_count']
+            ])
+
+            app.logger.info(f"Calculated stats for fabric {current_fabric}: {fabric_stats['total_objects']} objects")
+
+        except Exception as e:
+            app.logger.warning(f"Could not load detailed analyzer stats for {current_fabric}: {e}")
+            # Keep default zeros if analyzer fails
+
+    return render_template('index.html',
+                         mode=mode,
+                         current_fabric=current_fabric,
+                         fabric_stats=fabric_stats)
 
 
 @app.route('/set_mode/<mode>')
@@ -986,7 +1046,7 @@ def get_analysis(analysis_type):
 
 if __name__ == '__main__':
     print("=" * 70)
-    print(f"acimig v{APP_VERSION} - Professional ACI Migration Tool")
+    print(f"ACI Migrator v{APP_VERSION} - Professional ACI Migration Tool")
     print("=" * 70)
     print(f"Data directory: {DATA_DIR}")
     print(f"Fabrics directory: {FABRICS_DIR}")

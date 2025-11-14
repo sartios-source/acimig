@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}acimig v1.0{% endblock %}</title>
+    <title>{% block title %}ACI Migrator{% endblock %}</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -210,8 +210,8 @@
                     </svg>
                 </div>
                 <div class="sidebar-text">
-                    <h1 class="text-lg font-bold">acimig</h1>
-                    <p class="text-xs text-slate-400">v1.0</p>
+                    <h1 class="text-lg font-bold">ACI Migrator</h1>
+                    <p class="text-xs text-slate-400">v1.01</p>
                 </div>
             </div>
             <button id="sidebar-toggle" class="p-2 rounded-lg hover:bg-slate-700 transition-colors md:hidden">
@@ -229,6 +229,63 @@
                 </svg>
                 <span class="sidebar-text">Home</span>
             </a>
+
+            <!-- Fabric Manager Section (MOVED TO TOP - Below Home) -->
+            <div class="border-t border-b border-slate-700 my-2 py-3">
+                <button id="fabric-manager-toggle" class="w-full flex items-center justify-between text-left sidebar-text group px-4 py-2" onclick="toggleFabricManager()">
+                    <span class="text-xs font-medium text-slate-300 uppercase tracking-wide group-hover:text-white transition-colors flex items-center space-x-2">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                        </svg>
+                        <span>Fabric Manager</span>
+                    </span>
+                    <svg id="fabric-manager-icon" class="h-4 w-4 text-slate-400 transform transition-transform duration-200 rotate-180 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+
+                <div id="fabric-manager-content" class="mt-3 space-y-3 sidebar-text px-4">
+                    <!-- Current Fabric Display -->
+                    <div>
+                        <label class="text-xs font-medium text-slate-400">Current Fabric</label>
+                        <div class="mt-1 text-sm font-medium text-white truncate">
+                            {{ session.get('current_fabric', 'None') }}
+                        </div>
+                    </div>
+
+                    <!-- Fabric Selector -->
+                    <div>
+                        <label class="text-xs font-medium text-slate-400">Select Fabric</label>
+                        <select id="fabric-selector" onchange="selectFabricFromSidebar(this.value)"
+                                class="mt-1 w-full bg-slate-900 text-white text-xs rounded-md px-2 py-1.5 border border-slate-700 focus:border-primary-500 focus:outline-none">
+                            <option value="">Choose fabric...</option>
+                            {% for fabric in fabrics %}
+                            <option value="{{ fabric.name }}" {% if session.get('current_fabric') == fabric.name %}selected{% endif %}>
+                                {{ fabric.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Create New Fabric Button -->
+                    <button onclick="showCreateFabricDialog()" class="w-full flex items-center justify-center px-3 py-2 rounded-md bg-primary-600 text-white text-xs font-medium hover:bg-primary-700 transition-colors">
+                        <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Create Fabric
+                    </button>
+
+                    <!-- Delete Current Fabric -->
+                    {% if session.get('current_fabric') %}
+                    <button onclick="deleteFabricFromSidebar('{{ session.get('current_fabric') }}')" class="w-full flex items-center justify-center px-3 py-2 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors">
+                        <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete Fabric
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
 
             <a href="{{ url_for('upload_page') }}" class="sidebar-link flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -282,60 +339,6 @@
                 <span class="sidebar-text">Help</span>
             </a>
         </nav>
-
-        <!-- Fabric Manager Section -->
-        <div class="border-t border-slate-700">
-            <div class="p-4">
-                <button id="fabric-manager-toggle" class="w-full flex items-center justify-between text-left sidebar-text group" onclick="toggleFabricManager()">
-                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wide group-hover:text-white transition-colors">Fabric Manager</span>
-                    <svg id="fabric-manager-icon" class="h-4 w-4 text-slate-400 transform transition-transform duration-200 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                    </svg>
-                </button>
-
-                <div id="fabric-manager-content" class="mt-3 space-y-3 sidebar-text" style="display: none;">
-                    <!-- Current Fabric Display -->
-                    <div>
-                        <label class="text-xs font-medium text-slate-400">Current Fabric</label>
-                        <div class="mt-1 text-sm font-medium text-white truncate">
-                            {{ session.get('current_fabric', 'None') }}
-                        </div>
-                    </div>
-
-                    <!-- Fabric Selector -->
-                    <div>
-                        <label class="text-xs font-medium text-slate-400">Select Fabric</label>
-                        <select id="fabric-selector" onchange="selectFabricFromSidebar(this.value)"
-                                class="mt-1 w-full bg-slate-900 text-white text-xs rounded-md px-2 py-1.5 border border-slate-700 focus:border-primary-500 focus:outline-none">
-                            <option value="">Choose fabric...</option>
-                            {% for fabric in fabrics %}
-                            <option value="{{ fabric.name }}" {% if session.get('current_fabric') == fabric.name %}selected{% endif %}>
-                                {{ fabric.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <!-- Create New Fabric Button -->
-                    <button onclick="showCreateFabricDialog()" class="w-full flex items-center justify-center px-3 py-2 rounded-md bg-primary-600 text-white text-xs font-medium hover:bg-primary-700 transition-colors">
-                        <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
-                        Create Fabric
-                    </button>
-
-                    <!-- Delete Current Fabric -->
-                    {% if session.get('current_fabric') %}
-                    <button onclick="deleteFabricFromSidebar('{{ session.get('current_fabric') }}')" class="w-full flex items-center justify-center px-3 py-2 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors">
-                        <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                        </svg>
-                        Delete Fabric
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
 
         <!-- Mode Selector Section -->
         <div class="border-t border-slate-700 p-4">
@@ -400,7 +403,7 @@
             <div class="px-4 sm:px-6 lg:px-8 py-6">
                 <div class="flex flex-col md:flex-row justify-between items-center">
                     <p class="text-sm text-gray-500">
-                        &copy; 2025 acimig v1.0. Professional ACI to EVPN/VXLAN migration analysis tool.
+                        &copy; 2024-2025 ACI Migrator v1.01. Professional ACI to EVPN/VXLAN migration analysis tool.
                     </p>
                     <div class="flex space-x-6 mt-4 md:mt-0">
                         <a href="{{ url_for('help_page') }}" class="text-sm text-gray-500 hover:text-primary-600 transition-colors">Documentation</a>
@@ -495,7 +498,7 @@
         // Make showToast available globally
         window.showToast = showToast;
 
-        // Fabric Manager Toggle
+        // Fabric Manager Toggle (Expanded by default)
         function toggleFabricManager() {
             const content = document.getElementById('fabric-manager-content');
             const icon = document.getElementById('fabric-manager-icon');
@@ -508,6 +511,13 @@
                 icon.style.transform = 'rotate(0deg)';
             }
         }
+
+        // Initialize Fabric Manager as expanded on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const content = document.getElementById('fabric-manager-content');
+            const icon = document.getElementById('fabric-manager-icon');
+            // Already expanded by default in HTML
+        });
 
         // Select fabric from sidebar dropdown
         function selectFabricFromSidebar(fabricName) {
