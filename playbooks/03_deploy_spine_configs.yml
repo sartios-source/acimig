@@ -1,0 +1,124 @@
+---
+- name: Deploy EVPN Spine Configurations
+  hosts: spines
+  gather_facts: no
+
+  vars:
+    config_dir: "{{ playbook_dir }}/generated_configs/spines"
+
+  tasks:
+    - name: Create config directory
+      local_action:
+        module: file
+        path: "{{ config_dir }}"
+        state: directory
+      run_once: true
+
+    - name: Enable required features
+      nxos_feature:
+        feature: "{{ item }}"
+        state: enabled
+      loop:
+        - ospf
+        - bgp
+        - pim
+        - nv overlay
+
+    - name: Configure Loopback interfaces
+      nxos_interfaces:
+        config:
+          - name: "Loopback0"
+            description: "BGP Router ID"
+            enabled: true
+
+    - name: Configure Loopback IP address
+      nxos_l3_interfaces:
+        config:
+          - name: "Loopback0"
+            ipv4:
+              - address: "{{ bgp_router_id_prefix }}.{{ device_id }}/32"
+
+    - name: Configure BGP
+      nxos_bgp_global:
+        config:
+          as_number: "{{ bgp_asn }}"
+          router_id: "{{ bgp_router_id_prefix }}.{{ device_id }}"
+          log_neighbor_changes: true
+
+    - name: Configure BGP L2VPN EVPN address family
+      nxos_bgp_address_family:
+        config:
+          as_number: "{{ bgp_asn }}"
+          address_family:
+            - afi: "l2vpn"
+              safi: "evpn"
+              retain_route_target:
+                - all: true
+
+    - name: Configure BGP neighbors for route reflection
+      nxos_bgp_neighbor_address_family:
+        config:
+          as_number: "{{ bgp_asn }}"
+          neighbors:
+            - neighbor_address: "{{ hostvars[item]['bgp_router_id_prefix'] }}.{{ hostvars[item]['device_id'] }}"
+              address_family:
+                - afi: "l2vpn"
+                  safi: "evpn"
+                  route_reflector_client: true
+                  send_community:
+                    - extended: true
+      loop: "{{ groups['leafs'] + groups['border_leafs'] }}"
+
+    - name: Configure NVE interface
+      nxos_config:
+        lines:
+          - "interface nve1"
+          - "  no shutdown"
+          - "  host-reachability protocol bgp"
+          - "  source-interface {{ vxlan_source_interface }}"
+
+    - name: Save configuration
+      nxos_config:
+        save_when: always
+
+    - name: Verify BGP configuration
+      nxos_command:
+        commands:
+          - show bgp l2vpn evpn summary
+      register: bgp_summary
+
+    - name: Display BGP summary
+      debug:
+        msg: "{{ bgp_summary.stdout_lines }}"
+
+    - name: Generate deployment report
+      local_action:
+        module: copy
+        content: |
+          ================================================================================
+          SPINE DEPLOYMENT REPORT
+          ================================================================================
+          Device: {{ inventory_hostname }}
+          Deployment Time: {{ ansible_date_time.iso8601 }}
+
+          CONFIGURATION DEPLOYED:
+          -----------------------
+          - Features enabled: ospf, bgp, pim, nv overlay
+          - Loopback0: {{ bgp_router_id_prefix }}.{{ device_id }}/32
+          - BGP AS: {{ bgp_asn }}
+          - BGP Router ID: {{ bgp_router_id_prefix }}.{{ device_id }}
+          - Role: Route Reflector for EVPN
+          - NVE interface: Configured
+
+          BGP L2VPN EVPN SUMMARY:
+          -----------------------
+          {{ bgp_summary.stdout[0] }}
+
+          NEXT STEPS:
+          -----------
+          1. Verify BGP sessions are established
+          2. Deploy leaf configurations (playbook 04)
+          3. Verify EVPN routes
+
+          ================================================================================
+        dest: "{{ config_dir }}/deployment_{{ inventory_hostname }}.txt"

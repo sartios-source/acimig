@@ -1,0 +1,598 @@
+"""
+Report Export Module - PDF and Excel Generation
+Exports comprehensive migration reports in PDF and Excel formats.
+"""
+
+from typing import Dict, Any, List
+from datetime import datetime
+from pathlib import Path
+import io
+
+# PDF Generation
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+    PageBreak, Image, KeepTogether
+)
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+
+# Excel Generation
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+
+
+class PDFReportGenerator:
+    """Generate comprehensive PDF reports."""
+
+    def __init__(self, output_path: str = None):
+        """Initialize PDF generator."""
+        self.output_path = output_path or f"aci_migration_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        self.styles = getSampleStyleSheet()
+        self._setup_custom_styles()
+
+    def _setup_custom_styles(self):
+        """Setup custom paragraph styles."""
+        # Title style
+        self.styles.add(ParagraphStyle(
+            name='CustomTitle',
+            parent=self.styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#2563eb'),
+            spaceAfter=30,
+            alignment=TA_CENTER
+        ))
+
+        # Heading style
+        self.styles.add(ParagraphStyle(
+            name='CustomHeading',
+            parent=self.styles['Heading2'],
+            fontSize=16,
+            textColor=colors.HexColor('#1e40af'),
+            spaceAfter=12,
+            spaceBefore=12
+        ))
+
+        # Subheading style
+        self.styles.add(ParagraphStyle(
+            name='CustomSubHeading',
+            parent=self.styles['Heading3'],
+            fontSize=12,
+            textColor=colors.HexColor('#374151'),
+            spaceAfter=6
+        ))
+
+    def generate_report(self, data: Dict[str, Any]) -> bytes:
+        """
+        Generate PDF report from analysis data.
+
+        Args:
+            data: Analysis data dictionary
+
+        Returns:
+            PDF bytes
+        """
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=18
+        )
+
+        story = []
+
+        # Title Page
+        story.extend(self._create_title_page(data))
+        story.append(PageBreak())
+
+        # Executive Summary
+        story.extend(self._create_executive_summary(data))
+        story.append(PageBreak())
+
+        # Fabric Overview
+        story.extend(self._create_fabric_overview(data))
+        story.append(PageBreak())
+
+        # Migration Analysis
+        if 'migration_assessment' in data:
+            story.extend(self._create_migration_analysis(data))
+            story.append(PageBreak())
+
+        # EPG Analysis
+        if 'epgs' in data:
+            story.extend(self._create_epg_analysis(data))
+            story.append(PageBreak())
+
+        # Recommendations
+        if 'recommendations' in data:
+            story.extend(self._create_recommendations(data))
+
+        # Build PDF
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    def _create_title_page(self, data: Dict) -> List:
+        """Create title page."""
+        elements = []
+
+        # Title
+        elements.append(Spacer(1, 2 * inch))
+        elements.append(Paragraph(
+            "ACI Migration Report",
+            self.styles['CustomTitle']
+        ))
+
+        # Subtitle
+        fabric_name = data.get('fabric_name', 'Unknown Fabric')
+        elements.append(Paragraph(
+            f"Fabric: {fabric_name}",
+            self.styles['Heading2']
+        ))
+
+        elements.append(Spacer(1, 0.5 * inch))
+
+        # Metadata table
+        metadata = [
+            ['Generated:', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
+            ['Mode:', data.get('mode', 'EVPN').upper()],
+            ['Total Devices:', str(data.get('total_devices', 0))],
+            ['Total EPGs:', str(data.get('total_epgs', 0))],
+        ]
+
+        table = Table(metadata, colWidths=[2 * inch, 3 * inch])
+        table.setStyle(TableStyle([
+            ('FONT', (0, 0), (-1, -1), 'Helvetica', 10),
+            ('FONT', (0, 0), (0, -1), 'Helvetica-Bold', 10),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+
+        elements.append(table)
+        elements.append(Spacer(1, 1 * inch))
+
+        # Footer
+        elements.append(Paragraph(
+            "Generated by ACI Migrator v1.01",
+            self.styles['Normal']
+        ))
+
+        return elements
+
+    def _create_executive_summary(self, data: Dict) -> List:
+        """Create executive summary section."""
+        elements = []
+
+        elements.append(Paragraph("Executive Summary", self.styles['CustomHeading']))
+        elements.append(Spacer(1, 12))
+
+        # Summary statistics
+        summary_text = f"""
+        This report provides a comprehensive analysis of the ACI fabric migration readiness.
+        The fabric contains {data.get('total_devices', 0)} devices including
+        {data.get('total_leafs', 0)} leaf switches and {data.get('total_fex', 0)} FEX devices.
+        A total of {data.get('total_epgs', 0)} EPGs have been identified for migration.
+        """
+
+        elements.append(Paragraph(summary_text, self.styles['Normal']))
+        elements.append(Spacer(1, 12))
+
+        # Risk assessment if available
+        if 'migration_assessment' in data:
+            assessment = data['migration_assessment']
+            readiness = assessment.get('overall_readiness', {})
+            score = readiness.get('score', 0)
+
+            risk_color = colors.green if score >= 70 else colors.orange if score >= 40 else colors.red
+
+            risk_data = [
+                ['Migration Readiness Score', f"{score}%"],
+                ['Ready for Migration', 'Yes' if readiness.get('ready_for_migration') else 'No'],
+                ['Critical Issues', str(readiness.get('critical_issues', 0))],
+            ]
+
+            risk_table = Table(risk_data, colWidths=[3 * inch, 2 * inch])
+            risk_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 11),
+                ('BACKGROUND', (1, 1), (1, 1), risk_color),
+                ('FONT', (0, 1), (-1, -1), 'Helvetica', 10),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+            ]))
+
+            elements.append(risk_table)
+
+        return elements
+
+    def _create_fabric_overview(self, data: Dict) -> List:
+        """Create fabric overview section."""
+        elements = []
+
+        elements.append(Paragraph("Fabric Overview", self.styles['CustomHeading']))
+        elements.append(Spacer(1, 12))
+
+        # Device inventory
+        inventory_data = [
+            ['Device Type', 'Count', 'Notes'],
+            ['Leaf Switches', str(data.get('total_leafs', 0)), 'VTEP capable'],
+            ['Spine Switches', str(data.get('total_spines', 0)), 'Route reflectors'],
+            ['FEX Devices', str(data.get('total_fex', 0)), 'Fabric extenders'],
+        ]
+
+        inv_table = Table(inventory_data, colWidths=[2 * inch, 1.5 * inch, 2.5 * inch])
+        inv_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 10),
+            ('FONT', (0, 1), (-1, -1), 'Helvetica', 9),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+        ]))
+
+        elements.append(inv_table)
+        elements.append(Spacer(1, 20))
+
+        # Logical objects
+        logical_data = [
+            ['Object Type', 'Count'],
+            ['EPGs', str(data.get('total_epgs', 0))],
+            ['Bridge Domains', str(data.get('total_bridge_domains', 0))],
+            ['VRFs', str(data.get('total_vrfs', 0))],
+            ['Contracts', str(data.get('total_contracts', 0))],
+        ]
+
+        log_table = Table(logical_data, colWidths=[3 * inch, 2 * inch])
+        log_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#10b981')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 10),
+            ('FONT', (0, 1), (-1, -1), 'Helvetica', 9),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+        ]))
+
+        elements.append(Paragraph("Logical Objects", self.styles['CustomSubHeading']))
+        elements.append(Spacer(1, 6))
+        elements.append(log_table)
+
+        return elements
+
+    def _create_migration_analysis(self, data: Dict) -> List:
+        """Create migration analysis section."""
+        elements = []
+
+        elements.append(Paragraph("Migration Analysis", self.styles['CustomHeading']))
+        elements.append(Spacer(1, 12))
+
+        assessment = data.get('migration_assessment', {})
+
+        # Component scores
+        if 'component_scores' in assessment:
+            scores = assessment['component_scores']
+
+            score_data = [['Component', 'Score', 'Status']]
+
+            for component, score in scores.items():
+                status = 'Ready' if score >= 70 else 'Needs Attention' if score >= 40 else 'Critical'
+                score_data.append([
+                    component.replace('_', ' ').title(),
+                    f"{score}%",
+                    status
+                ])
+
+            score_table = Table(score_data, colWidths=[2.5 * inch, 1.5 * inch, 2 * inch])
+            score_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 10),
+                ('FONT', (0, 1), (-1, -1), 'Helvetica', 9),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ]))
+
+            elements.append(score_table)
+
+        return elements
+
+    def _create_epg_analysis(self, data: Dict) -> List:
+        """Create EPG analysis section."""
+        elements = []
+
+        elements.append(Paragraph("EPG Analysis", self.styles['CustomHeading']))
+        elements.append(Spacer(1, 12))
+
+        epgs = data.get('epgs', [])[:20]  # Top 20 EPGs
+
+        if epgs:
+            epg_data = [['Tenant', 'Application', 'EPG', 'VLANs', 'Devices']]
+
+            for epg in epgs:
+                epg_data.append([
+                    epg.get('tenant', '')[:20],
+                    epg.get('application_profile', '')[:15],
+                    epg.get('epg', '')[:20],
+                    str(epg.get('vlan_count', 0)),
+                    str(epg.get('device_count', 0))
+                ])
+
+            epg_table = Table(epg_data, colWidths=[1.3*inch, 1.3*inch, 1.5*inch, 0.8*inch, 0.8*inch])
+            epg_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8b5cf6')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 9),
+                ('FONT', (0, 1), (-1, -1), 'Helvetica', 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('ALIGN', (3, 0), (-1, -1), 'CENTER'),
+            ]))
+
+            elements.append(epg_table)
+            elements.append(Spacer(1, 6))
+            elements.append(Paragraph(
+                f"Showing top {len(epgs)} EPGs (total: {data.get('total_epgs', 0)})",
+                self.styles['Normal']
+            ))
+
+        return elements
+
+    def _create_recommendations(self, data: Dict) -> List:
+        """Create recommendations section."""
+        elements = []
+
+        elements.append(Paragraph("Recommendations", self.styles['CustomHeading']))
+        elements.append(Spacer(1, 12))
+
+        recommendations = data.get('recommendations', [])[:10]
+
+        for i, rec in enumerate(recommendations, 1):
+            priority = rec.get('priority', 'medium')
+            priority_color = colors.red if priority == 'critical' else colors.orange if priority == 'high' else colors.green
+
+            rec_elements = []
+            rec_elements.append(Paragraph(
+                f"<b>{i}. [{priority.upper()}] {rec.get('title', 'Recommendation')}</b>",
+                self.styles['Normal']
+            ))
+            rec_elements.append(Spacer(1, 6))
+            rec_elements.append(Paragraph(
+                f"<i>{rec.get('description', '')}</i>",
+                self.styles['Normal']
+            ))
+            rec_elements.append(Spacer(1, 3))
+            rec_elements.append(Paragraph(
+                f"<b>Action:</b> {rec.get('action', '')}",
+                self.styles['Normal']
+            ))
+            rec_elements.append(Spacer(1, 12))
+
+            elements.extend(rec_elements)
+
+        return elements
+
+
+class ExcelReportGenerator:
+    """Generate comprehensive Excel reports."""
+
+    def __init__(self, output_path: str = None):
+        """Initialize Excel generator."""
+        self.output_path = output_path or f"aci_migration_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        self.wb = Workbook()
+
+        # Define styles
+        self.header_fill = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
+        self.header_font = Font(bold=True, color='FFFFFF', size=11)
+        self.title_font = Font(bold=True, size=14, color='2563EB')
+        self.border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+    def generate_report(self, data: Dict[str, Any]) -> bytes:
+        """
+        Generate Excel report from analysis data.
+
+        Args:
+            data: Analysis data dictionary
+
+        Returns:
+            Excel bytes
+        """
+        # Remove default sheet
+        self.wb.remove(self.wb.active)
+
+        # Create sheets
+        self._create_summary_sheet(data)
+        self._create_devices_sheet(data)
+        self._create_epgs_sheet(data)
+        self._create_recommendations_sheet(data)
+        self._create_migration_waves_sheet(data)
+
+        # Save to buffer
+        buffer = io.BytesIO()
+        self.wb.save(buffer)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    def _create_summary_sheet(self, data: Dict):
+        """Create summary sheet."""
+        ws = self.wb.create_sheet("Summary", 0)
+
+        # Title
+        ws['A1'] = 'ACI Migration Report - Summary'
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:D1')
+
+        # Metadata
+        ws['A3'] = 'Generated:'
+        ws['B3'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        ws['A4'] = 'Fabric Name:'
+        ws['B4'] = data.get('fabric_name', 'Unknown')
+        ws['A5'] = 'Mode:'
+        ws['B5'] = data.get('mode', 'EVPN').upper()
+
+        # Statistics
+        ws['A7'] = 'Fabric Statistics'
+        ws['A7'].font = Font(bold=True, size=12)
+        ws.merge_cells('A7:B7')
+
+        stats = [
+            ['Total Devices', data.get('total_devices', 0)],
+            ['Leaf Switches', data.get('total_leafs', 0)],
+            ['FEX Devices', data.get('total_fex', 0)],
+            ['EPGs', data.get('total_epgs', 0)],
+            ['Bridge Domains', data.get('total_bridge_domains', 0)],
+            ['VRFs', data.get('total_vrfs', 0)],
+            ['Contracts', data.get('total_contracts', 0)],
+        ]
+
+        row = 8
+        for label, value in stats:
+            ws[f'A{row}'] = label
+            ws[f'B{row}'] = value
+            ws[f'A{row}'].font = Font(bold=True)
+            row += 1
+
+        # Format columns
+        ws.column_dimensions['A'].width = 25
+        ws.column_dimensions['B'].width = 15
+
+    def _create_devices_sheet(self, data: Dict):
+        """Create devices sheet."""
+        ws = self.wb.create_sheet("Devices")
+
+        # Headers
+        headers = ['Device ID', 'Device Name', 'Type', 'Model', 'Parent Leaf', 'Port Count']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(1, col, header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.alignment = Alignment(horizontal='center')
+
+        # Data
+        devices = data.get('devices', [])
+        for row, device in enumerate(devices, 2):
+            ws.cell(row, 1, device.get('device_id', ''))
+            ws.cell(row, 2, device.get('device_name', ''))
+            ws.cell(row, 3, device.get('device_type', ''))
+            ws.cell(row, 4, device.get('model', ''))
+            ws.cell(row, 5, device.get('parent_leaf', ''))
+            ws.cell(row, 6, device.get('port_count', 0))
+
+        # Format columns
+        for col in range(1, 7):
+            ws.column_dimensions[get_column_letter(col)].width = 18
+
+    def _create_epgs_sheet(self, data: Dict):
+        """Create EPGs sheet."""
+        ws = self.wb.create_sheet("EPGs")
+
+        # Headers
+        headers = ['Tenant', 'Application Profile', 'EPG', 'VLANs', 'Devices', 'Paths', 'Complexity']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(1, col, header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.alignment = Alignment(horizontal='center')
+
+        # Data
+        epgs = data.get('epgs', [])
+        for row, epg in enumerate(epgs, 2):
+            ws.cell(row, 1, epg.get('tenant', ''))
+            ws.cell(row, 2, epg.get('application_profile', ''))
+            ws.cell(row, 3, epg.get('epg', ''))
+            ws.cell(row, 4, epg.get('vlan_count', 0))
+            ws.cell(row, 5, epg.get('device_count', 0))
+            ws.cell(row, 6, epg.get('path_count', 0))
+            ws.cell(row, 7, epg.get('complexity', 'low'))
+
+        # Format columns
+        for col in range(1, 8):
+            ws.column_dimensions[get_column_letter(col)].width = 20
+
+    def _create_recommendations_sheet(self, data: Dict):
+        """Create recommendations sheet."""
+        ws = self.wb.create_sheet("Recommendations")
+
+        # Headers
+        headers = ['Priority', 'Category', 'Title', 'Description', 'Action', 'Estimated Hours']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(1, col, header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.alignment = Alignment(horizontal='center')
+
+        # Data
+        recommendations = data.get('recommendations', [])
+        for row, rec in enumerate(recommendations, 2):
+            priority_cell = ws.cell(row, 1, rec.get('priority', '').upper())
+            ws.cell(row, 2, rec.get('category', ''))
+            ws.cell(row, 3, rec.get('title', ''))
+            ws.cell(row, 4, rec.get('description', ''))
+            ws.cell(row, 5, rec.get('action', ''))
+            ws.cell(row, 6, rec.get('estimated_hours', 0))
+
+            # Color code priority
+            priority = rec.get('priority', 'medium')
+            if priority == 'critical':
+                priority_cell.fill = PatternFill(start_color='EF4444', end_color='EF4444', fill_type='solid')
+                priority_cell.font = Font(bold=True, color='FFFFFF')
+            elif priority == 'high':
+                priority_cell.fill = PatternFill(start_color='F59E0B', end_color='F59E0B', fill_type='solid')
+            elif priority == 'low':
+                priority_cell.fill = PatternFill(start_color='10B981', end_color='10B981', fill_type='solid')
+
+        # Format columns
+        ws.column_dimensions['A'].width = 12
+        ws.column_dimensions['B'].width = 15
+        ws.column_dimensions['C'].width = 40
+        ws.column_dimensions['D'].width = 50
+        ws.column_dimensions['E'].width = 50
+        ws.column_dimensions['F'].width = 15
+
+    def _create_migration_waves_sheet(self, data: Dict):
+        """Create migration waves sheet."""
+        ws = self.wb.create_sheet("Migration Waves")
+
+        # Headers
+        headers = ['Wave', 'EPG Count', 'Complexity', 'Estimated Days', 'Start Week', 'Duration (Weeks)']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(1, col, header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.alignment = Alignment(horizontal='center')
+
+        # Data
+        waves = data.get('migration_waves', [])
+        for row, wave in enumerate(waves, 2):
+            ws.cell(row, 1, wave.get('wave', ''))
+            ws.cell(row, 2, wave.get('epg_count', 0))
+            ws.cell(row, 3, wave.get('complexity', ''))
+            ws.cell(row, 4, wave.get('estimated_days', 0))
+            ws.cell(row, 5, wave.get('start_week', 0))
+            ws.cell(row, 6, wave.get('duration_weeks', 0))
+
+        # Format columns
+        for col in range(1, 7):
+            ws.column_dimensions[get_column_letter(col)].width = 18
+
+
+def generate_pdf_report(data: Dict[str, Any], output_path: str = None) -> bytes:
+    """Generate PDF report - convenience function."""
+    generator = PDFReportGenerator(output_path)
+    return generator.generate_report(data)
+
+
+def generate_excel_report(data: Dict[str, Any], output_path: str = None) -> bytes:
+    """Generate Excel report - convenience function."""
+    generator = ExcelReportGenerator(output_path)
+    return generator.generate_report(data)

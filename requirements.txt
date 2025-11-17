@@ -20,3 +20,8 @@ Flask-Limiter==3.5.0
 
 # Caching
 Flask-Caching==2.1.0
+
+# Report generation
+reportlab==4.0.7  # PDF generation
+openpyxl==3.1.2   # Excel generation
+Pillow==10.1.0    # Image support for PDF reports

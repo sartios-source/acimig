@@ -1,0 +1,59 @@
+---
+# Global variables for ACI to EVPN migration
+
+# BGP Configuration
+bgp_asn: 65001
+bgp_router_id_prefix: "10.255.255"
+
+# EVPN Configuration
+evpn_enabled: true
+evpn_replication_type: "ingress"
+
+# VXLAN Configuration
+vxlan_udp_port: 4789
+vxlan_source_interface: "Loopback1"
+anycast_gateway_mac: "0000.2222.3333"
+
+# Underlay Configuration
+underlay_protocol: "ospf"
+underlay_area: "0.0.0.0"
+underlay_network: "10.0.0.0/8"
+
+# Overlay Configuration
+overlay_protocol: "bgp"
+overlay_address_family: "l2vpn evpn"
+
+# VRF Configuration
+default_vrf:
+  name: "default"
+  rd: "auto"
+  rt_import: "auto"
+  rt_export: "auto"
+
+# Management
+ntp_servers:
+  - 10.0.0.1
+  - 10.0.0.2
+
+syslog_servers:
+  - 10.0.0.10
+
+snmp_community: "ACI-Migration-RO"
+snmp_location: "Data Center 1"
+
+# Backup Configuration
+backup_dir: "/var/backups/aci-migration"
+backup_retention_days: 30
+
+# Migration Settings
+migration_mode: "phased"  # Options: phased, cutover
+migration_waves:
+  wave1: "standalone_epgs"
+  wave2: "low_complexity"
+  wave3: "medium_complexity"
+  wave4: "high_complexity"
+
+# Safety Settings
+enable_rollback: true
+rollback_timeout_minutes: 30
+verification_checks: true

@@ -35,6 +35,30 @@
 </div>
 {% else %}
 
+<!-- Tab Navigation -->
+<div class="bg-white rounded-2xl shadow-lg mb-8">
+    <div class="border-b border-gray-200">
+        <nav class="flex space-x-8 px-8 pt-6" aria-label="Upload Methods">
+            <button onclick="switchTab('file-upload')" id="tab-file-upload" class="upload-tab active pb-4 px-1 border-b-2 border-primary-600 font-medium text-sm text-primary-600 whitespace-nowrap">
+                <svg class="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                File Upload
+            </button>
+            <button onclick="switchTab('mcp-import')" id="tab-mcp-import" class="upload-tab pb-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
+                <svg class="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                MCP Server Import
+            </button>
+        </nav>
+    </div>
+</div>
+
+<!-- File Upload Tab Content -->
+<div id="content-file-upload" class="tab-content">
+{% endif %}
+
 <!-- Upload Section -->
 <div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
     <div class="flex items-center justify-between mb-6">
@@ -136,9 +160,339 @@
 {% endif %}
 
 {% endif %}
+</div>
+<!-- End File Upload Tab Content -->
+
+<!-- MCP Import Tab Content -->
+<div id="content-mcp-import" class="tab-content hidden">
+<div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
+    <div class="mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-2">Import from MCP Server</h2>
+        <p class="text-sm text-gray-600">Connect to a remote MCP (Migration Control Plane) server to import ACI data directly from APIC.</p>
+    </div>
+
+    <!-- MCP Connection Form -->
+    <div class="space-y-6">
+        <!-- Server URL -->
+        <div>
+            <label for="mcp-url" class="block text-sm font-medium text-gray-700 mb-2">
+                MCP Server URL
+            </label>
+            <div class="flex gap-3">
+                <input type="url" id="mcp-url" placeholder="http://your-mcp-server:5000"
+                    class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                <button onclick="testMCPConnection()" class="px-6 py-3 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors">
+                    <svg class="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Test Connection
+                </button>
+            </div>
+            <p class="mt-2 text-xs text-gray-500">Example: http://10.1.1.100:5000 or https://mcp.company.com</p>
+        </div>
+
+        <!-- Connection Status -->
+        <div id="mcp-status" class="hidden p-4 rounded-lg">
+            <div class="flex items-start">
+                <svg id="mcp-status-icon" class="h-5 w-5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                    <h4 id="mcp-status-title" class="font-semibold text-sm"></h4>
+                    <p id="mcp-status-message" class="text-sm mt-1"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Button -->
+        <div>
+            <button onclick="importFromMCP()" id="mcp-import-btn" disabled
+                class="w-full px-6 py-4 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl">
+                <svg class="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+                Import Data from MCP Server
+            </button>
+            <p class="mt-2 text-xs text-gray-500 text-center">Data will be imported into fabric: <span class="font-semibold">{{ current_fabric }}</span></p>
+        </div>
+
+        <!-- Import Progress -->
+        <div id="mcp-progress" class="hidden">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-center mb-3">
+                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 mr-3"></div>
+                    <span class="text-sm font-medium text-gray-900">Importing data from MCP server...</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="mcp-progress-bar" class="bg-primary-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <p id="mcp-progress-text" class="text-xs text-gray-600 mt-2">Connecting to server...</p>
+            </div>
+        </div>
+
+        <!-- Import Results -->
+        <div id="mcp-results" class="hidden"></div>
+    </div>
+</div>
+
+<!-- MCP Info Card -->
+<div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <svg class="h-6 w-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        About MCP Server Import
+    </h3>
+    <div class="space-y-3 text-sm text-gray-700">
+        <p>The MCP (Migration Control Plane) server connects directly to your APIC controller to fetch live ACI fabric data.</p>
+        <div class="bg-white rounded-lg p-4">
+            <h4 class="font-semibold text-gray-900 mb-2">Benefits:</h4>
+            <ul class="list-disc list-inside space-y-1 text-gray-700">
+                <li>Real-time data directly from APIC</li>
+                <li>No manual file exports needed</li>
+                <li>Automatic data transformation</li>
+                <li>Scheduled data refresh capability</li>
+            </ul>
+        </div>
+        <div class="bg-white rounded-lg p-4">
+            <h4 class="font-semibold text-gray-900 mb-2">Requirements:</h4>
+            <ul class="list-disc list-inside space-y-1 text-gray-700">
+                <li>MCP server deployed and running</li>
+                <li>Network connectivity to MCP server</li>
+                <li>MCP server configured with APIC credentials</li>
+            </ul>
+        </div>
+        <p class="text-xs text-gray-600 mt-4">
+            <strong>Note:</strong> See <code class="bg-white px-2 py-1 rounded">gcp-deployment/README.md</code> for MCP server deployment instructions.
+        </p>
+    </div>
+</div>
+</div>
+<!-- End MCP Import Tab Content -->
 
 <!-- Include upload.js -->
 <script src="{{ url_for('static', filename='upload.js') }}"></script>
+
+<!-- MCP Integration JavaScript -->
+<script>
+// Tab switching
+function switchTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+
+    // Remove active class from all tabs
+    document.querySelectorAll('.upload-tab').forEach(tab => {
+        tab.classList.remove('active', 'border-primary-600', 'text-primary-600');
+        tab.classList.add('border-transparent', 'text-gray-500');
+    });
+
+    // Show selected tab content
+    document.getElementById('content-' + tabName).classList.remove('hidden');
+
+    // Add active class to selected tab
+    const activeTab = document.getElementById('tab-' + tabName);
+    activeTab.classList.add('active', 'border-primary-600', 'text-primary-600');
+    activeTab.classList.remove('border-transparent', 'text-gray-500');
+}
+
+// Test MCP connection
+async function testMCPConnection() {
+    const mcpUrl = document.getElementById('mcp-url').value;
+    const statusDiv = document.getElementById('mcp-status');
+    const importBtn = document.getElementById('mcp-import-btn');
+
+    if (!mcpUrl) {
+        showMCPStatus('error', 'Error', 'Please enter an MCP server URL');
+        return;
+    }
+
+    showMCPStatus('info', 'Testing...', 'Connecting to MCP server...');
+    importBtn.disabled = true;
+
+    try {
+        const response = await fetch('/api/mcp/test', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ mcp_url: mcpUrl })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showMCPStatus('success', 'Connection Successful',
+                `Connected to ${data.service || 'MCP Server'} (${data.version || 'unknown version'})`);
+            importBtn.disabled = false;
+        } else {
+            showMCPStatus('error', 'Connection Failed', data.error || 'Unable to connect to MCP server');
+            importBtn.disabled = true;
+        }
+    } catch (error) {
+        showMCPStatus('error', 'Connection Failed', error.message);
+        importBtn.disabled = true;
+    }
+}
+
+// Import from MCP
+async function importFromMCP() {
+    const mcpUrl = document.getElementById('mcp-url').value;
+    const fabricName = '{{ current_fabric }}';
+    const progressDiv = document.getElementById('mcp-progress');
+    const resultsDiv = document.getElementById('mcp-results');
+    const importBtn = document.getElementById('mcp-import-btn');
+
+    // Show progress
+    progressDiv.classList.remove('hidden');
+    resultsDiv.classList.add('hidden');
+    importBtn.disabled = true;
+
+    updateMCPProgress(20, 'Connecting to MCP server...');
+
+    try {
+        updateMCPProgress(40, 'Fetching data from APIC...');
+
+        const response = await fetch('/api/mcp/import', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                mcp_url: mcpUrl,
+                fabric_name: fabricName
+            })
+        });
+
+        const data = await response.json();
+
+        updateMCPProgress(80, 'Processing data...');
+
+        if (data.success) {
+            updateMCPProgress(100, 'Import complete!');
+
+            setTimeout(() => {
+                progressDiv.classList.add('hidden');
+                showMCPResults('success', data);
+                importBtn.disabled = false;
+            }, 1000);
+        } else {
+            throw new Error(data.error || 'Import failed');
+        }
+    } catch (error) {
+        progressDiv.classList.add('hidden');
+        showMCPResults('error', { error: error.message });
+        importBtn.disabled = false;
+    }
+}
+
+// Show MCP status
+function showMCPStatus(type, title, message) {
+    const statusDiv = document.getElementById('mcp-status');
+    const iconSvg = document.getElementById('mcp-status-icon');
+    const titleEl = document.getElementById('mcp-status-title');
+    const messageEl = document.getElementById('mcp-status-message');
+
+    statusDiv.classList.remove('hidden', 'bg-green-50', 'bg-red-50', 'bg-blue-50');
+    statusDiv.classList.remove('border-green-200', 'border-red-200', 'border-blue-200');
+    iconSvg.classList.remove('text-green-500', 'text-red-500', 'text-blue-500');
+    titleEl.classList.remove('text-green-800', 'text-red-800', 'text-blue-800');
+    messageEl.classList.remove('text-green-700', 'text-red-700', 'text-blue-700');
+
+    if (type === 'success') {
+        statusDiv.classList.add('bg-green-50', 'border-green-200');
+        iconSvg.classList.add('text-green-500');
+        titleEl.classList.add('text-green-800');
+        messageEl.classList.add('text-green-700');
+        iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+    } else if (type === 'error') {
+        statusDiv.classList.add('bg-red-50', 'border-red-200');
+        iconSvg.classList.add('text-red-500');
+        titleEl.classList.add('text-red-800');
+        messageEl.classList.add('text-red-700');
+        iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+    } else {
+        statusDiv.classList.add('bg-blue-50', 'border-blue-200');
+        iconSvg.classList.add('text-blue-500');
+        titleEl.classList.add('text-blue-800');
+        messageEl.classList.add('text-blue-700');
+        iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+    }
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+}
+
+// Update MCP progress
+function updateMCPProgress(percent, text) {
+    document.getElementById('mcp-progress-bar').style.width = percent + '%';
+    document.getElementById('mcp-progress-text').textContent = text;
+}
+
+// Show MCP results
+function showMCPResults(type, data) {
+    const resultsDiv = document.getElementById('mcp-results');
+    resultsDiv.classList.remove('hidden');
+
+    if (type === 'success') {
+        const stats = data.statistics || {};
+        resultsDiv.innerHTML = `
+            <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                <div class="flex items-start mb-4">
+                    <svg class="h-6 w-6 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div>
+                        <h4 class="font-semibold text-green-800 text-lg">Import Successful!</h4>
+                        <p class="text-green-700 text-sm mt-1">${data.message}</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                    <div class="bg-white rounded-lg p-3">
+                        <div class="text-2xl font-bold text-gray-900">${stats.total_devices || 0}</div>
+                        <div class="text-xs text-gray-600">Devices</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3">
+                        <div class="text-2xl font-bold text-gray-900">${stats.total_epgs || 0}</div>
+                        <div class="text-xs text-gray-600">EPGs</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3">
+                        <div class="text-2xl font-bold text-gray-900">${stats.total_vlans || 0}</div>
+                        <div class="text-xs text-gray-600">VLANs</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3">
+                        <div class="text-2xl font-bold text-gray-900">${stats.total_paths || 0}</div>
+                        <div class="text-xs text-gray-600">Paths</div>
+                    </div>
+                </div>
+                <div class="mt-4 flex gap-3">
+                    <a href="/analyze" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg text-center font-medium hover:bg-green-700 transition-colors">
+                        View Analysis
+                    </a>
+                    <button onclick="location.reload()" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors">
+                        Import More Data
+                    </button>
+                </div>
+            </div>
+        `;
+    } else {
+        resultsDiv.innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                <div class="flex items-start">
+                    <svg class="h-6 w-6 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div>
+                        <h4 class="font-semibold text-red-800">Import Failed</h4>
+                        <p class="text-red-700 text-sm mt-1">${data.error}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+</script>
 
 <style>
 /* Upload.js specific styles */

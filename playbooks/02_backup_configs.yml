@@ -1,0 +1,111 @@
+---
+- name: Backup Device Configurations
+  hosts: evpn_fabric
+  gather_facts: no
+
+  vars:
+    backup_base_dir: "{{ playbook_dir }}/backups"
+    timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+    backup_dir: "{{ backup_base_dir }}/{{ timestamp }}"
+
+  tasks:
+    - name: Create backup directory
+      local_action:
+        module: file
+        path: "{{ backup_dir }}"
+        state: directory
+      run_once: true
+
+    - name: Backup running configuration
+      nxos_config:
+        backup: yes
+        backup_options:
+          filename: "{{ inventory_hostname }}_running_config.cfg"
+          dir_path: "{{ backup_dir }}"
+      register: backup_result
+
+    - name: Save startup configuration
+      nxos_command:
+        commands:
+          - show startup-config
+      register: startup_config
+
+    - name: Write startup configuration to file
+      local_action:
+        module: copy
+        content: "{{ startup_config.stdout[0] }}"
+        dest: "{{ backup_dir }}/{{ inventory_hostname }}_startup_config.cfg"
+
+    - name: Backup VPC configuration (for leaf switches)
+      nxos_command:
+        commands:
+          - show run vpc
+      register: vpc_config
+      when: "'leafs' in group_names"
+      ignore_errors: yes
+
+    - name: Save VPC configuration
+      local_action:
+        module: copy
+        content: "{{ vpc_config.stdout[0] }}"
+        dest: "{{ backup_dir }}/{{ inventory_hostname }}_vpc_config.cfg"
+      when: vpc_config is defined and vpc_config is succeeded
+
+    - name: Backup BGP configuration
+      nxos_command:
+        commands:
+          - show run bgp
+      register: bgp_config
+      ignore_errors: yes
+
+    - name: Save BGP configuration
+      local_action:
+        module: copy
+        content: "{{ bgp_config.stdout[0] if bgp_config is succeeded else 'No BGP configuration' }}"
+        dest: "{{ backup_dir }}/{{ inventory_hostname }}_bgp_config.cfg"
+
+    - name: Create backup manifest
+      local_action:
+        module: copy
+        content: |
+          ================================================================================
+          BACKUP MANIFEST
+          ================================================================================
+          Backup Date: {{ ansible_date_time.iso8601 }}
+          Backup Directory: {{ backup_dir }}
+
+          BACKED UP DEVICES:
+          ------------------
+          {% for host in groups['evpn_fabric'] %}
+          - {{ host }} ({{ hostvars[host]['ansible_host'] }})
+          {% endfor %}
+
+          FILES BACKED UP PER DEVICE:
+          ----------------------------
+          - Running configuration
+          - Startup configuration
+          - BGP configuration
+          - VPC configuration (leaf switches only)
+
+          BACKUP LOCATION:
+          ----------------
+          {{ backup_dir }}
+
+          RESTORE INSTRUCTIONS:
+          ---------------------
+          To restore a device configuration:
+          1. Review the backed up configuration file
+          2. Use the rollback playbook (99_rollback.yml)
+          3. Or manually copy configuration to device
+
+          ================================================================================
+        dest: "{{ backup_dir }}/BACKUP_MANIFEST.txt"
+      run_once: true
+
+    - name: Display backup summary
+      debug:
+        msg: |
+          Backup completed for {{ inventory_hostname }}
+          - Backup directory: {{ backup_dir }}
+          - Files backed up: running-config, startup-config, bgp-config, vpc-config
+          - Backup timestamp: {{ timestamp }}

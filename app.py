@@ -241,6 +241,91 @@ def read_file_safely(file_path: Path) -> str:
     raise ValueError(f"Unable to decode file {file_path}. Tried encodings: {encodings}")
 
 
+def prepare_report_data(fabric_data: Dict[str, Any], fabric_name: str, mode: str) -> Dict[str, Any]:
+    """
+    Prepare comprehensive data for PDF/Excel reports.
+
+    Args:
+        fabric_data: Raw fabric data
+        fabric_name: Name of the fabric
+        mode: Operating mode (evpn/onboard)
+
+    Returns:
+        Formatted report data dictionary
+    """
+    analyzer = ACIAnalyzer(fabric_data)
+
+    # Basic info
+    report_data = {
+        'fabric_name': fabric_name,
+        'mode': mode,
+        'generated_at': datetime.now().isoformat(),
+    }
+
+    # Device counts
+    devices = fabric_data.get('devices', [])
+    leafs = [d for d in devices if d.get('device_type') == 'leaf']
+    spines = [d for d in devices if d.get('device_type') == 'spine']
+    fexes = [d for d in devices if d.get('device_type') == 'fex']
+
+    report_data.update({
+        'total_devices': len(devices),
+        'total_leafs': len(leafs),
+        'total_spines': len(spines),
+        'total_fex': len(fexes),
+        'devices': devices,
+    })
+
+    # EPG data
+    epgs = fabric_data.get('epgs', [])
+    report_data.update({
+        'total_epgs': len(epgs),
+        'epgs': epgs,
+    })
+
+    # Logical objects
+    report_data.update({
+        'total_bridge_domains': len(fabric_data.get('bridge_domains', [])),
+        'total_vrfs': len(fabric_data.get('vrfs', [])),
+        'total_contracts': len(fabric_data.get('contracts', [])),
+        'total_subnets': len(fabric_data.get('subnets', [])),
+    })
+
+    # Migration analysis if available
+    try:
+        if mode == 'evpn':
+            # Migration readiness assessment
+            assessment = analyzer.generate_complete_migration_assessment()
+            report_data['migration_assessment'] = assessment
+
+            # Migration waves
+            waves_data = analyzer.analyze_migration_waves()
+            report_data['migration_waves'] = waves_data.get('summary', [])
+
+            # Coupling analysis
+            coupling = analyzer.analyze_coupling_issues()
+            report_data['coupling_analysis'] = coupling
+
+    except Exception as e:
+        app.logger.warning(f"Could not generate migration analysis: {e}")
+        report_data['migration_assessment'] = {
+            'overall_readiness': {'score': 0, 'ready_for_migration': False},
+            'component_scores': {}
+        }
+
+    # Generate recommendations
+    try:
+        from analysis.planning import ACIPlanner
+        planner = ACIPlanner(fabric_data, mode)
+        plan = planner.generate_plan()
+        report_data['recommendations'] = plan.get('recommendations', [])
+    except Exception as e:
+        app.logger.warning(f"Could not generate recommendations: {e}")
+        report_data['recommendations'] = []
+
+    return report_data
+
+
 # Error handlers
 @app.errorhandler(413)
 def request_entity_too_large(error):
@@ -1051,7 +1136,7 @@ def download_evpn_config(device_role):
 @app.route('/download/report/<format>')
 @handle_route_errors
 def download_report(format):
-    """Download report in specified format (markdown, csv, html, json)."""
+    """Download report in specified format (markdown, csv, html, json, pdf, excel)."""
     current_fabric = session.get('current_fabric')
     if not current_fabric:
         flash("No fabric selected", "error")
@@ -1060,29 +1145,51 @@ def download_report(format):
     fabric_data = fm.get_fabric_data(current_fabric)
     mode = session.get('mode', 'evpn')
 
+    # Prepare report data
+    report_data = prepare_report_data(fabric_data, current_fabric, mode)
+
     if format == 'markdown':
         content = reporting.generate_markdown_report(fabric_data, mode)
         filename = f'{current_fabric}_report.md'
         mimetype = 'text/markdown'
+        is_binary = False
     elif format == 'csv':
         content = reporting.generate_csv_report(fabric_data, mode)
         filename = f'{current_fabric}_report.csv'
         mimetype = 'text/csv'
+        is_binary = False
     elif format == 'html':
         content = reporting.generate_html_report(fabric_data, mode)
         filename = f'{current_fabric}_report.html'
         mimetype = 'text/html'
+        is_binary = False
     elif format == 'json':
         content = reporting.generate_json_report(fabric_data, mode)
         filename = f'{current_fabric}_report.json'
         mimetype = 'application/json'
+        is_binary = False
+    elif format == 'pdf':
+        from analysis.export import generate_pdf_report
+        content = generate_pdf_report(report_data)
+        filename = f'{current_fabric}_report.pdf'
+        mimetype = 'application/pdf'
+        is_binary = True
+    elif format == 'excel':
+        from analysis.export import generate_excel_report
+        content = generate_excel_report(report_data)
+        filename = f'{current_fabric}_report.xlsx'
+        mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        is_binary = True
     else:
         flash(f"Invalid format: {format}", "error")
         return redirect(url_for('report'))
 
     # Save to output directory
     output_path = OUTPUT_DIR / filename
-    output_path.write_text(content, encoding='utf-8')
+    if is_binary:
+        output_path.write_bytes(content)
+    else:
+        output_path.write_text(content, encoding='utf-8')
 
     app.logger.info(f"Generated {format} report for fabric {current_fabric}")
     return send_file(output_path, as_attachment=True, download_name=filename, mimetype=mimetype)

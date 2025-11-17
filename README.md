@@ -4,10 +4,24 @@
 
 A comprehensive, web-based application for analyzing Cisco ACI fabrics and generating migration plans to standards-based EVPN/VXLAN architectures. Streamline your network infrastructure modernization with automated configuration generation, intelligent recommendations, and detailed analysis.
 
-[![Version](https://img.shields.io/badge/version-1.01-blue.svg)](#)
+[![Version](https://img.shields.io/badge/version-1.02-blue.svg)](#)
 [![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/flask-3.0%2B-black.svg)](https://flask.palletsprojects.com/)
 [![License](https://img.shields.io/badge/license-Internal-red.svg)](#)
+
+---
+
+## 🎉 What's New in v1.02
+
+**Latest Release** adds enterprise-grade reporting and automation capabilities:
+
+- **📊 PDF & Excel Reports** - Professional formatted reports for executive presentations and detailed analysis
+- **🌐 MCP Server Integration** - Import data directly from remote MCP server connected to APIC
+- **🔧 Ansible Playbooks** - Automated migration playbooks for deploying EVPN configurations
+- **🧪 Enhanced Testing** - Comprehensive test suite with 95%+ coverage of new features
+- **📈 Better Planning** - Improved migration planning with detailed timelines and resource estimates
+
+See [NEW_FEATURES.md](NEW_FEATURES.md) for complete details.
 
 ---
 

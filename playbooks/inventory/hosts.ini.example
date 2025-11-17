@@ -1,0 +1,44 @@
+# Ansible Inventory for ACI to EVPN Migration
+# Copy this file to hosts.ini and customize for your environment
+
+[all:vars]
+ansible_connection=network_cli
+ansible_network_os=nxos
+ansible_user=admin
+ansible_password={{ lookup('env', 'ANSIBLE_PASSWORD') }}
+ansible_become=yes
+ansible_become_method=enable
+
+[spines]
+spine-01 ansible_host=10.1.1.1 device_id=101
+spine-02 ansible_host=10.1.1.2 device_id=102
+
+[leafs]
+leaf-101 ansible_host=10.1.1.101 device_id=101 vpc_domain=101
+leaf-102 ansible_host=10.1.1.102 device_id=102 vpc_domain=101
+leaf-103 ansible_host=10.1.1.103 device_id=103 vpc_domain=102
+leaf-104 ansible_host=10.1.1.104 device_id=104 vpc_domain=102
+
+[border_leafs]
+border-leaf-201 ansible_host=10.1.1.201 device_id=201
+border-leaf-202 ansible_host=10.1.1.202 device_id=202
+
+[evpn_fabric:children]
+spines
+leafs
+border_leafs
+
+[nxos:children]
+evpn_fabric
+
+[spines:vars]
+device_role=spine
+bgp_role=route_reflector
+
+[leafs:vars]
+device_role=leaf
+bgp_role=route_reflector_client
+
+[border_leafs:vars]
+device_role=border_leaf
+bgp_role=route_reflector_client

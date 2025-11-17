@@ -1,0 +1,129 @@
+---
+- name: Pre-Migration Validation Checks
+  hosts: evpn_fabric
+  gather_facts: no
+
+  vars:
+    report_dir: "{{ playbook_dir }}/reports"
+    timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+
+  tasks:
+    - name: Create reports directory
+      local_action:
+        module: file
+        path: "{{ report_dir }}"
+        state: directory
+      run_once: true
+
+    - name: Test connectivity to devices
+      wait_for_connection:
+        timeout: 30
+      register: connectivity_test
+
+    - name: Gather device facts
+      nxos_facts:
+        gather_subset:
+          - hardware
+          - interfaces
+          - config
+      register: device_facts
+
+    - name: Check NX-OS version
+      assert:
+        that:
+          - ansible_net_version is version('9.3', '>=')
+        fail_msg: "NX-OS version {{ ansible_net_version }} is below minimum required 9.3"
+        success_msg: "NX-OS version {{ ansible_net_version }} meets requirements"
+
+    - name: Check available disk space
+      nxos_command:
+        commands:
+          - show system resources
+      register: system_resources
+
+    - name: Validate EVPN features available
+      nxos_command:
+        commands:
+          - show feature | include evpn
+          - show feature | include nv overlay
+      register: evpn_features
+
+    - name: Check current BGP configuration
+      nxos_command:
+        commands:
+          - show run bgp
+      register: current_bgp
+      ignore_errors: yes
+
+    - name: Check current interface status
+      nxos_command:
+        commands:
+          - show interface status
+      register: interface_status
+
+    - name: Check VPC status (for leaf switches)
+      nxos_command:
+        commands:
+          - show vpc brief
+      register: vpc_status
+      when: "'leafs' in group_names"
+      ignore_errors: yes
+
+    - name: Generate pre-migration report
+      local_action:
+        module: copy
+        content: |
+          ================================================================================
+          PRE-MIGRATION CHECK REPORT
+          ================================================================================
+          Generated: {{ ansible_date_time.iso8601 }}
+          Device: {{ inventory_hostname }}
+          IP Address: {{ ansible_host }}
+          Role: {{ device_role }}
+
+          DEVICE INFORMATION:
+          -------------------
+          Hostname: {{ ansible_net_hostname }}
+          Model: {{ ansible_net_model }}
+          Serial: {{ ansible_net_serialnum }}
+          NX-OS Version: {{ ansible_net_version }}
+
+          CONNECTIVITY:
+          -------------
+          Status: {{ 'SUCCESS' if connectivity_test is succeeded else 'FAILED' }}
+
+          SOFTWARE VERSION:
+          -----------------
+          Current: {{ ansible_net_version }}
+          Minimum Required: 9.3
+          Status: {{ 'PASS' if ansible_net_version is version('9.3', '>=') else 'FAIL' }}
+
+          EVPN FEATURES:
+          --------------
+          {{ evpn_features.stdout[0] }}
+
+          BGP CONFIGURATION:
+          ------------------
+          {{ current_bgp.stdout[0] if current_bgp is succeeded else 'No BGP configuration found' }}
+
+          {% if vpc_status is defined and vpc_status is succeeded %}
+          VPC STATUS:
+          -----------
+          {{ vpc_status.stdout[0] }}
+          {% endif %}
+
+          INTERFACE STATUS:
+          -----------------
+          {{ interface_status.stdout[0] }}
+
+          ================================================================================
+        dest: "{{ report_dir }}/pre_migration_{{ inventory_hostname }}_{{ timestamp }}.txt"
+
+    - name: Display summary
+      debug:
+        msg: |
+          Pre-migration check completed for {{ inventory_hostname }}
+          - Connectivity: OK
+          - NX-OS Version: {{ ansible_net_version }}
+          - Model: {{ ansible_net_model }}
+          - Report saved to: {{ report_dir }}/pre_migration_{{ inventory_hostname }}_{{ timestamp }}.txt
