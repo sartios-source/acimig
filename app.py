@@ -721,6 +721,162 @@ def upload():
         return jsonify({'error': 'An unexpected error occurred during upload'}), 500
 
 
+@app.route('/api/mcp/test', methods=['POST'])
+@csrf.exempt
+def test_mcp_connection():
+    """Test connection to MCP server."""
+    try:
+        data = request.get_json()
+        mcp_url = data.get('mcp_url')
+
+        if not mcp_url:
+            return jsonify({'error': 'MCP URL required'}), 400
+
+        from mcp_client import test_mcp_connection
+        result = test_mcp_connection(mcp_url)
+
+        return jsonify(result)
+
+    except Exception as e:
+        app.logger.error(f"MCP connection test failed: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/mcp/import', methods=['POST'])
+@csrf.exempt
+@limiter.limit("5 per minute")
+def import_from_mcp():
+    """Import data from MCP server."""
+    try:
+        data = request.get_json()
+        mcp_url = data.get('mcp_url')
+        fabric_name = data.get('fabric_name')
+
+        if not mcp_url or not fabric_name:
+            return jsonify({'error': 'MCP URL and fabric name required'}), 400
+
+        # Validate fabric name
+        try:
+            fabric_name = validate_fabric_name(fabric_name)
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+
+        from mcp_client import MCPClient, MCPDataValidator
+
+        # Fetch data from MCP server
+        client = MCPClient(mcp_url)
+        migrator_data = client.get_migrator_data()
+
+        # Validate data
+        errors = MCPDataValidator.validate_migrator_data(migrator_data)
+        if errors:
+            app.logger.error(f"MCP data validation failed: {errors}")
+            return jsonify({'error': 'Data validation failed', 'details': errors}), 400
+
+        # Create fabric directory
+        fabric_dir = FABRICS_DIR / fabric_name
+        fabric_dir.mkdir(exist_ok=True, parents=True)
+
+        # Save MCP data as JSON
+        mcp_file = fabric_dir / f'mcp_import_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+        with open(mcp_file, 'w') as f:
+            json.dump(migrator_data, f, indent=2)
+
+        # Transform MCP data to ACI Migrator internal format
+        aci_data = transform_mcp_to_aci_format(migrator_data)
+
+        # Add to fabric manager
+        fm.add_dataset(fabric_name, {
+            'filename': mcp_file.name,
+            'type': 'mcp_import',
+            'uploaded': datetime.now().isoformat(),
+            'source': mcp_url,
+            'devices': len(migrator_data.get('devices', [])),
+            'epgs': len(migrator_data.get('epg_mappings', [])),
+            'path': str(mcp_file)
+        })
+
+        # Store transformed data
+        fm.fabrics[fabric_name]['aci_data'] = aci_data
+
+        # Set as current fabric
+        session['current_fabric'] = fabric_name
+
+        # Invalidate cache
+        invalidate_fabric_cache(fabric_name)
+
+        app.logger.info(f"Successfully imported data from MCP server to fabric {fabric_name}")
+
+        return jsonify({
+            'success': True,
+            'fabric_name': fabric_name,
+            'statistics': migrator_data.get('statistics', {}),
+            'message': f'Successfully imported data from MCP server'
+        })
+
+    except Exception as e:
+        app.logger.error(f"MCP import failed: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+def transform_mcp_to_aci_format(mcp_data):
+    """Transform MCP data to ACI Migrator internal format."""
+    aci_data = {
+        'devices': {},
+        'epgs': [],
+        'vlans': set(),
+        'tenants': set()
+    }
+
+    # Transform devices
+    for device in mcp_data.get('devices', []):
+        device_id = device['device_id']
+        aci_data['devices'][device_id] = {
+            'id': device_id,
+            'name': device['device_name'],
+            'type': device['device_type'],
+            'model': device.get('model', 'Unknown'),
+            'parent_leaf': device.get('parent_leaf'),
+            'epgs': [],
+            'ports': []
+        }
+
+    # Transform EPG mappings
+    for epg_mapping in mcp_data.get('epg_mappings', []):
+        tenant = epg_mapping['tenant']
+        ap = epg_mapping.get('application_profile', '')
+        epg_name = epg_mapping['epg']
+        vlans = epg_mapping.get('vlans', [])
+        devices = epg_mapping.get('devices', [])
+
+        aci_data['tenants'].add(tenant)
+        for vlan in vlans:
+            aci_data['vlans'].add(str(vlan))
+
+        epg_obj = {
+            'tenant': tenant,
+            'app_profile': ap,
+            'name': epg_name,
+            'vlans': vlans,
+            'devices': devices,
+            'paths': epg_mapping.get('paths', []),
+            'total_ports': epg_mapping.get('total_ports', 0)
+        }
+
+        aci_data['epgs'].append(epg_obj)
+
+        # Link EPG to devices
+        for device_id in devices:
+            if device_id in aci_data['devices']:
+                aci_data['devices'][device_id]['epgs'].append(epg_name)
+
+    # Convert sets to lists for JSON serialization
+    aci_data['vlans'] = sorted(list(aci_data['vlans']))
+    aci_data['tenants'] = sorted(list(aci_data['tenants']))
+
+    return aci_data
+
+
 @app.route('/visualize')
 @handle_route_errors
 def visualize():

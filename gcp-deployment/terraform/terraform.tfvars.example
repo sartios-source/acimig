@@ -1,0 +1,19 @@
+# Copy this file to terraform.tfvars and update with your values
+
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+zone       = "us-central1-a"
+
+# IMPORTANT: Restrict this to your IP address for security
+# Find your IP: curl ifconfig.me
+allowed_source_ips = ["YOUR.IP.ADDRESS.HERE/32"]
+
+# Optional: Customize resource names
+prefix = "aci-migrator-poc"
+
+# Optional: Adjust VM sizes for cost optimization
+# aci_simulator_machine_type = "n1-standard-2"  # Smaller for testing
+# mcp_server_machine_type    = "n1-standard-1"  # Smaller for testing
+
+# Optional: Custom APIC password
+# apic_admin_password = "YourSecurePassword123"

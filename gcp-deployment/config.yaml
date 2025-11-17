@@ -1,0 +1,103 @@
+# ACI Migrator POC - GCP Deployment Configuration
+# Copy this file and customize for your deployment
+
+# GCP Project Configuration
+gcp:
+  project_id: "your-gcp-project-id"  # REQUIRED: Your GCP project ID
+  region: "us-central1"               # GCP region
+  zone: "us-central1-a"               # GCP zone
+  prefix: "aci-migrator-poc"          # Resource name prefix
+
+# Network Configuration
+network:
+  vpc_cidr: "10.0.0.0/16"            # VPC CIDR block
+  subnet_cidr: "10.0.1.0/24"         # Subnet CIDR block
+
+  # Firewall - IMPORTANT: Restrict to your IP for security!
+  # Find your IP: curl ifconfig.me
+  allowed_source_ips:
+    - "0.0.0.0/0"  # CHANGE THIS! Use your IP: "YOUR.IP.HERE/32"
+
+# VM Configuration
+vms:
+  aci_simulator:
+    machine_type: "n1-standard-4"    # 4 vCPU, 15GB RAM
+    disk_size_gb: 50
+    image: "ubuntu-2204-lts"
+
+  mcp_server:
+    machine_type: "n1-standard-2"    # 2 vCPU, 7.5GB RAM
+    disk_size_gb: 20
+    image: "ubuntu-2204-lts"
+    port: 5000
+
+# ACI Configuration
+aci:
+  admin_username: "admin"
+  admin_password: "C1sco12345"       # Change for production!
+  apic_version: "5.2(4e)"
+
+# Mock Data Configuration
+mock_data:
+  topology:
+    spines: 2
+    leafs: 4
+    fex: 8
+
+  tenants:
+    - name: "production"
+      complexity: "high"
+    - name: "development"
+      complexity: "medium"
+    - name: "management"
+      complexity: "low"
+
+  test_scenarios:
+    - high_coupling
+    - underutilized_fex
+    - vlan_overlap
+    - multi_path_epgs
+
+# Cost Management
+cost_management:
+  auto_shutdown: false               # Auto-shutdown VMs after hours
+  shutdown_schedule:
+    weekdays: "0 18 * * 1-5"         # Stop at 6 PM weekdays
+    startup: "0 8 * * 1-5"           # Start at 8 AM weekdays
+    timezone: "America/Los_Angeles"
+
+  budget_alert:
+    enabled: true
+    monthly_limit: 50                # USD
+    alert_thresholds:
+      - 50
+      - 75
+      - 90
+      - 100
+
+# Monitoring
+monitoring:
+  enable_logging: true
+  log_retention_days: 7
+
+  health_checks:
+    enabled: true
+    interval_seconds: 300            # Check every 5 minutes
+
+# Feature Flags
+features:
+  use_static_ips: true               # Use static external IPs (costs $0.01/hour each)
+  enable_os_login: true              # Use OS Login for SSH
+  enable_startup_scripts: true       # Run setup scripts on VM creation
+
+# Development Settings
+development:
+  debug_mode: false
+  preserve_on_failure: true          # Keep resources on failed deployment
+
+# Tags and Labels
+labels:
+  environment: "poc"
+  project: "aci-migrator"
+  managed_by: "terraform"
+  cost_center: "engineering"

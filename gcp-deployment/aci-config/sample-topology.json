@@ -1,0 +1,297 @@
+{
+  "fabric": {
+    "name": "ACI-POC-Fabric",
+    "apic_version": "5.2(4e)",
+    "fabric_id": 1
+  },
+  "topology": {
+    "spines": [
+      {
+        "id": 101,
+        "name": "spine-101",
+        "model": "N9K-C9364C",
+        "serial": "FDO12345678",
+        "pod": 1
+      },
+      {
+        "id": 102,
+        "name": "spine-102",
+        "model": "N9K-C9364C",
+        "serial": "FDO12345679",
+        "pod": 1
+      }
+    ],
+    "leafs": [
+      {
+        "id": 201,
+        "name": "leaf-201",
+        "model": "N9K-C93180YC-FX",
+        "serial": "FDO12345680",
+        "pod": 1,
+        "role": "leaf"
+      },
+      {
+        "id": 202,
+        "name": "leaf-202",
+        "model": "N9K-C93180YC-FX",
+        "serial": "FDO12345681",
+        "pod": 1,
+        "role": "leaf"
+      },
+      {
+        "id": 203,
+        "name": "leaf-203",
+        "model": "N9K-C93180YC-FX",
+        "serial": "FDO12345682",
+        "pod": 1,
+        "role": "leaf"
+      },
+      {
+        "id": 204,
+        "name": "leaf-204",
+        "model": "N9K-C93180YC-FX",
+        "serial": "FDO12345683",
+        "pod": 1,
+        "role": "leaf"
+      }
+    ],
+    "fex": [
+      {
+        "id": "101",
+        "name": "FEX-101",
+        "model": "N2K-C2248TP-E-1GE",
+        "serial": "SSI12345001",
+        "parent_leaf": 201,
+        "ports": 48
+      },
+      {
+        "id": "102",
+        "name": "FEX-102",
+        "model": "N2K-C2248TP-E-1GE",
+        "serial": "SSI12345002",
+        "parent_leaf": 201,
+        "ports": 48
+      },
+      {
+        "id": "103",
+        "name": "FEX-103",
+        "model": "N2K-C2248TP-E-1GE",
+        "serial": "SSI12345003",
+        "parent_leaf": 202,
+        "ports": 48
+      },
+      {
+        "id": "104",
+        "name": "FEX-104",
+        "model": "N2K-C2248TP-E-1GE",
+        "serial": "SSI12345004",
+        "parent_leaf": 202,
+        "ports": 48
+      },
+      {
+        "id": "105",
+        "name": "FEX-105",
+        "model": "N2K-C2248TP-E-1GE",
+        "serial": "SSI12345005",
+        "parent_leaf": 203,
+        "ports": 48
+      },
+      {
+        "id": "106",
+        "name": "FEX-106",
+        "model": "N2K-C2248TP-E-1GE",
+        "serial": "SSI12345006",
+        "parent_leaf": 203,
+        "ports": 48
+      },
+      {
+        "id": "107",
+        "name": "FEX-107",
+        "model": "N2K-C2248TP-E-1GE",
+        "serial": "SSI12345007",
+        "parent_leaf": 204,
+        "ports": 48
+      },
+      {
+        "id": "108",
+        "name": "FEX-108",
+        "model": "N2K-C2248TP-E-1GE",
+        "serial": "SSI12345008",
+        "parent_leaf": 204,
+        "ports": 48
+      }
+    ]
+  },
+  "tenants": [
+    {
+      "name": "production",
+      "description": "Production tenant with complex configurations",
+      "vrfs": [
+        {
+          "name": "prod-vrf",
+          "description": "Production VRF"
+        }
+      ],
+      "bridge_domains": [
+        {
+          "name": "web-bd",
+          "vrf": "prod-vrf",
+          "subnet": "10.10.10.1/24",
+          "description": "Web tier BD"
+        },
+        {
+          "name": "app-bd",
+          "vrf": "prod-vrf",
+          "subnet": "10.10.20.1/24",
+          "description": "Application tier BD"
+        },
+        {
+          "name": "db-bd",
+          "vrf": "prod-vrf",
+          "subnet": "10.10.30.1/24",
+          "description": "Database tier BD"
+        }
+      ],
+      "application_profiles": [
+        {
+          "name": "three-tier-app",
+          "description": "Three tier application",
+          "epgs": [
+            {
+              "name": "web-epg",
+              "bd": "web-bd",
+              "description": "Web servers EPG",
+              "vlans": [100, 101],
+              "paths": [
+                {"leaf": 201, "fex": "101", "port": "1/10", "vlan": 100},
+                {"leaf": 201, "fex": "101", "port": "1/11", "vlan": 100},
+                {"leaf": 202, "fex": "103", "port": "1/10", "vlan": 101},
+                {"leaf": 202, "fex": "103", "port": "1/11", "vlan": 101}
+              ]
+            },
+            {
+              "name": "app-epg",
+              "bd": "app-bd",
+              "description": "Application servers EPG",
+              "vlans": [200, 201],
+              "paths": [
+                {"leaf": 201, "fex": "102", "port": "1/15", "vlan": 200},
+                {"leaf": 201, "fex": "102", "port": "1/16", "vlan": 200},
+                {"leaf": 201, "fex": "102", "port": "1/17", "vlan": 200},
+                {"leaf": 202, "fex": "104", "port": "1/15", "vlan": 201},
+                {"leaf": 202, "fex": "104", "port": "1/16", "vlan": 201},
+                {"leaf": 202, "fex": "104", "port": "1/17", "vlan": 201}
+              ]
+            },
+            {
+              "name": "db-epg",
+              "bd": "db-bd",
+              "description": "Database servers EPG",
+              "vlans": [300],
+              "paths": [
+                {"leaf": 203, "fex": "105", "port": "1/20", "vlan": 300},
+                {"leaf": 203, "fex": "105", "port": "1/21", "vlan": 300}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "development",
+      "description": "Development tenant",
+      "vrfs": [
+        {
+          "name": "dev-vrf",
+          "description": "Development VRF"
+        }
+      ],
+      "bridge_domains": [
+        {
+          "name": "dev-bd",
+          "vrf": "dev-vrf",
+          "subnet": "10.20.10.1/24",
+          "description": "Development BD"
+        }
+      ],
+      "application_profiles": [
+        {
+          "name": "dev-app",
+          "description": "Development application",
+          "epgs": [
+            {
+              "name": "dev-epg",
+              "bd": "dev-bd",
+              "description": "Development EPG",
+              "vlans": [500],
+              "paths": [
+                {"leaf": 203, "fex": "106", "port": "1/1", "vlan": 500},
+                {"leaf": 203, "fex": "106", "port": "1/2", "vlan": 500},
+                {"leaf": 203, "fex": "106", "port": "1/3", "vlan": 500},
+                {"leaf": 204, "fex": "107", "port": "1/1", "vlan": 500}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "management",
+      "description": "Management tenant",
+      "vrfs": [
+        {
+          "name": "mgmt-vrf",
+          "description": "Management VRF"
+        }
+      ],
+      "bridge_domains": [
+        {
+          "name": "mgmt-bd",
+          "vrf": "mgmt-vrf",
+          "subnet": "10.30.10.1/24",
+          "description": "Management BD"
+        }
+      ],
+      "application_profiles": [
+        {
+          "name": "mgmt-app",
+          "description": "Management application",
+          "epgs": [
+            {
+              "name": "mgmt-epg",
+              "bd": "mgmt-bd",
+              "description": "Management EPG",
+              "vlans": [999],
+              "paths": [
+                {"leaf": 201, "port": "1/1", "vlan": 999},
+                {"leaf": 202, "port": "1/1", "vlan": 999},
+                {"leaf": 203, "port": "1/1", "vlan": 999},
+                {"leaf": 204, "port": "1/1", "vlan": 999}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "test_scenarios": {
+    "high_coupling": {
+      "description": "EPG spanning many devices for coupling analysis",
+      "tenant": "production",
+      "ap": "three-tier-app",
+      "epg": "app-epg",
+      "devices": 2,
+      "fex_count": 2
+    },
+    "underutilized_fex": {
+      "description": "FEX with low port utilization for consolidation",
+      "fex": ["105", "106", "107", "108"],
+      "utilization": "10-20%"
+    },
+    "vlan_overlap": {
+      "description": "VLANs used across multiple tenants",
+      "vlans": [100, 500],
+      "tenants": ["production", "development"]
+    }
+  }
+}
