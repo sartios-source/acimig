@@ -9,12 +9,13 @@ import logging
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
+from functools import wraps
 
 # Load environment variables
 load_dotenv()
@@ -80,6 +81,14 @@ limiter = Limiter(
     storage_uri="memory://"
 )
 
+# Initialize caching
+from flask_caching import Cache
+cache = Cache(app, config={
+    'CACHE_TYPE': 'SimpleCache',  # Use simple in-memory cache
+    'CACHE_DEFAULT_TIMEOUT': 300,  # 5 minutes default timeout
+    'CACHE_THRESHOLD': 100  # Max 100 items in cache
+})
+
 # Directory structure
 BASE_DIR = app.config['BASE_DIR']
 DATA_DIR = app.config['DATA_DIR']
@@ -91,11 +100,78 @@ OUTPUT_DIR = app.config['OUTPUT_DIR']
 fm = fabric_manager.FabricManager(FABRICS_DIR)
 
 
+# Cache helper functions
+def get_fabric_cache_key(fabric_name: str, suffix: str = '') -> str:
+    """Generate cache key for fabric-specific data."""
+    return f"fabric_{fabric_name}_{suffix}"
+
+
+def invalidate_fabric_cache(fabric_name: str):
+    """Invalidate all cache entries for a fabric."""
+    keys_to_delete = [
+        get_fabric_cache_key(fabric_name, 'visualization'),
+        get_fabric_cache_key(fabric_name, 'planning'),
+        get_fabric_cache_key(fabric_name, 'reporting'),
+        get_fabric_cache_key(fabric_name, 'analysis'),
+        get_fabric_cache_key(fabric_name, 'stats'),
+    ]
+    for key in keys_to_delete:
+        cache.delete(key)
+    app.logger.info(f"Invalidated cache for fabric: {fabric_name}")
+
+
 # Template context processor to inject fabrics into all templates
 @app.context_processor
 def inject_fabrics():
     """Make fabrics list available to all templates for sidebar."""
     return {'fabrics': fm.list_fabrics()}
+
+
+# Error handling decorator
+def handle_route_errors(f):
+    """Decorator to handle errors in routes with flash messages."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except ValueError as e:
+            app.logger.error(f"Validation error in {f.__name__}: {str(e)}")
+            flash(f"Validation error: {str(e)}", "error")
+            return redirect(url_for('index'))
+        except FileNotFoundError as e:
+            app.logger.error(f"File not found in {f.__name__}: {str(e)}")
+            flash(f"File not found: {str(e)}", "error")
+            return redirect(url_for('index'))
+        except PermissionError as e:
+            app.logger.error(f"Permission denied in {f.__name__}: {str(e)}")
+            flash("Permission denied. Please check file permissions.", "error")
+            return redirect(url_for('index'))
+        except Exception as e:
+            app.logger.error(f"Unexpected error in {f.__name__}: {str(e)}", exc_info=True)
+            flash("An unexpected error occurred. Please check logs or contact support.", "error")
+            return redirect(url_for('index'))
+    return decorated_function
+
+
+def handle_api_errors(f):
+    """Decorator to handle errors in API routes with JSON responses."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except ValueError as e:
+            app.logger.error(f"Validation error in {f.__name__}: {str(e)}")
+            return jsonify({'error': f'Validation error: {str(e)}'}), 400
+        except FileNotFoundError as e:
+            app.logger.error(f"File not found in {f.__name__}: {str(e)}")
+            return jsonify({'error': f'File not found: {str(e)}'}), 404
+        except PermissionError as e:
+            app.logger.error(f"Permission denied in {f.__name__}: {str(e)}")
+            return jsonify({'error': 'Permission denied. Please check file permissions.'}), 403
+        except Exception as e:
+            app.logger.error(f"Unexpected error in {f.__name__}: {str(e)}", exc_info=True)
+            return jsonify({'error': 'An unexpected error occurred. Please check logs or contact support.'}), 500
+    return decorated_function
 
 
 # Security helper functions
@@ -622,6 +698,9 @@ def upload():
                 })
                 app.logger.info(f"Parsed legacy config: {parsed_data.get('platform')}")
 
+            # Invalidate cache for this fabric since data has changed
+            invalidate_fabric_cache(current_fabric)
+
             return jsonify({
                 'success': True,
                 'filename': filename,
@@ -643,6 +722,7 @@ def upload():
 
 
 @app.route('/visualize')
+@handle_route_errors
 def visualize():
     """Visualization page - interactive dashboards with charts and graphs."""
     mode = session.get('mode', 'evpn')
@@ -650,7 +730,12 @@ def visualize():
 
     viz_data = {}
     if current_fabric:
-        try:
+        # Try to get from cache first
+        cache_key = get_fabric_cache_key(current_fabric, 'visualization')
+        viz_data = cache.get(cache_key)
+
+        if viz_data is None:
+            # Cache miss - generate data
             fabric_data = fm.get_fabric_data(current_fabric)
             analyzer = engine.ACIAnalyzer(fabric_data)
 
@@ -691,11 +776,9 @@ def visualize():
             viz_data['leaf_fex_mapping'] = leaf_fex
             viz_data['device_mapping'] = device_mapping
 
-            app.logger.info(f"Generated visualization data for fabric {current_fabric}")
-
-        except Exception as e:
-            app.logger.error(f"Error generating visualization data: {str(e)}", exc_info=True)
-            viz_data = {'error': str(e)}
+            # Store in cache
+            cache.set(cache_key, viz_data, timeout=300)
+            app.logger.info(f"Generated and cached visualization data for fabric {current_fabric}")
 
     return render_template('visualize.html',
                          mode=mode,
@@ -704,6 +787,7 @@ def visualize():
 
 
 @app.route('/plan')
+@handle_route_errors
 def plan():
     """Planning page - recommendations and what-if scenarios."""
     mode = session.get('mode', 'evpn')
@@ -726,6 +810,7 @@ def plan():
 
 
 @app.route('/report')
+@handle_route_errors
 def report():
     """Report generation page - HTML, Markdown, CSV exports."""
     mode = session.get('mode', 'evpn')
@@ -743,6 +828,7 @@ def report():
 
 
 @app.route('/evpn_migration')
+@handle_route_errors
 def evpn_migration_page():
     """EVPN migration planning and configuration generation."""
     mode = session.get('mode', 'evpn')
@@ -771,11 +857,13 @@ def evpn_migration_page():
 
 
 @app.route('/download/evpn_config/<device_role>')
+@handle_route_errors
 def download_evpn_config(device_role):
     """Download EVPN configuration for specific device role."""
     current_fabric = session.get('current_fabric')
     if not current_fabric:
-        return "No fabric selected", 400
+        flash("No fabric selected", "error")
+        return redirect(url_for('index'))
 
     fabric_data = fm.get_fabric_data(current_fabric)
     analyzer = engine.ACIAnalyzer(fabric_data)
@@ -792,6 +880,10 @@ def download_evpn_config(device_role):
     # Get config for device role
     config = migration_data['config_samples'].get(device_role, '')
 
+    if not config:
+        flash(f"No configuration available for device role: {device_role}", "error")
+        return redirect(url_for('evpn_migration_page'))
+
     # Save to output directory
     filename = f'{current_fabric}_evpn_{device_role}_{target_platform}.cfg'
     output_path = OUTPUT_DIR / filename
@@ -801,11 +893,13 @@ def download_evpn_config(device_role):
 
 
 @app.route('/download/report/<format>')
+@handle_route_errors
 def download_report(format):
-    """Download report in specified format (markdown, csv, html)."""
+    """Download report in specified format (markdown, csv, html, json)."""
     current_fabric = session.get('current_fabric')
     if not current_fabric:
-        return "No fabric selected", 400
+        flash("No fabric selected", "error")
+        return redirect(url_for('index'))
 
     fabric_data = fm.get_fabric_data(current_fabric)
     mode = session.get('mode', 'evpn')
@@ -822,13 +916,19 @@ def download_report(format):
         content = reporting.generate_html_report(fabric_data, mode)
         filename = f'{current_fabric}_report.html'
         mimetype = 'text/html'
+    elif format == 'json':
+        content = reporting.generate_json_report(fabric_data, mode)
+        filename = f'{current_fabric}_report.json'
+        mimetype = 'application/json'
     else:
-        return "Invalid format", 400
+        flash(f"Invalid format: {format}", "error")
+        return redirect(url_for('report'))
 
     # Save to output directory
     output_path = OUTPUT_DIR / filename
     output_path.write_text(content, encoding='utf-8')
 
+    app.logger.info(f"Generated {format} report for fabric {current_fabric}")
     return send_file(output_path, as_attachment=True, download_name=filename, mimetype=mimetype)
 
 
@@ -849,87 +949,69 @@ def help_page():
 # ==================== Advanced Migration Analysis API ====================
 
 @app.route('/api/analyze/vpc/<fabric_id>')
+@handle_api_errors
 def analyze_vpc(fabric_id):
     """VPC and port-channel configuration analysis for migration."""
-    try:
-        fabric_id = validate_fabric_name(fabric_id)
-        fabric_data = fm.get_fabric_data(fabric_id)
-        analyzer = engine.ACIAnalyzer(fabric_data)
-        results = analyzer.analyze_vpc_configuration()
-        return jsonify(results)
-    except Exception as e:
-        app.logger.error(f"VPC analysis failed: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+    fabric_id = validate_fabric_name(fabric_id)
+    fabric_data = fm.get_fabric_data(fabric_id)
+    analyzer = engine.ACIAnalyzer(fabric_data)
+    results = analyzer.analyze_vpc_configuration()
+    return jsonify(results)
 
 
 @app.route('/api/analyze/contracts/<fabric_id>')
+@handle_api_errors
 def analyze_contracts(fabric_id):
     """Contract-to-ACL translation analysis."""
-    try:
-        fabric_id = validate_fabric_name(fabric_id)
-        fabric_data = fm.get_fabric_data(fabric_id)
-        analyzer = engine.ACIAnalyzer(fabric_data)
-        results = analyzer.analyze_contract_to_acl_translation()
-        return jsonify(results)
-    except Exception as e:
-        app.logger.error(f"Contract analysis failed: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+    fabric_id = validate_fabric_name(fabric_id)
+    fabric_data = fm.get_fabric_data(fabric_id)
+    analyzer = engine.ACIAnalyzer(fabric_data)
+    results = analyzer.analyze_contract_to_acl_translation()
+    return jsonify(results)
 
 
 @app.route('/api/analyze/l3out/<fabric_id>')
+@handle_api_errors
 def analyze_l3out(fabric_id):
     """L3Out and external connectivity analysis."""
-    try:
-        fabric_id = validate_fabric_name(fabric_id)
-        fabric_data = fm.get_fabric_data(fabric_id)
-        analyzer = engine.ACIAnalyzer(fabric_data)
-        results = analyzer.analyze_l3out_connectivity()
-        return jsonify(results)
-    except Exception as e:
-        app.logger.error(f"L3Out analysis failed: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+    fabric_id = validate_fabric_name(fabric_id)
+    fabric_data = fm.get_fabric_data(fabric_id)
+    analyzer = engine.ACIAnalyzer(fabric_data)
+    results = analyzer.analyze_l3out_connectivity()
+    return jsonify(results)
 
 
 @app.route('/api/analyze/vlans/<fabric_id>')
+@handle_api_errors
 def analyze_vlans(fabric_id):
     """VLAN pool and namespace management analysis."""
-    try:
-        fabric_id = validate_fabric_name(fabric_id)
-        fabric_data = fm.get_fabric_data(fabric_id)
-        analyzer = engine.ACIAnalyzer(fabric_data)
-        results = analyzer.analyze_vlan_pools()
-        return jsonify(results)
-    except Exception as e:
-        app.logger.error(f"VLAN analysis failed: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+    fabric_id = validate_fabric_name(fabric_id)
+    fabric_data = fm.get_fabric_data(fabric_id)
+    analyzer = engine.ACIAnalyzer(fabric_data)
+    results = analyzer.analyze_vlan_pools()
+    return jsonify(results)
 
 
 @app.route('/api/analyze/physical/<fabric_id>')
+@handle_api_errors
 def analyze_physical(fabric_id):
     """Physical connectivity and interface policy analysis."""
-    try:
-        fabric_id = validate_fabric_name(fabric_id)
-        fabric_data = fm.get_fabric_data(fabric_id)
-        analyzer = engine.ACIAnalyzer(fabric_data)
-        results = analyzer.analyze_physical_connectivity()
-        return jsonify(results)
-    except Exception as e:
-        app.logger.error(f"Physical connectivity analysis failed: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+    fabric_id = validate_fabric_name(fabric_id)
+    fabric_data = fm.get_fabric_data(fabric_id)
+    analyzer = engine.ACIAnalyzer(fabric_data)
+    results = analyzer.analyze_physical_connectivity()
+    return jsonify(results)
 
 
 @app.route('/api/migration-assessment/<fabric_id>')
+@handle_api_errors
 def migration_assessment(fabric_id):
     """Comprehensive migration readiness assessment."""
-    try:
-        fabric_id = validate_fabric_name(fabric_id)
-        fabric_data = fm.get_fabric_data(fabric_id)
-        analyzer = engine.ACIAnalyzer(fabric_data)
-        assessment = analyzer.generate_complete_migration_assessment()
-        return jsonify(assessment)
-    except Exception as e:
-        app.logger.error(f"Migration assessment failed: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+    fabric_id = validate_fabric_name(fabric_id)
+    fabric_data = fm.get_fabric_data(fabric_id)
+    analyzer = engine.ACIAnalyzer(fabric_data)
+    assessment = analyzer.generate_complete_migration_assessment()
+    return jsonify(assessment)
 
 
 # Fabric Management API
@@ -998,6 +1080,7 @@ def select_fabric(fabric_name):
 
 @app.route('/api/analysis/<analysis_type>')
 @limiter.limit("30 per minute")
+@handle_api_errors
 def get_analysis(analysis_type):
     """Get specific analysis results via API."""
     current_fabric = session.get('current_fabric')
@@ -1016,7 +1099,11 @@ def get_analysis(analysis_type):
         app.logger.warning(f"Invalid analysis type requested: {analysis_type}")
         return jsonify({'error': 'Unknown analysis type'}), 400
 
-    try:
+    # Check cache first
+    cache_key = get_fabric_cache_key(current_fabric, f'analysis_{analysis_type}')
+    result = cache.get(cache_key)
+
+    if result is None:
         fabric_data = fm.get_fabric_data(current_fabric)
         analyzer = engine.ACIAnalyzer(fabric_data)
 
@@ -1036,12 +1123,247 @@ def get_analysis(analysis_type):
         }
 
         result = analysis_methods[analysis_type]()
-        app.logger.info(f"Analysis completed: {analysis_type} for fabric {current_fabric}")
-        return jsonify(result)
+        cache.set(cache_key, result, timeout=300)
+        app.logger.info(f"Analysis completed and cached: {analysis_type} for fabric {current_fabric}")
 
-    except Exception as e:
-        app.logger.error(f"Analysis error ({analysis_type}): {str(e)}", exc_info=True)
-        return jsonify({'error': 'Analysis failed. Please check logs.'}), 500
+    return jsonify(result)
+
+
+# ==================== Batch Operations API ====================
+
+@app.route('/api/batch/delete-datasets', methods=['POST'])
+@csrf.exempt
+@limiter.limit("10 per minute")
+@handle_api_errors
+def batch_delete_datasets():
+    """Delete multiple datasets at once."""
+    current_fabric = session.get('current_fabric')
+    if not current_fabric:
+        return jsonify({'error': 'No fabric selected'}), 400
+
+    data = request.get_json()
+    dataset_ids = data.get('dataset_ids', [])
+
+    if not dataset_ids or not isinstance(dataset_ids, list):
+        return jsonify({'error': 'dataset_ids must be a non-empty list'}), 400
+
+    fabric_data = fm.get_fabric_data(current_fabric)
+    datasets = fabric_data.get('datasets', [])
+
+    deleted_count = 0
+    errors = []
+
+    for dataset_id in dataset_ids:
+        try:
+            # Find dataset by filename or index
+            dataset_to_delete = None
+            for idx, dataset in enumerate(datasets):
+                if dataset.get('filename') == dataset_id or str(idx) == str(dataset_id):
+                    dataset_to_delete = dataset
+                    break
+
+            if dataset_to_delete:
+                # Delete file if exists
+                file_path = Path(dataset_to_delete.get('path', ''))
+                if file_path.exists():
+                    file_path.unlink()
+                    app.logger.info(f"Deleted file: {file_path}")
+
+                # Remove from datasets list
+                datasets.remove(dataset_to_delete)
+                deleted_count += 1
+            else:
+                errors.append(f"Dataset not found: {dataset_id}")
+
+        except Exception as e:
+            app.logger.error(f"Error deleting dataset {dataset_id}: {str(e)}")
+            errors.append(f"Error deleting {dataset_id}: {str(e)}")
+
+    # Update fabric data
+    fabric_data['datasets'] = datasets
+    fm._save_fabric_metadata(current_fabric, fabric_data)
+
+    # Invalidate cache
+    invalidate_fabric_cache(current_fabric)
+
+    return jsonify({
+        'success': True,
+        'deleted_count': deleted_count,
+        'errors': errors,
+        'message': f'Deleted {deleted_count} dataset(s)'
+    })
+
+
+@app.route('/api/batch/compare-fabrics', methods=['POST'])
+@csrf.exempt
+@limiter.limit("5 per minute")
+@handle_api_errors
+def batch_compare_fabrics():
+    """Compare multiple fabrics side-by-side."""
+    data = request.get_json()
+    fabric_names = data.get('fabrics', [])
+
+    if not fabric_names or not isinstance(fabric_names, list) or len(fabric_names) < 2:
+        return jsonify({'error': 'At least 2 fabric names required'}), 400
+
+    if len(fabric_names) > 5:
+        return jsonify({'error': 'Maximum 5 fabrics can be compared at once'}), 400
+
+    comparison = {
+        'fabrics': [],
+        'summary': {
+            'total_fabrics': len(fabric_names),
+            'generated': datetime.now().isoformat()
+        }
+    }
+
+    for fabric_name in fabric_names:
+        try:
+            fabric_name = validate_fabric_name(fabric_name)
+            fabric_data = fm.get_fabric_data(fabric_name)
+            analyzer = engine.ACIAnalyzer(fabric_data)
+            analyzer._load_data()
+
+            fabric_info = {
+                'name': fabric_name,
+                'stats': {
+                    'leafs': len(analyzer._leafs),
+                    'fexes': len(analyzer._fexes),
+                    'tenants': len(analyzer._tenants),
+                    'vrfs': len(analyzer._vrfs),
+                    'bds': len(analyzer._bds),
+                    'epgs': len(analyzer._epgs),
+                    'contracts': len(analyzer._contracts),
+                    'interfaces': len(analyzer._interfaces)
+                },
+                'datasets': len(fabric_data.get('datasets', []))
+            }
+
+            comparison['fabrics'].append(fabric_info)
+
+        except Exception as e:
+            app.logger.error(f"Error analyzing fabric {fabric_name}: {str(e)}")
+            comparison['fabrics'].append({
+                'name': fabric_name,
+                'error': str(e)
+            })
+
+    return jsonify(comparison)
+
+
+@app.route('/api/batch/export-reports', methods=['POST'])
+@csrf.exempt
+@limiter.limit("3 per minute")
+@handle_api_errors
+def batch_export_reports():
+    """Generate reports for multiple fabrics in multiple formats."""
+    data = request.get_json()
+    fabric_names = data.get('fabrics', [])
+    formats = data.get('formats', ['markdown', 'csv'])
+    mode = data.get('mode', 'evpn')
+
+    if not fabric_names or not isinstance(fabric_names, list):
+        return jsonify({'error': 'fabric names required'}), 400
+
+    if len(fabric_names) > 10:
+        return jsonify({'error': 'Maximum 10 fabrics can be exported at once'}), 400
+
+    # Validate formats
+    valid_formats = ['markdown', 'csv', 'html', 'json']
+    formats = [f for f in formats if f in valid_formats]
+    if not formats:
+        formats = ['markdown']
+
+    results = {
+        'generated_files': [],
+        'errors': [],
+        'timestamp': datetime.now().isoformat()
+    }
+
+    for fabric_name in fabric_names:
+        try:
+            fabric_name = validate_fabric_name(fabric_name)
+            fabric_data = fm.get_fabric_data(fabric_name)
+
+            for format_type in formats:
+                try:
+                    # Generate report
+                    if format_type == 'markdown':
+                        content = reporting.generate_markdown_report(fabric_data, mode)
+                        filename = f'{fabric_name}_report.md'
+                        mimetype = 'text/markdown'
+                    elif format_type == 'csv':
+                        content = reporting.generate_csv_report(fabric_data, mode)
+                        filename = f'{fabric_name}_report.csv'
+                        mimetype = 'text/csv'
+                    elif format_type == 'html':
+                        content = reporting.generate_html_report(fabric_data, mode)
+                        filename = f'{fabric_name}_report.html'
+                        mimetype = 'text/html'
+                    elif format_type == 'json':
+                        content = reporting.generate_json_report(fabric_data, mode)
+                        filename = f'{fabric_name}_report.json'
+                        mimetype = 'application/json'
+
+                    # Save file
+                    output_path = OUTPUT_DIR / filename
+                    output_path.write_text(content, encoding='utf-8')
+
+                    results['generated_files'].append({
+                        'fabric': fabric_name,
+                        'format': format_type,
+                        'filename': filename,
+                        'path': str(output_path),
+                        'size_bytes': output_path.stat().st_size
+                    })
+
+                except Exception as e:
+                    app.logger.error(f"Error generating {format_type} report for {fabric_name}: {str(e)}")
+                    results['errors'].append({
+                        'fabric': fabric_name,
+                        'format': format_type,
+                        'error': str(e)
+                    })
+
+        except Exception as e:
+            app.logger.error(f"Error processing fabric {fabric_name}: {str(e)}")
+            results['errors'].append({
+                'fabric': fabric_name,
+                'error': str(e)
+            })
+
+    return jsonify({
+        'success': True,
+        'total_files': len(results['generated_files']),
+        'total_errors': len(results['errors']),
+        'results': results
+    })
+
+
+@app.route('/api/cache/clear', methods=['POST'])
+@csrf.exempt
+@limiter.limit("10 per minute")
+@handle_api_errors
+def clear_cache():
+    """Clear all cache or cache for specific fabric."""
+    data = request.get_json() or {}
+    fabric_name = data.get('fabric')
+
+    if fabric_name:
+        # Clear cache for specific fabric
+        fabric_name = validate_fabric_name(fabric_name)
+        invalidate_fabric_cache(fabric_name)
+        return jsonify({
+            'success': True,
+            'message': f'Cache cleared for fabric: {fabric_name}'
+        })
+    else:
+        # Clear all cache
+        cache.clear()
+        return jsonify({
+            'success': True,
+            'message': 'All cache cleared'
+        })
 
 
 if __name__ == '__main__':
