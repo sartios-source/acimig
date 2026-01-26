@@ -103,3 +103,12 @@ class FabricManager:
         index[fabric_name]['datasets'].append(dataset)
         index[fabric_name]['modified'] = datetime.now().isoformat()
         self._write_index(index)
+
+    def save_fabric_metadata(self, fabric_name: str, data: Dict[str, Any]):
+        """Persist updated fabric metadata to the index."""
+        index = self._read_index()
+        if fabric_name not in index:
+            raise ValueError(f"Fabric '{fabric_name}' not found")
+        data['modified'] = datetime.now().isoformat()
+        index[fabric_name] = data
+        self._write_index(index)

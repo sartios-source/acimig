@@ -1527,6 +1527,39 @@ def get_analysis(analysis_type):
 
 # ==================== Batch Operations API ====================
 
+@app.route('/api/dataset/<filename>', methods=['GET', 'DELETE'])
+@csrf.exempt
+@limiter.limit("20 per minute")
+@handle_api_errors
+def dataset_detail(filename):
+    """Get or delete a dataset by filename."""
+    current_fabric = session.get('current_fabric')
+    if not current_fabric:
+        return jsonify({'error': 'No fabric selected'}), 400
+
+    fabric_data = fm.get_fabric_data(current_fabric)
+    datasets = fabric_data.get('datasets', [])
+
+    dataset = next((d for d in datasets if d.get('filename') == filename), None)
+    if not dataset:
+        return jsonify({'error': f'Dataset not found: {filename}'}), 404
+
+    if request.method == 'GET':
+        return jsonify({'success': True, 'dataset': dataset})
+
+    # DELETE
+    file_path = Path(dataset.get('path', ''))
+    if file_path.exists():
+        file_path.unlink()
+        app.logger.info(f"Deleted file: {file_path}")
+
+    datasets.remove(dataset)
+    fabric_data['datasets'] = datasets
+    fm.save_fabric_metadata(current_fabric, fabric_data)
+    invalidate_fabric_cache(current_fabric)
+
+    return jsonify({'success': True, 'message': f'Deleted {filename}'})
+
 @app.route('/api/batch/delete-datasets', methods=['POST'])
 @csrf.exempt
 @limiter.limit("10 per minute")
@@ -1577,7 +1610,7 @@ def batch_delete_datasets():
 
     # Update fabric data
     fabric_data['datasets'] = datasets
-    fm._save_fabric_metadata(current_fabric, fabric_data)
+    fm.save_fabric_metadata(current_fabric, fabric_data)
 
     # Invalidate cache
     invalidate_fabric_cache(current_fabric)
