@@ -36,6 +36,8 @@ Thumbs.db
 /output/*.csv
 /output/*.html
 /output/*.json
+/fabrics/index.json
+/aci-migration-data-sme.skill
 
 # Keep directory structure
 !.gitkeep
