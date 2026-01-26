@@ -262,7 +262,7 @@ def prepare_report_data(fabric_data: Dict[str, Any], fabric_name: str, mode: str
     Returns:
         Formatted report data dictionary
     """
-    analyzer = ACIAnalyzer(fabric_data)
+    analyzer = engine.ACIAnalyzer(fabric_data)
 
     # Basic info
     report_data = {
