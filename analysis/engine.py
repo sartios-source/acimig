@@ -1422,6 +1422,21 @@ class ACIAnalyzer:
                     leaf_id, fex_id = match.groups()
                     device_id = f'fex-{fex_id}'
                     device_type = 'fex'
+            elif 'extpaths-' in target_dn:
+                match = re.search(r'extpaths-(\d+)', target_dn)
+                if match:
+                    device_id = f'fex-{match.group(1)}'
+                    device_type = 'fex'
+            elif 'protpaths-' in target_dn:
+                match = re.search(r'protpaths-(\d+)-(\d+)', target_dn)
+                if match:
+                    device_id = f'leaf-{match.group(1)}'
+                    device_type = 'leaf'
+            elif 'paths-' in target_dn:
+                match = re.search(r'paths-(\d+)', target_dn)
+                if match:
+                    device_id = f'leaf-{match.group(1)}'
+                    device_type = 'leaf'
             elif 'node-' in target_dn:
                 match = re.search(r'node-(\d+)', target_dn)
                 if match:
