@@ -35,6 +35,7 @@ class ACIAnalyzer:
         # Cached parsed data
         self._aci_objects = None
         self._cmdb_records = None
+        self._aci_object_index = set()
 
         # Categorized ACI objects (populated by _categorize_objects)
         self._fexes = []
@@ -66,6 +67,7 @@ class ACIAnalyzer:
 
         self._aci_objects = []
         self._cmdb_records = []
+        self._aci_object_index = set()
 
         from . import parsers
 
@@ -79,11 +81,11 @@ class ACIAnalyzer:
                 objects = dataset.get('objects')
                 if objects is not None:
                     if isinstance(objects, dict) and 'imdata' in objects:
-                        self._aci_objects.extend(objects.get('imdata', []))
+                        self._add_aci_objects(objects.get('imdata', []))
                         logger.info("Loaded ACI objects from in-memory imdata dataset")
                         continue
                     if isinstance(objects, list):
-                        self._aci_objects.extend(objects)
+                        self._add_aci_objects(objects)
                         logger.info("Loaded ACI objects from in-memory dataset list")
                         continue
 
@@ -114,19 +116,38 @@ class ACIAnalyzer:
                     if not dataset_format:
                         dataset_format = 'json'
                     parsed = parsers.parse_aci(content, dataset_format)
-                    self._aci_objects.extend(parsed['objects'])
+                    self._add_aci_objects(parsed['objects'])
                     logger.info(f"Loaded {len(parsed['objects'])} ACI objects from {dataset['filename']}")
 
                 elif dataset_type == 'cmdb':
                     parsed = parsers.parse_cmdb_csv(content)
                     self._cmdb_records.extend(parsed)
                     logger.info(f"Loaded {len(parsed)} CMDB records from {dataset['filename']}")
+                elif dataset_type == 'mcp_import' and isinstance(dataset.get('objects'), list):
+                    self._add_aci_objects(dataset['objects'])
+                    logger.info(f"Loaded {len(dataset['objects'])} ACI objects from MCP import dataset")
 
             except Exception as e:
                 logger.error(f"Error loading dataset {dataset.get('filename')}: {str(e)}")
 
         # Categorize objects for efficient lookups
         self._categorize_objects()
+
+    def _add_aci_objects(self, objects: List[Dict[str, Any]]):
+        """Add ACI objects with de-duplication."""
+        for obj in objects:
+            obj_type = obj.get('type')
+            attrs = obj.get('attributes', {})
+            dn = attrs.get('dn') or obj.get('dn')
+            if dn:
+                key = (obj_type, dn)
+            else:
+                key = (obj_type, json.dumps(attrs, sort_keys=True))
+
+            if key in self._aci_object_index:
+                continue
+            self._aci_object_index.add(key)
+            self._aci_objects.append(obj)
 
     def _read_file_safe(self, path: Path) -> str:
         """Read file with encoding fallback."""
@@ -2195,6 +2216,37 @@ class ACIAnalyzer:
                 'category': 'bds_without_subnets',
                 'message': f'{len(bds_without_subnets)} Bridge Domains without subnets',
                 'severity': 'medium'
+            })
+
+        # Required attribute validation per class
+        required_attrs = {
+            'fvAEPg': ['dn', 'name'],
+            'fvRsPathAtt': ['dn', 'tDn', 'encap'],
+            'fabricNode': ['dn', 'id', 'role', 'name'],
+            'eqptFex': ['dn', 'id', 'ser', 'model'],
+            'fvBD': ['dn', 'name'],
+            'fvCtx': ['dn', 'name'],
+            'fvTenant': ['dn', 'name'],
+            'fvSubnet': ['dn', 'ip'],
+            'ethpmPhysIf': ['dn', 'operSt', 'operSpeed'],
+            'physDomP': ['dn', 'name']
+        }
+
+        missing_attr_counts = defaultdict(int)
+        for obj in self._aci_objects:
+            obj_type = obj.get('type')
+            if obj_type not in required_attrs:
+                continue
+            attrs = obj.get('attributes', {})
+            for attr in required_attrs[obj_type]:
+                if not attrs.get(attr):
+                    missing_attr_counts[(obj_type, attr)] += 1
+
+        for (obj_type, attr), count in missing_attr_counts.items():
+            quality_issues.append({
+                'category': f'{obj_type}_missing_{attr}',
+                'message': f'{count} {obj_type} objects missing required attribute {attr}',
+                'severity': 'high' if obj_type in {'fvRsPathAtt', 'fabricNode', 'fvAEPg'} else 'medium'
             })
 
         return {

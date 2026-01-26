@@ -12,6 +12,11 @@ except ImportError:
     # Fallback to standard library with warning
     import xml.etree.ElementTree as ET
     import warnings
+
+    class SecurityWarning(UserWarning):
+        """Warning for insecure XML parsing fallback."""
+        pass
+
     warnings.warn(
         "defusedxml not installed. Using standard XML parser which may be vulnerable to XXE attacks. "
         "Install defusedxml: pip install defusedxml",

@@ -5,6 +5,7 @@ import os
 import json
 import shutil
 import logging
+import re
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from pathlib import Path
@@ -942,6 +943,11 @@ def import_from_mcp():
 
         # Transform MCP data to ACI Migrator internal format
         aci_data = transform_mcp_to_aci_format(migrator_data)
+        aci_imdata = build_imdata_from_mcp(migrator_data)
+
+        # Save converted ACI imdata for analysis engine
+        aci_file = fabric_dir / f'mcp_import_{datetime.now().strftime("%Y%m%d_%H%M%S")}_aci.json'
+        aci_file.write_text(json.dumps({'imdata': aci_imdata}, indent=2), encoding='utf-8')
 
         # Add to fabric manager
         fm.add_dataset(fabric_name, {
@@ -954,8 +960,16 @@ def import_from_mcp():
             'path': str(mcp_file)
         })
 
-        # Store transformed data
-        fm.fabrics[fabric_name]['aci_data'] = aci_data
+        # Add converted ACI dataset for analysis engine
+        fm.add_dataset(fabric_name, {
+            'filename': aci_file.name,
+            'type': 'aci_json',
+            'format': 'json',
+            'uploaded': datetime.now().isoformat(),
+            'source': f'{mcp_url} (converted)',
+            'objects': len(aci_imdata),
+            'path': str(aci_file)
+        })
 
         # Set as current fabric
         session['current_fabric'] = fabric_name
@@ -1033,6 +1047,115 @@ def transform_mcp_to_aci_format(mcp_data):
     aci_data['tenants'] = sorted(list(aci_data['tenants']))
 
     return aci_data
+
+
+def build_imdata_from_mcp(mcp_data: Dict[str, Any]) -> list:
+    """Build a minimal ACI imdata list from MCP migrator data."""
+    imdata = []
+    device_id_map = {}
+    fex_id_map = {}
+    next_node_id = 100
+    next_fex_id = 2000
+
+    def normalize_id(value: str, fallback: int) -> str:
+        match = re.search(r'(\\d+)', str(value))
+        return match.group(1) if match else str(fallback)
+
+    # Tenants
+    tenants = sorted({epg.get('tenant') for epg in mcp_data.get('epg_mappings', []) if epg.get('tenant')})
+    for tenant in tenants:
+        imdata.append({
+            'type': 'fvTenant',
+            'attributes': {
+                'dn': f"uni/tn-{tenant}",
+                'name': tenant,
+                'descr': 'synthetic (MCP import)'
+            }
+        })
+
+    # Devices
+    for device in mcp_data.get('devices', []):
+        device_id = device.get('device_id')
+        device_type = device.get('device_type')
+        device_name = device.get('device_name') or str(device_id)
+        model = device.get('model', 'Unknown')
+
+        if device_type in {'leaf', 'spine'}:
+            node_id = normalize_id(device_id, next_node_id)
+            if node_id == str(next_node_id):
+                next_node_id += 1
+            device_id_map[device_id] = node_id
+            imdata.append({
+                'type': 'fabricNode',
+                'attributes': {
+                    'dn': f"topology/pod-1/node-{node_id}",
+                    'id': node_id,
+                    'name': device_name,
+                    'role': device_type,
+                    'model': model,
+                    'serial': device.get('serial', ''),
+                    'descr': 'synthetic (MCP import)'
+                }
+            })
+        elif device_type == 'fex':
+            fex_id = normalize_id(device_id, next_fex_id)
+            if fex_id == str(next_fex_id):
+                next_fex_id += 1
+            fex_id_map[device_id] = fex_id
+            imdata.append({
+                'type': 'eqptFex',
+                'attributes': {
+                    'dn': f"topology/pod-1/node-{device.get('parent_leaf', 'unknown')}/sys/extch-{fex_id}",
+                    'id': fex_id,
+                    'name': device_name,
+                    'ser': device.get('serial', device_id),
+                    'model': model,
+                    'operSt': 'unknown',
+                    'descr': 'synthetic (MCP import)'
+                }
+            })
+
+    # EPGs and path attachments
+    for epg_mapping in mcp_data.get('epg_mappings', []):
+        tenant = epg_mapping.get('tenant', 'common')
+        ap = epg_mapping.get('application_profile', 'app')
+        epg_name = epg_mapping.get('epg', 'epg')
+        epg_dn = f"uni/tn-{tenant}/ap-{ap}/epg-{epg_name}"
+
+        imdata.append({
+            'type': 'fvAEPg',
+            'attributes': {
+                'dn': epg_dn,
+                'name': epg_name,
+                'descr': 'synthetic (MCP import)'
+            }
+        })
+
+        devices = epg_mapping.get('devices', [])
+        vlans = epg_mapping.get('vlans', [])
+        for device_id in devices:
+            node_id = device_id_map.get(device_id)
+            fex_id = fex_id_map.get(device_id)
+            for vlan in vlans:
+                if node_id:
+                    tdn = f"topology/pod-1/paths-{node_id}/pathep-[eth1/1]"
+                elif fex_id:
+                    tdn = f"topology/pod-1/node-unknown/sys/extch-{fex_id}"
+                else:
+                    tdn = "topology/pod-1/paths-unknown/pathep-[eth1/1]"
+
+                imdata.append({
+                    'type': 'fvRsPathAtt',
+                    'attributes': {
+                        'dn': f"{epg_dn}/rspathAtt-[{tdn}]",
+                        'tDn': tdn,
+                        'encap': f"vlan-{vlan}",
+                        'mode': 'regular',
+                        'descr': 'synthetic (MCP import)'
+                    }
+                })
+
+    return imdata
 
 
 @app.route('/visualize')

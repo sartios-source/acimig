@@ -15,6 +15,18 @@ import getpass
 import logging
 from datetime import datetime
 
+DEFAULT_ACI_CLASSES = [
+    'fabricNode', 'eqptFex', 'fvAEPg', 'fvBD', 'fvCtx', 'fvTenant', 'fvRsPathAtt',
+    'fvSubnet', 'ethpmPhysIf', 'physDomP', 'vzBrCP', 'vzSubj', 'vzFilter', 'vzEntry',
+    'vzRsSubjFiltAtt', 'fvRsCons', 'fvRsProv', 'vpcDom', 'pcAggrIf', 'lacpEntity',
+    'vpcIf', 'l3extOut', 'l3extInstP', 'l3extLNodeP', 'l3extLIfP',
+    'l3extRsNodeL3OutAtt', 'l3extSubnet', 'l3extRsEctx', 'bgpPeerP', 'ospfIfP',
+    'ipRouteP', 'fvnsVlanInstP', 'fvnsEncapBlk', 'vmmDomP', 'l3extDomP',
+    'infraRsVlanNs', 'vmmRsVlanNs', 'l3extRsVlanNs', 'infraAccPortGrp',
+    'infraAccBndlGrp', 'infraAccPortP', 'infraHPortS', 'infraRsDomP',
+    'infraAttEntityP', 'lldpAdjEp', 'cdpAdjEp', 'fvRsBd', 'fvRsCtx'
+]
+
 
 class NetworkDataCollector:
     """SSH-based data collector."""
@@ -548,6 +560,78 @@ class NetworkDataCollector:
             return None
 
     # SECTION: collection flow
+    def collect_apic_data(self, hostname, username, classes, use_password=True):
+        print("\n{}".format("=" * 60))
+        print(f"Connecting to APIC {hostname} (user: {username})")
+        print("{}".format("=" * 60))
+
+        self.logger.info("Starting APIC data collection for %s (user: %s)", hostname, username)
+
+        apic_data = {
+            'hostname': hostname,
+            'timestamp': datetime.now().isoformat(),
+            'classes_requested': classes,
+            'classes_collected': [],
+            'class_errors': [],
+            'imdata_count': 0,
+            'collection_status': 'failed',
+            'output_file': ''
+        }
+
+        password = None
+        if use_password:
+            try:
+                password = self.get_password(username, hostname)
+            except Exception as exc:
+                apic_data['class_errors'].append(f"Password authentication failed: {exc}")
+                self.logger.error("Failed to get password for %s: %s", hostname, exc)
+                return apic_data
+
+        imdata = []
+        for class_name in classes:
+            cmd = f"moquery -c {class_name} -o json"
+            output = self.ssh_command_with_retry(hostname, username, password, cmd, timeout=120)
+            if not output:
+                apic_data['class_errors'].append(f"{class_name}: empty output")
+                continue
+            try:
+                data = json.loads(output)
+                class_imdata = data.get('imdata', [])
+                if not class_imdata:
+                    apic_data['class_errors'].append(f"{class_name}: no imdata found")
+                    continue
+                imdata.extend(class_imdata)
+                apic_data['classes_collected'].append(class_name)
+                self.logger.info("Collected %s objects for %s", len(class_imdata), class_name)
+            except Exception as exc:
+                apic_data['class_errors'].append(f"{class_name}: {exc}")
+                self.logger.error("Failed to parse %s output: %s", class_name, exc)
+
+        if imdata:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            output_path = os.path.join(self.output_dir, f"apic_{hostname}_{timestamp}.json")
+            self.write_json(output_path, {"imdata": imdata})
+            apic_data['imdata_count'] = len(imdata)
+            apic_data['output_file'] = output_path
+            apic_data['collection_status'] = 'success'
+            print(f"APIC collection complete: {len(imdata)} objects")
+        else:
+            apic_data['collection_status'] = 'failed'
+            print("APIC collection failed: no imdata collected")
+
+        return apic_data
+
+    def collect_apic_worker(self, queue, classes):
+        while True:
+            try:
+                hostname, username = queue.pop()
+            except IndexError:
+                return
+
+            apic_data = self.collect_apic_data(hostname, username, classes, use_password=self.use_password)
+            with self.lock:
+                self.collected_data.append(apic_data)
+
     def collect_device_data(self, hostname, username, use_password=True):
         print("\n{}".format("=" * 60))
         print(f"Connecting to {hostname} (user: {username})")
@@ -798,7 +882,7 @@ class NetworkDataCollector:
             )
 
         for device in self.collected_data:
-            device_path = os.path.join(self.output_dir, f\"{device['hostname']}_raw.json\")
+            device_path = os.path.join(self.output_dir, f"{device['hostname']}_raw.json")
             self.write_json(device_path, device)
 
         self.logger.info("Saved summary to %s", summary_path)
@@ -839,6 +923,30 @@ class NetworkDataCollector:
         print(f"Failed: {len([d for d in self.collected_data if d['collection_status'] != 'success'])}")
         return 0
 
+    def run_apic(self, classes):
+        hosts = self.load_hosts()
+        if not hosts:
+            print("No hosts loaded. Please update hosts file and retry.")
+            return 1
+
+        queue = hosts[:]
+        threads = []
+        for _ in range(min(self.threads, len(queue))):
+            thread = threading.Thread(target=self.collect_apic_worker, args=(queue, classes))
+            thread.daemon = True
+            thread.start()
+            threads.append(thread)
+
+        for thread in threads:
+            thread.join()
+
+        self.save_outputs()
+        print("\nAPIC collection complete.")
+        print(f"Total APICs: {len(self.collected_data)}")
+        print(f"Successful: {len([d for d in self.collected_data if d['collection_status'] == 'success'])}")
+        print(f"Failed: {len([d for d in self.collected_data if d['collection_status'] != 'success'])}")
+        return 0
+
 
 # SECTION: cli
 def parse_args():
@@ -849,6 +957,8 @@ def parse_args():
     parser.add_argument("--threads", type=int, default=4, help="Parallel threads")
     parser.add_argument("--username", help="Default username for hosts without one")
     parser.add_argument("--no-password", action="store_true", help="Do not prompt for passwords")
+    parser.add_argument("--apic", action="store_true", help="Collect ACI data from APIC via SSH")
+    parser.add_argument("--aci-classes", help="Comma-separated ACI classes to collect (defaults to full set)")
     return parser.parse_args()
 
 
@@ -862,6 +972,12 @@ def main():
         threads=args.threads,
         use_password=not args.no_password
     )
+    if args.apic:
+        if args.aci_classes:
+            classes = [c.strip() for c in args.aci_classes.split(',') if c.strip()]
+        else:
+            classes = DEFAULT_ACI_CLASSES
+        return collector.run_apic(classes)
     return collector.run()
 
 
