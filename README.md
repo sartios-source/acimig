@@ -193,6 +193,14 @@ Then use the MCP Import UI with `http://127.0.0.1:5001`, or run:
 python gcp-deployment/scripts/test-mcp-integration.py --mcp-url http://127.0.0.1:5001 --skip-apic
 ```
 
+### Offline Collector
+
+Use the offline collector to export APIC data into a single JSON file for upload.
+
+```bash
+python offline_collector.py --apic apic.example.com --username admin --output aci_export.json
+```
+
 **Fabric Management:**
 - **Switch Fabrics**: Use the dropdown in the Fabric Manager (sidebar)
 - **Delete Fabric**: Click "Delete Fabric" button (requires confirmation)
