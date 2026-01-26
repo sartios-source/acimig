@@ -1,25 +1,25 @@
 # ACI Migrator
 
-> **Professional ACI to EVPN/VXLAN Migration Analysis Tool**
+> **Professional ACI Migration Analyzer**
 
-A comprehensive, web-based application for analyzing Cisco ACI fabrics and generating migration plans to standards-based EVPN/VXLAN architectures. Streamline your network infrastructure modernization with automated configuration generation, intelligent recommendations, and detailed analysis.
+A comprehensive, web-based application for analyzing Cisco ACI fabrics and generating migration plans. Streamline your network infrastructure modernization with automated analysis, intelligent recommendations, and detailed reporting.
 
-[![Version](https://img.shields.io/badge/version-1.02-blue.svg)](#)
+[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](#)
 [![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/flask-3.0%2B-black.svg)](https://flask.palletsprojects.com/)
 [![License](https://img.shields.io/badge/license-Internal-red.svg)](#)
 
 ---
 
-## 🎉 What's New in v1.02
+## What's New in v2.0
 
-**Latest Release** adds enterprise-grade reporting and automation capabilities:
+**Latest Release** focuses on a single ACI migration analysis workflow:
 
-- **📊 PDF & Excel Reports** - Professional formatted reports for executive presentations and detailed analysis
-- **🌐 MCP Server Integration** - Import data directly from remote MCP server connected to APIC
-- **🔧 Ansible Playbooks** - Automated migration playbooks for deploying EVPN configurations
-- **🧪 Enhanced Testing** - Comprehensive test suite with 95%+ coverage of new features
-- **📈 Better Planning** - Improved migration planning with detailed timelines and resource estimates
+- PDF and Excel exports for executive and technical audiences
+- MCP import workflow for remote ACI data collection
+- Unified analysis and reporting flow (single mode)
+- Refined migration planning with timelines and resource estimates
+- Documentation and screenshots aligned to v2.0
 
 See [NEW_FEATURES.md](NEW_FEATURES.md) for complete details.
 
@@ -58,19 +58,6 @@ Interactive network topology visualization with detailed device mapping, leaf-FE
 - EPG complexity scoring
 - Migration readiness indicators
 
-### EVPN/VXLAN Configuration Generation
-Automatically generate standards-based EVPN/VXLAN configurations for multiple target platforms including Cisco NX-OS, Arista EOS, and Juniper Junos.
-
-**Supported Platforms:**
-- Cisco Nexus (NX-OS)
-- Arista (EOS)
-- Juniper (Junos)
-
-**Generated Configurations:**
-- Spine configurations (BGP route reflectors, EVPN address-family)
-- Leaf configurations (VTEP, BGP neighbors, VNI/VLAN mappings)
-- Border leaf configurations (L3Out equivalents, external BGP)
-
 ### Reports & Documentation
 Export comprehensive analysis reports in multiple formats including HTML (interactive), Markdown (documentation), and CSV (data analysis).
 
@@ -86,46 +73,39 @@ Export comprehensive analysis reports in multiple formats including HTML (intera
 ## Screenshots
 
 ### Dashboard with Sidebar Navigation
-The new professional sidebar navigation provides quick access to all features with collapsible menu, integrated fabric manager, and mode toggle.
+The professional sidebar navigation provides quick access to all features with collapsible menu and integrated fabric manager.
 
 ![Dashboard](docs/screenshots/home.png)
-*Note: Screenshot pending. See `docs/screenshots/SCREENSHOT_GUIDE.md` for capture instructions.*
 
 **Key Sidebar Features:**
 - Quick navigation to all pages (Home, Upload, Analyze, Visualize, Plan, Report, Help)
 - Integrated Fabric Manager (collapsible panel)
-- Mode selector (EVPN/Onboard)
 - Responsive design with mobile support
 
 ### Data Upload Interface
 Drag-and-drop file upload with real-time progress tracking and multi-file queue management.
 
 ![Upload](docs/screenshots/upload.png)
-*Note: Screenshot pending.*
 
 ### Analysis Dashboard
 Comprehensive data analysis with interactive tables, search filtering, and data completeness validation.
 
 ![Analyze](docs/screenshots/analyze.png)
-*Note: Screenshot pending.*
 
 ### Migration Planning
 Automated recommendations with priority scoring, implementation steps, and risk assessments.
 
 ![Plan](docs/screenshots/plan.png)
-*Note: Screenshot pending.*
 
 ### Visualization Dashboard
 Interactive charts and topology graphs for fabric analysis and capacity planning.
 
 ![Visualize](docs/screenshots/visualize.png)
-*Note: Screenshot pending.*
 
 ### Reports Export
 Multi-format report generation (HTML, Markdown, CSV) for documentation and analysis.
 
 ![Reports](docs/screenshots/report.png)
-*Note: Screenshot pending.*
 
 ---
 
@@ -187,8 +167,7 @@ Multi-format report generation (HTML, Markdown, CSV) for documentation and analy
 4. **Generate migration plan**
    - Go to Plan page
    - Review automated recommendations
-   - Download configuration samples
-   - Export EVPN configurations for target platforms
+   - Review migration sequencing and resource estimates
 
 5. **Export reports**
    - Navigate to Reports page
@@ -210,7 +189,7 @@ Multi-format report generation (HTML, Markdown, CSV) for documentation and analy
 aciv2/
 ├── app.py                 # Main Flask application
 ├── config.py              # Configuration management
-├── VERSION                # Version file (1.0.0)
+├── VERSION                # Version file (2.0)
 ├── requirements.txt       # Python dependencies
 ├── .env.example          # Environment template
 │
@@ -219,7 +198,7 @@ aciv2/
 │   ├── parsers.py        # Data parsers (JSON/XML/CSV)
 │   ├── planning.py       # Migration planning engine
 │   ├── reporting.py      # Report generation
-│   ├── evpn_migration.py # EVPN config generator
+│   ├── export.py         # PDF/Excel report export
 │   └── fabric_manager.py # Multi-fabric management
 │
 ├── templates/            # HTML templates (Jinja2)
@@ -262,7 +241,7 @@ aciv2/
 **Analysis Engine:**
 - Custom ACI parser - Handles JSON/XML formats
 - Relationship mapper - Builds object dependencies
-- Configuration generator - EVPN/VXLAN configs
+- Migration readiness and planning analytics
 
 **Security:**
 - CSRF protection
@@ -307,39 +286,6 @@ Import CMDB/inventory data with fields:
 - Application/owner information
 
 ---
-
-## Modes of Operation
-
-### EVPN Migration Mode
-Analyze ACI fabric and generate EVPN/VXLAN migration plans for standards-based architectures.
-
-**Use Cases:**
-- Migrating from ACI to EVPN/VXLAN
-- Multi-vendor fabric deployments
-- Cost reduction through vendor diversification
-- Standards-based architecture adoption
-
-**Outputs:**
-- VPC to MLAG/vPC translation
-- Contract to ACL mapping
-- EVPN configurations (spine, leaf, border leaf)
-- Migration runbooks
-- Risk assessments
-
-### Onboard Mode
-Plan new FEX/leaf deployments with policy scaffolding and capacity planning.
-
-**Use Cases:**
-- Expanding existing ACI fabric
-- Planning new data center deployment
-- Capacity planning and forecasting
-- Policy template generation
-
-**Outputs:**
-- Capacity recommendations
-- Policy scaffolding
-- Configuration templates
-- Deployment checklists
 
 ---
 
@@ -469,7 +415,6 @@ GET /api/migration-assessment/<fabric_id> # Full assessment
 ### Reports
 ```
 GET /download/report/<format>           # Download report (html/markdown/csv)
-GET /download/evpn_config/<device_role> # Download EVPN config
 ```
 
 ---
@@ -611,15 +556,11 @@ mypy app.py
 
 ## Changelog
 
-### Version 1.0.0 (2025-11-13)
-- Complete UI overhaul with professional sidebar navigation
-- Rebranded to "ACI Migrator v1.0"
-- Added comprehensive animations throughout the UI
-- Improved mobile responsiveness
-- Enhanced data visualization dashboards
-- Added version management with VERSION file
-- Comprehensive documentation update
-- Screenshot guide for UI documentation
+### Version 2.0.0 (2026-01-26)
+- Consolidated into a single ACI migration analysis workflow
+- Removed mode-specific UI and EVPN configuration generation
+- Updated reporting/export labels and templates
+- Refreshed documentation and screenshots
 
 ### Previous Versions
 See `IMPLEMENTATION_SUMMARY.md` for detailed development history.
@@ -654,4 +595,4 @@ Built with:
 
 ---
 
-**ACI Migrator v1.01** - Professional ACI to EVPN/VXLAN Migration Analysis Tool
+**ACI Migrator v2.0** - Professional ACI Migration Analyzer

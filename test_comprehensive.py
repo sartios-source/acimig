@@ -73,7 +73,6 @@ def test_comprehensive():
         'visualize.html',
         'plan.html',
         'report.html',
-        'evpn_migration.html',
         'help.html'
     ]
 

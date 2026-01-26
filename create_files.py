@@ -247,7 +247,7 @@ class ACIPlanner:
         self.analyzer = ACIAnalyzer(fabric_data)
 
     def generate_plan(self) -> Dict[str, Any]:
-        if self.mode == 'offboard':
+        if self.mode == 'migration':
             return {'recommendations': [], 'migration_steps': []}
         else:
             return {'checklist': {}, 'policy_scaffold': []}

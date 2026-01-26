@@ -30,12 +30,8 @@ def test_routes():
         ('GET', '/visualize', 200, 'Visualize Page'),
         ('GET', '/plan', 200, 'Plan Page'),
         ('GET', '/report', 200, 'Report Page'),
-        ('GET', '/evpn_migration', 200, 'EVPN Migration Page'),
         ('GET', '/help', 200, 'Help Page'),
         ('GET', '/fabrics', 200, 'List Fabrics API'),
-        ('GET', '/set_mode/offboard', 302, 'Set Mode Offboard (redirect)'),
-        ('GET', '/set_mode/onboard', 302, 'Set Mode Onboard (redirect)'),
-        ('GET', '/set_mode/evpn', 302, 'Set Mode EVPN (redirect)'),
 
         # Static files
         ('GET', '/static/styles.css', 200, 'CSS File'),

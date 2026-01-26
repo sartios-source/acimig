@@ -64,7 +64,7 @@ def test_dashboard_with_data():
     # Set session to use test fabric
     with client.session_transaction() as sess:
         sess['current_fabric'] = 'test_fabric'
-        sess['mode'] = 'offboard'
+        sess['mode'] = 'migration'
 
     tests = []
 

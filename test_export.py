@@ -21,7 +21,7 @@ class TestExportFunctionality(unittest.TestCase):
         """Set up test data."""
         self.test_data = {
             'fabric_name': 'test-fabric',
-            'mode': 'evpn',
+            'mode': 'migration',
             'total_devices': 50,
             'total_leafs': 10,
             'total_spines': 2,
@@ -151,7 +151,7 @@ class TestExportFunctionality(unittest.TestCase):
         """Test PDF generation with minimal data."""
         minimal_data = {
             'fabric_name': 'minimal-test',
-            'mode': 'evpn',
+            'mode': 'migration',
             'total_devices': 0,
             'total_leafs': 0,
             'total_spines': 0,
@@ -169,7 +169,7 @@ class TestExportFunctionality(unittest.TestCase):
         """Test Excel generation with minimal data."""
         minimal_data = {
             'fabric_name': 'minimal-test',
-            'mode': 'evpn',
+            'mode': 'migration',
             'total_devices': 0,
             'total_leafs': 0,
             'total_spines': 0,

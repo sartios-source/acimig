@@ -33,7 +33,7 @@
         Help & Documentation
     </h1>
     <p class="mt-2 text-lg text-gray-600">
-        Everything you need to know about using the ACI Analysis Tool
+        Everything you need to know about using ACI Migrator v2.0
     </p>
 </div>
 
@@ -54,27 +54,7 @@
             </div>
             <div class="flex-1">
                 <h3 class="text-lg font-semibold text-gray-900 mb-2">Create or Select a Fabric</h3>
-                <p class="text-gray-700 mb-3">Start by creating a new fabric or selecting an existing one from the home page. Choose your analysis mode:</p>
-                <ul class="space-y-2">
-                    <li class="flex items-start">
-                        <svg class="h-5 w-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                        </svg>
-                        <span class="text-gray-700"><strong class="text-gray-900">Offboard:</strong> Analyze FEX consolidation opportunities and decommissioning candidates</span>
-                    </li>
-                    <li class="flex items-start">
-                        <svg class="h-5 w-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                        </svg>
-                        <span class="text-gray-700"><strong class="text-gray-900">Onboard:</strong> Plan new FEX deployments and capacity requirements</span>
-                    </li>
-                    <li class="flex items-start">
-                        <svg class="h-5 w-5 text-purple-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                        </svg>
-                        <span class="text-gray-700"><strong class="text-gray-900">EVPN Migration:</strong> Plan migration from ACI to EVPN fabric</span>
-                    </li>
-                </ul>
+                <p class="text-gray-700 mb-3">Start by creating a new fabric or selecting an existing one from the home page.</p>
             </div>
         </div>
 
@@ -140,7 +120,7 @@
         <span class="h-1 w-8 bg-primary-600 mr-4 rounded-full"></span>
         System Logic Flows
     </h2>
-    <p class="text-gray-600 mb-6">Interactive flowcharts showing how data flows through acimig v1.0</p>
+    <p class="text-gray-600 mb-6">Interactive flowcharts showing how data flows through ACI Migrator v2.0</p>
 
     <!-- Data Upload Flow -->
     <div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
@@ -221,26 +201,13 @@ graph TD
         <div class="p-6">
             <div class="mermaid">
 graph TD
-    A[Start Planning] --> B{Mode?}
-    B -->|EVPN| C[Analyze VPC Config]
-    B -->|Onboard| D[Analyze Capacity]
-    C --> E[Analyze Contracts]
-    C --> F[Analyze L3Out]
-    C --> G[Analyze VLAN Pools]
-    E --> H[Generate ACL Mappings]
-    F --> I[Document External Connectivity]
-    G --> J[Plan VLAN Allocation]
-    D --> K[Identify Available Ports]
-    D --> L[Calculate Port Utilization]
-    K --> M[Generate Recommendations]
-    L --> M
-    H --> N[Assess Migration Risk]
-    I --> N
-    J --> N
-    N --> O[Prioritize by Complexity]
-    M --> P[Generate Configuration]
-    O --> P
-    P --> Q[Export Reports]
+    A[Start Planning] --> B[Analyze Coupling]
+    B --> C[Analyze VLAN Distribution]
+    C --> D[Analyze Contracts]
+    D --> E[Assess Migration Risk]
+    E --> F[Group into Migration Waves]
+    F --> G[Generate Recommendations]
+    G --> H[Export Reports]
             </div>
         </div>
     </div>
@@ -295,17 +262,14 @@ graph TD
     B -->|HTML| C[Generate Interactive HTML]
     B -->|Markdown| D[Generate Documentation MD]
     B -->|CSV| E[Generate Data Export]
-    B -->|EVPN Config| F[Generate Device Configs]
-    C --> G[Include Statistics]
-    D --> G
-    E --> G
-    F --> H[Include Config Samples]
-    G --> I[Add Recommendations]
-    H --> I
-    I --> J[Format Content]
-    J --> K[Save to Output Directory]
-    K --> L[Provide Download Link]
-    L --> M[User Downloads Report]
+    C --> F[Include Statistics]
+    D --> F
+    E --> F
+    F --> G[Add Recommendations]
+    G --> H[Format Content]
+    H --> I[Save to Output Directory]
+    I --> J[Provide Download Link]
+    J --> K[User Downloads Report]
             </div>
         </div>
     </div>
@@ -696,8 +660,8 @@ moquery -c fabricNode -o json > nodes.json</code></pre>
             </div>
 
             <div>
-                <h4 class="text-sm font-semibold text-gray-900 mb-1">Q: What's the difference between modes?</h4>
-                <p class="text-sm text-gray-700">A: <strong class="text-gray-900">Offboard</strong> mode identifies consolidation opportunities. <strong class="text-gray-900">Onboard</strong> mode helps plan new deployments. <strong class="text-gray-900">EVPN Migration</strong> mode assists with fabric migration.</p>
+                <h4 class="text-sm font-semibold text-gray-900 mb-1">Q: How does migration planning work?</h4>
+                <p class="text-sm text-gray-700">A: The planner groups EPGs into waves based on coupling and complexity, highlights VLAN conflicts, and produces recommendations for sequencing and risk reduction.</p>
             </div>
 
             <div>

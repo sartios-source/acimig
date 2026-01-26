@@ -25,8 +25,6 @@
 
 ACI Migrator is a professional web-based analysis and migration planning tool for Cisco ACI (Application Centric Infrastructure) environments. It provides comprehensive analysis, visualization, and automated configuration generation for:
 
-- **EVPN/VXLAN Migration**: Migrate from ACI to standards-based EVPN fabric
-- **Onboard Planning**: Plan new FEX/leaf deployments and capacity
 - **Network Analysis**: Deep inspection of ACI configuration and topology
 - **Multi-Fabric Management**: Manage multiple data centers and environments
 
@@ -35,7 +33,6 @@ ACI Migrator is a professional web-based analysis and migration planning tool fo
 - Multi-format data ingestion (JSON, XML, CSV, legacy configs)
 - Advanced analysis engine with 15+ analysis methods
 - Interactive visualizations and dashboards
-- Automated EVPN/VXLAN configuration generation
 - Multi-platform support (Cisco NX-OS, Arista EOS, Juniper Junos)
 - Comprehensive reporting (HTML, Markdown, CSV)
 - Fabric management with isolation and multi-tenancy
@@ -85,7 +82,7 @@ ACI Migrator is a professional web-based analysis and migration planning tool fo
 │  │   Parsers   │   Analyzer   │   Planning   │         │
 │  │             │              │              │         │
 │  │ - JSON/XML  │ - ACIAnalyzer│ - ACIPlanner │         │
-│  │ - CSV       │ - Metrics    │ - EVPN Gen   │         │
+│  │ - CSV       │ - Metrics    │ - Analysis   │         │
 │  │ - Legacy    │ - Topology   │ - Reporting  │         │
 │  └─────────────┴──────────────┴──────────────┘         │
 └─────────────────────────────────────────────────────────┘
@@ -120,7 +117,6 @@ ACI Migrator is a professional web-based analysis and migration planning tool fo
 - `analysis/parsers.py`: Data ingestion and parsing
 - `analysis/engine.py`: Core analysis logic
 - `analysis/planning.py`: Migration planning
-- `analysis/evpn_migration.py`: EVPN config generation
 - `analysis/reporting.py`: Report generation
 
 **3. Fabric Management**
@@ -212,7 +208,7 @@ python app.py
 Expected output:
 ```
 ======================================================================
-ACI Migrator v1.0.0 - Professional ACI Migration Tool
+ACI Migrator v2.0 - Professional ACI Migration Tool
 ======================================================================
 Data directory: C:\Users\...\aciv2\data
 Fabrics directory: C:\Users\...\aciv2\fabrics
@@ -244,8 +240,8 @@ CMD ["python", "app.py"]
 
 ```bash
 # Build and run
-docker build -t ACI Migrator:1.0 .
-docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics ACI Migrator:1.0
+docker build -t ACI Migrator:2.0 .
+docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics ACI Migrator:2.0
 ```
 
 ---
@@ -320,8 +316,6 @@ docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics ACI Migrator:1.0
 
 1. Navigate to "Plan" page
 2. Select mode:
-   - **EVPN**: Migration to standards-based fabric
-   - **Onboard**: New deployment planning
 3. Review recommendations:
    - Priority ranking
    - Time estimates
@@ -357,13 +351,10 @@ docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics ACI Migrator:1.0
 
 #### Multi-Mode Operation
 
-**EVPN Migration Mode:**
 - Analyze VPC configurations
 - Map contracts to ACLs
 - Document L3Out connectivity
-- Generate EVPN configs (spine, leaf, border)
 
-**Onboard Mode:**
 - Calculate port capacity
 - Identify available resources
 - Generate policy scaffolding
@@ -390,7 +381,7 @@ curl http://localhost:5000/api/migration-assessment/fabric_name
 
 ### Authentication
 
-Currently, ACI Migrator v1.0 does not require authentication. For production deployment, implement authentication middleware or use reverse proxy with authentication.
+Currently, ACI Migrator v2.0 does not require authentication. For production deployment, implement authentication middleware or use reverse proxy with authentication.
 
 ### Endpoints
 
@@ -509,9 +500,7 @@ GET /download/report/{format}
 
 Formats: `html`, `markdown`, `csv`
 
-**Download EVPN Config**
 ```
-GET /download/evpn_config/{device_role}?platform={platform}
 ```
 
 Device roles: `spine`, `leaf`, `border_leaf`
@@ -771,7 +760,7 @@ ACI Migrator/
 │   ├── engine.py         # Analysis engine
 │   ├── planning.py       # Migration planning
 │   ├── reporting.py      # Report generation
-│   ├── evpn_migration.py # EVPN config gen
+│   ├── export.py         # PDF/Excel report export
 │   └── fabric_manager.py # Fabric management
 │
 ├── templates/            # Jinja2 templates
@@ -782,7 +771,6 @@ ACI Migrator/
 │   ├── visualize.html    # Visualizations
 │   ├── plan.html         # Planning page
 │   ├── report.html       # Reports page
-│   ├── evpn_migration.html
 │   └── help.html         # Documentation
 │
 ├── static/               # Static assets
@@ -873,7 +861,6 @@ def get_custom_metric():
 - **VRF**: Virtual Routing and Forwarding
 - **FEX**: Fabric Extender
 - **VPC**: Virtual Port Channel
-- **EVPN**: Ethernet VPN
 - **VXLAN**: Virtual Extensible LAN
 - **L3Out**: Layer 3 Outside Connection
 - **VTEP**: VXLAN Tunnel Endpoint
@@ -881,7 +868,6 @@ def get_custom_metric():
 ### Further Reading
 
 - [Cisco ACI Documentation](https://www.cisco.com/c/en/us/support/cloud-systems-management/application-policy-infrastructure-controller-apic/tsd-products-support-series-home.html)
-- [EVPN/VXLAN RFC 7432](https://datatracker.ietf.org/doc/html/rfc7432)
 - [Flask Documentation](https://flask.palletsprojects.com/)
 - [Tailwind CSS Documentation](https://tailwindcss.com/)
 
@@ -891,6 +877,6 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ---
 
-**ACI Migrator v1.0** - Professional ACI to EVPN/VXLAN Migration Analysis Tool
+**ACI Migrator v2.0** - Professional ACI Migration Analyzer
 
 Copyright 2025 - All Rights Reserved

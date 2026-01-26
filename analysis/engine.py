@@ -1,6 +1,6 @@
 """
 Core Analysis Engine for ACI Fabric Analysis
-Provides 12+ analysis types for offboard, onboard, and EVPN migration modes.
+Provides 12+ analysis types for ACI migration analysis.
 """
 from typing import Dict, List, Any, Optional, Tuple
 from collections import defaultdict
@@ -1607,7 +1607,7 @@ class ACIAnalyzer:
             'FEX Devices (eqptFex)': {
                 'count': len(self._fexes),
                 'required': False,
-                'description': 'Fabric Extenders - required for offboard mode',
+                'description': 'Fabric Extenders - used for port utilization and consolidation analysis',
                 'collection_command': 'moquery -c eqptFex -o json > fex.json'
             },
             'Bridge Domains (fvBD)': {
@@ -1744,7 +1744,7 @@ class ACIAnalyzer:
         Analyze VPC and port-channel configurations for migration.
 
         Returns comprehensive VPC topology, port-channel details, dual-homed endpoints,
-        and ESI mapping recommendations for EVPN migration.
+        and redundancy mapping recommendations for migration planning.
         """
         self._load_data()
 

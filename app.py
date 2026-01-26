@@ -1,6 +1,5 @@
 """
-ACI Migrator - Professional ACI to EVPN/VXLAN Migration Analysis Tool
-Supports both Onboard and EVPN workflows with multi-fabric analysis.
+ACI Migrator v2.0 - ACI Migration Analysis Platform.
 """
 import os
 import json
@@ -32,7 +31,7 @@ except:
 from config import get_config
 
 # Import analysis modules
-from analysis import parsers, engine, fabric_manager, planning, reporting, evpn_migration
+from analysis import parsers, engine, fabric_manager, planning, reporting
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -126,8 +125,11 @@ def invalidate_fabric_cache(fabric_name: str):
 # Template context processor to inject fabrics into all templates
 @app.context_processor
 def inject_fabrics():
-    """Make fabrics list available to all templates for sidebar."""
-    return {'fabrics': fm.list_fabrics()}
+    """Make common values available to all templates."""
+    return {
+        'fabrics': fm.list_fabrics(),
+        'app_version': APP_VERSION
+    }
 
 
 # Error handling decorator
@@ -254,7 +256,7 @@ def prepare_report_data(fabric_data: Dict[str, Any], fabric_name: str, mode: str
     Args:
         fabric_data: Raw fabric data
         fabric_name: Name of the fabric
-        mode: Operating mode (evpn/onboard)
+        mode: Migration mode (fixed)
 
     Returns:
         Formatted report data dictionary
@@ -299,18 +301,17 @@ def prepare_report_data(fabric_data: Dict[str, Any], fabric_name: str, mode: str
 
     # Migration analysis if available
     try:
-        if mode == 'evpn':
-            # Migration readiness assessment
-            assessment = analyzer.generate_complete_migration_assessment()
-            report_data['migration_assessment'] = assessment
+        # Migration readiness assessment
+        assessment = analyzer.generate_complete_migration_assessment()
+        report_data['migration_assessment'] = assessment
 
-            # Migration waves
-            waves_data = analyzer.analyze_migration_waves()
-            report_data['migration_waves'] = waves_data.get('summary', [])
+        # Migration waves
+        waves_data = analyzer.analyze_migration_waves()
+        report_data['migration_waves'] = waves_data.get('summary', [])
 
-            # Coupling analysis
-            coupling = analyzer.analyze_coupling_issues()
-            report_data['coupling_analysis'] = coupling
+        # Coupling analysis
+        coupling = analyzer.analyze_coupling_issues()
+        report_data['coupling_analysis'] = coupling
 
     except Exception as e:
         app.logger.warning(f"Could not generate migration analysis: {e}")
@@ -376,7 +377,7 @@ def health_check():
 @app.route('/')
 def index():
     """Landing page with mode selection and fabric-specific statistics."""
-    mode = 'evpn'
+    mode = 'migration'
     current_fabric = session.get('current_fabric')
     fabric_stats = None
 
@@ -441,17 +442,10 @@ def index():
                          fabric_stats=fabric_stats)
 
 
-@app.route('/set_mode/<mode>')
-def set_mode(mode):
-    """Toggle between onboard and evpn modes."""
-    session['mode'] = 'evpn'
-    return redirect(url_for('index'))
-
-
 @app.route('/upload_page')
 def upload_page():
     """Upload page - file upload interface."""
-    mode = 'evpn'
+    mode = 'migration'
     current_fabric = session.get('current_fabric')
 
     datasets = []
@@ -468,7 +462,7 @@ def upload_page():
 @app.route('/analyze')
 def analyze():
     """Analysis page - unified data view with comprehensive filtering."""
-    mode = 'evpn'
+    mode = 'migration'
     current_fabric = session.get('current_fabric')
 
     datasets = []
@@ -971,7 +965,7 @@ def transform_mcp_to_aci_format(mcp_data):
 @handle_route_errors
 def visualize():
     """Visualization page - interactive dashboards with charts and graphs."""
-    mode = 'evpn'
+    mode = 'migration'
     current_fabric = session.get('current_fabric')
 
     viz_data = {}
@@ -1036,7 +1030,7 @@ def visualize():
 @handle_route_errors
 def plan():
     """Planning page - recommendations and what-if scenarios."""
-    mode = 'evpn'
+    mode = 'migration'
     current_fabric = session.get('current_fabric')
 
     plan_data = {}
@@ -1059,7 +1053,7 @@ def plan():
 @handle_route_errors
 def report():
     """Report generation page - HTML, Markdown, CSV exports."""
-    mode = 'evpn'
+    mode = 'migration'
     current_fabric = session.get('current_fabric')
 
     report_data = {}
@@ -1073,71 +1067,6 @@ def report():
                          report_data=report_data)
 
 
-@app.route('/evpn_migration')
-@handle_route_errors
-def evpn_migration_page():
-    """EVPN migration planning and configuration generation."""
-    mode = 'evpn'
-    current_fabric = session.get('current_fabric')
-
-    evpn_data = {}
-    if current_fabric:
-        fabric_data = fm.get_fabric_data(current_fabric)
-        analyzer = engine.ACIAnalyzer(fabric_data)
-        analyzer._load_data()
-
-        # Get target platform from request or default to nxos
-        target_platform = request.args.get('platform', 'nxos')
-
-        # Generate EVPN migration plan
-        evpn_data = evpn_migration.generate_evpn_migration_report(
-            analyzer._aci_objects,
-            target_platform
-        )
-        evpn_data['target_platform'] = target_platform
-
-    return render_template('evpn_migration.html',
-                         mode=mode,
-                         current_fabric=current_fabric,
-                         evpn_data=evpn_data)
-
-
-@app.route('/download/evpn_config/<device_role>')
-@handle_route_errors
-def download_evpn_config(device_role):
-    """Download EVPN configuration for specific device role."""
-    current_fabric = session.get('current_fabric')
-    if not current_fabric:
-        flash("No fabric selected", "error")
-        return redirect(url_for('index'))
-
-    fabric_data = fm.get_fabric_data(current_fabric)
-    analyzer = engine.ACIAnalyzer(fabric_data)
-    analyzer._load_data()
-
-    target_platform = request.args.get('platform', 'nxos')
-
-    # Generate migration report
-    migration_data = evpn_migration.generate_evpn_migration_report(
-        analyzer._aci_objects,
-        target_platform
-    )
-
-    # Get config for device role
-    config = migration_data['config_samples'].get(device_role, '')
-
-    if not config:
-        flash(f"No configuration available for device role: {device_role}", "error")
-        return redirect(url_for('evpn_migration_page'))
-
-    # Save to output directory
-    filename = f'{current_fabric}_evpn_{device_role}_{target_platform}.cfg'
-    output_path = OUTPUT_DIR / filename
-    output_path.write_text(config, encoding='utf-8')
-
-    return send_file(output_path, as_attachment=True, download_name=filename, mimetype='text/plain')
-
-
 @app.route('/download/report/<format>')
 @handle_route_errors
 def download_report(format):
@@ -1148,7 +1077,7 @@ def download_report(format):
         return redirect(url_for('index'))
 
     fabric_data = fm.get_fabric_data(current_fabric)
-    mode = 'evpn'
+    mode = 'migration'
 
     # Prepare report data
     report_data = prepare_report_data(fabric_data, current_fabric, mode)
@@ -1210,7 +1139,7 @@ def download_offline_collector():
 @app.route('/help')
 def help_page():
     """In-app documentation and ACI object reference."""
-    mode = 'evpn'
+    mode = 'migration'
     return render_template('help.html', mode=mode)
 
 
@@ -1530,7 +1459,7 @@ def batch_export_reports():
     data = request.get_json()
     fabric_names = data.get('fabrics', [])
     formats = data.get('formats', ['markdown', 'csv'])
-    mode = 'evpn'
+    mode = 'migration'
 
     if not fabric_names or not isinstance(fabric_names, list):
         return jsonify({'error': 'fabric names required'}), 400

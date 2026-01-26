@@ -31,7 +31,7 @@ class Config:
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = 3600  # 1 hour
 
-    # EVPN configuration
+    # Migration analysis configuration
     L3_VNI_START = int(os.environ.get('L3_VNI_START', 50000))
     L2_VNI_START = int(os.environ.get('L2_VNI_START', 10000))
     VLAN_START = int(os.environ.get('VLAN_START', 100))

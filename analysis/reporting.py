@@ -15,7 +15,7 @@ def generate_report(fabric_data: Dict[str, Any], mode: str) -> Dict[str, Any]:
 
     Args:
         fabric_data: Complete fabric data including datasets and metadata
-        mode: 'evpn' or 'onboard'
+        mode: Migration mode (fixed)
 
     Returns:
         Dictionary with all report sections
@@ -47,7 +47,6 @@ def generate_report(fabric_data: Dict[str, Any], mode: str) -> Dict[str, Any]:
     report = {
         'generated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'fabric_name': fabric_data.get('name', 'Unknown'),
-        'mode': mode,
         'datasets': fabric_data.get('datasets', []),
 
         # Summary statistics
@@ -119,17 +118,15 @@ def _generate_summary_stats(analyzer, mode: str) -> List[Dict[str, Any]]:
         }
     ]
 
-    if mode == 'evpn':
-        # Add EVPN-specific stats
-        waves = analyzer.analyze_migration_waves()
-        stats.append({
-            'category': 'Migration Readiness',
-            'metrics': [
-                {'label': 'Migration Waves', 'value': len(waves.get('waves', {}))},
-                {'label': 'Total EPGs to Migrate', 'value': len(analyzer._epgs)},
-                {'label': 'Estimated Timeline (weeks)', 'value': waves.get('total_effort_days', 0) // 5}
-            ]
-        })
+    waves = analyzer.analyze_migration_waves()
+    stats.append({
+        'category': 'Migration Readiness',
+        'metrics': [
+            {'label': 'Migration Waves', 'value': len(waves.get('waves', {}))},
+            {'label': 'Total EPGs to Migrate', 'value': len(analyzer._epgs)},
+            {'label': 'Estimated Timeline (weeks)', 'value': waves.get('total_effort_days', 0) // 5}
+        ]
+    })
 
     return stats
 
@@ -140,8 +137,8 @@ def _generate_executive_summary(analyzer, plan_data: Dict, mode: str) -> str:
 
     # Overview
     summary_parts.append(
-        f"This report provides a comprehensive analysis of the ACI fabric "
-        f"for {mode.upper()} migration planning."
+        "This report provides a comprehensive analysis of the ACI fabric "
+        "for migration planning."
     )
 
     # Infrastructure summary
@@ -151,28 +148,26 @@ def _generate_executive_summary(analyzer, plan_data: Dict, mode: str) -> str:
         f"across {len(analyzer._tenants)} tenants."
     )
 
-    if mode == 'evpn':
-        # Migration readiness
-        risk_score = plan_data.get('migration_risk_score', 0)
-        if risk_score < 30:
-            readiness = "excellent"
-        elif risk_score < 50:
-            readiness = "good"
-        elif risk_score < 70:
-            readiness = "moderate"
-        else:
-            readiness = "challenging"
+    risk_score = plan_data.get('migration_risk_score', 0)
+    if risk_score < 30:
+        readiness = "excellent"
+    elif risk_score < 50:
+        readiness = "good"
+    elif risk_score < 70:
+        readiness = "moderate"
+    else:
+        readiness = "challenging"
 
-        summary_parts.append(
-            f"\n\nMigration readiness assessment: {readiness.upper()} "
-            f"(risk score: {risk_score}/100). "
-        )
+    summary_parts.append(
+        f"\n\nMigration readiness assessment: {readiness.upper()} "
+        f"(risk score: {risk_score}/100). "
+    )
 
-        total_weeks = plan_data.get('total_effort_days', 0) // 5
-        summary_parts.append(
-            f"The estimated migration timeline is {total_weeks} weeks, "
-            f"organized into {len(plan_data.get('migration_waves', {}))} waves."
-        )
+    total_weeks = plan_data.get('total_effort_days', 0) // 5
+    summary_parts.append(
+        f"The estimated migration timeline is {total_weeks} weeks, "
+        f"organized into {len(plan_data.get('migration_waves', {}))} waves."
+    )
 
     return ''.join(summary_parts)
 
@@ -240,61 +235,41 @@ def _generate_requirements(mode: str, plan_data: Dict) -> List[Dict[str, Any]]:
     """Generate requirements and prerequisites."""
     requirements = []
 
-    if mode == 'evpn':
-        requirements.extend([
-            {
-                'category': 'Infrastructure',
-                'items': [
-                    'Target EVPN/VXLAN capable switches (Nexus 9K recommended)',
-                    'Sufficient switch ports for current workload',
-                    'Network connectivity for migration period'
-                ]
-            },
-            {
-                'category': 'Network Configuration',
-                'items': [
-                    'IP addressing plan for EVPN overlay',
-                    'BGP AS numbers and route-reflector design',
-                    'VXLAN VNI allocation plan',
-                    'Multicast group allocation (if using multicast replication)'
-                ]
-            },
-            {
-                'category': 'Team Resources',
-                'items': [
-                    f"Network engineers: {plan_data.get('resource_requirements', {}).get('engineers', 2)}",
-                    f"Estimated effort: {plan_data.get('total_effort_days', 0)} person-days",
-                    'EVPN/VXLAN technical training for team'
-                ]
-            },
-            {
-                'category': 'Testing',
-                'items': [
-                    'Lab environment for configuration validation',
-                    'Test plans for each migration wave',
-                    'Rollback procedures documented'
-                ]
-            }
-        ])
-    else:  # onboard
-        requirements.extend([
-            {
-                'category': 'ACI Infrastructure',
-                'items': [
-                    'ACI fabric with sufficient capacity',
-                    'APIC cluster operational',
-                    'Network connectivity to legacy devices'
-                ]
-            },
-            {
-                'category': 'Configuration',
-                'items': [
-                    'Tenant, VRF, and BD design completed',
-                    'EPG naming convention established',
-                    'Contract and filter strategy defined'
-                ]
-            }
-        ])
+    requirements.extend([
+        {
+            'category': 'Infrastructure',
+            'items': [
+                'Target fabric capacity validated for current workload',
+                'Sufficient switch ports for migration period',
+                'Network connectivity for staged migration'
+            ]
+        },
+        {
+            'category': 'Network Configuration',
+            'items': [
+                'IP addressing plan for the target fabric',
+                'Routing design and control-plane plan',
+                'VLAN allocation and remapping plan',
+                'Multicast or replication strategy (if applicable)'
+            ]
+        },
+        {
+            'category': 'Team Resources',
+            'items': [
+                f"Network engineers: {plan_data.get('resource_requirements', {}).get('engineers', 2)}",
+                f"Estimated effort: {plan_data.get('total_effort_days', 0)} person-days",
+                'Migration runbooks and change windows'
+            ]
+        },
+        {
+            'category': 'Testing',
+            'items': [
+                'Lab environment or staging fabric for validation',
+                'Test plans for each migration wave',
+                'Rollback procedures documented'
+            ]
+        }
+    ])
 
     return requirements
 
@@ -311,31 +286,28 @@ def _generate_recommendations(
     # Get migration flags
     flags = analyzer.analyze_migration_flags()
 
-    if mode == 'evpn':
-        # Wave-based recommendations
+    recommendations.append({
+        'priority': 'Critical',
+        'title': 'Follow Wave-Based Migration',
+        'description': 'Execute migration in planned waves to minimize risk',
+        'action_items': [
+            f"Start with Wave 1: {plan_data.get('migration_waves', {}).get('wave1_standalone', {}).get('epg_count', 0)} standalone EPGs",
+            'Validate each wave before proceeding to next',
+            'Maintain parallel operation during transition'
+        ]
+    })
+
+    if coupling.get('migration_risk_score', 0) > 50:
         recommendations.append({
-            'priority': 'Critical',
-            'title': 'Follow Wave-Based Migration',
-            'description': 'Execute migration in planned waves to minimize risk',
+            'priority': 'High',
+            'title': 'Address High Tenant Coupling',
+            'description': 'High interdependencies detected between tenants',
             'action_items': [
-                f"Start with Wave 1: {plan_data.get('migration_waves', {}).get('wave1_standalone', {}).get('epg_count', 0)} standalone EPGs",
-                'Validate each wave before proceeding to next',
-                'Maintain parallel operation during transition'
+                'Review shared contracts and refactor if possible',
+                'Consider migrating coupled tenants together',
+                'Document all cross-tenant dependencies'
             ]
         })
-
-        # Coupling recommendations
-        if coupling.get('migration_risk_score', 0) > 50:
-            recommendations.append({
-                'priority': 'High',
-                'title': 'Address High Tenant Coupling',
-                'description': 'High interdependencies detected between tenants',
-                'action_items': [
-                    'Review shared contracts and refactor if possible',
-                    'Consider migrating coupled tenants together',
-                    'Document all cross-tenant dependencies'
-                ]
-            })
 
     # VLAN recommendations
     vlan_dist = analyzer.analyze_vlan_distribution()
@@ -346,8 +318,8 @@ def _generate_recommendations(
             'description': f"{len(vlan_dist['overlaps'])} VLAN overlaps require resolution",
             'action_items': [
                 'Review overlapping VLAN allocations',
-                'Plan VNI allocation to avoid conflicts',
-                'Update documentation with final VLAN/VNI mapping'
+                'Plan VLAN remapping to avoid conflicts',
+                'Update documentation with final VLAN mapping'
             ]
         })
 
@@ -371,10 +343,9 @@ def generate_markdown_report(fabric_data: Dict[str, Any], mode: str) -> str:
     md_parts = []
 
     # Header
-    md_parts.append(f"# ACI {mode.upper()} Migration Analysis Report\n\n")
+    md_parts.append("# ACI Migration Analysis Report\n\n")
     md_parts.append(f"**Fabric:** {report['fabric_name']}  \n")
     md_parts.append(f"**Generated:** {report['generated']}  \n")
-    md_parts.append(f"**Mode:** {mode.upper()}\n\n")
 
     md_parts.append("---\n\n")
 
@@ -409,8 +380,8 @@ def generate_markdown_report(fabric_data: Dict[str, Any], mode: str) -> str:
             md_parts.append(f"- {item}\n")
         md_parts.append("\n")
 
-    # Migration Plan (EVPN mode)
-    if mode == 'evpn' and report['migration_plan']:
+    # Migration Plan
+    if report['migration_plan']:
         md_parts.append("## Migration Plan\n\n")
         plan = report['migration_plan']
 
@@ -585,8 +556,8 @@ def generate_csv_report(fabric_data: Dict[str, Any], mode: str) -> str:
             )
         output.write("\n")
 
-    # Section 8: Migration Timeline (EVPN mode)
-    if mode == 'evpn' and report['migration_plan'].get('timeline'):
+    # Section 8: Migration Timeline
+    if report['migration_plan'].get('timeline'):
         output.write("MIGRATION TIMELINE\n")
         output.write("Phase,Start Week,Duration (weeks),EPG Count,Complexity,Effort (days)\n")
         for phase in report['migration_plan']['timeline']:
@@ -744,11 +715,10 @@ def generate_html_report(fabric_data: Dict[str, Any], mode: str) -> str:
 
     # Report Header
     html_parts.append(f"""
-        <h1>ACI {mode.upper()} Migration Analysis Report</h1>
+        <h1>ACI Migration Analysis Report</h1>
         <div class="metadata">
             <p><strong>Fabric:</strong> {report['fabric_name']}</p>
             <p><strong>Generated:</strong> {report['generated']}</p>
-            <p><strong>Mode:</strong> {mode.upper()}</p>
         </div>
 """)
 
@@ -802,8 +772,8 @@ def generate_html_report(fabric_data: Dict[str, Any], mode: str) -> str:
             html_parts.append("</ul>")
         html_parts.append("</div>")
 
-    # Migration Timeline (EVPN mode)
-    if mode == 'evpn' and report['migration_plan'].get('timeline'):
+    # Migration Timeline
+    if report['migration_plan'].get('timeline'):
         html_parts.append("<h2>Migration Timeline</h2>")
         html_parts.append("""
             <table>
@@ -894,7 +864,6 @@ def generate_json_report(fabric_data: Dict[str, Any], mode: str) -> str:
         'metadata': {
             'generated': report['generated'],
             'fabric_name': report['fabric_name'],
-            'mode': report['mode'],
             'dataset_count': len(report['datasets'])
         },
         'summary_stats': report['summary_stats'],

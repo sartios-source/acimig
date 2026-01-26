@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0] - 2026-01-26
+
+### Changed
+- Consolidated the application into a single ACI migration analysis workflow
+- Updated report/export labeling to migration mode
+- Refreshed documentation and screenshots for v2.0
+
+### Removed
+- EVPN mode and configuration generator references
+- EVPN migration page references
+
 ## [1.01] - 2024-11-14
 
 ### Branding Refinement & Version Display
@@ -29,7 +40,7 @@ Corrected branding to separate product name from version number for cleaner, mor
   - ACI color scheme (blues, grays) in all visualizations
   - Professional network-focused design language
 - **Branding**: Updated all references across application
-  - All template files (base.html, index.html, analyze.html, upload.html, plan.html, report.html, visualize.html, help.html, evpn_migration.html)
+  - All template files (base.html, index.html, analyze.html, upload.html, plan.html, report.html, visualize.html, help.html)
   - app.py startup messages and health endpoint
   - README.md title and references
   - DOCUMENTATION.md product name throughout
@@ -286,7 +297,7 @@ Complete UI modernization across all 8 pages using Tailwind CSS.
 - Complete ACI analysis engine
 - 15+ analysis methods
 - Multi-fabric support
-- EVPN configuration generation
+- Migration configuration generation (legacy)
 - Report generation (HTML, Markdown, CSV)
 
 ### Changed
@@ -305,7 +316,7 @@ Complete UI modernization across all 8 pages using Tailwind CSS.
 - File upload functionality
 - JSON/XML parsing
 - Simple visualization
-- Multi-mode support (EVPN/Onboard)
+- Multi-mode support (legacy; removed in v2.0)
 
 ### Changed
 - Initial project structure
@@ -347,4 +358,4 @@ Internal use only. Not for distribution.
 
 ---
 
-**acimig v1.0** - Professional ACI to EVPN/VXLAN Migration Analysis Tool
+**acimig v1.0** - Professional ACI Migration Analysis Tool

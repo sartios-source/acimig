@@ -19,13 +19,10 @@ class ACIPlanner:
 
     def generate_plan(self) -> Dict[str, Any]:
         """Generate comprehensive migration plan."""
-        if self.mode == 'evpn':
-            return self._generate_evpn_plan()
-        else:
-            return self._generate_onboard_plan()
+        return self._generate_migration_plan()
 
-    def _generate_evpn_plan(self) -> Dict[str, Any]:
-        """Generate EVPN migration plan with phases, timeline, resources."""
+    def _generate_migration_plan(self) -> Dict[str, Any]:
+        """Generate migration plan with phases, timeline, resources."""
         # Get coupling analysis
         coupling = self.analyzer.analyze_coupling_issues()
 
@@ -205,7 +202,7 @@ class ACIPlanner:
                 {'role': 'Security Engineer', 'count': 1, 'effort': '25%'}
             ],
             'equipment_needed': [
-                {'item': 'Spine switches', 'quantity': 2, 'notes': 'For EVPN overlay'},
+                {'item': 'Spine switches', 'quantity': 2, 'notes': 'Core fabric capacity'},
                 {'item': 'Leaf switches', 'quantity': len(self.analyzer._leafs), 'notes': 'Replace/upgrade existing'},
                 {'item': 'Migration toolkit', 'quantity': 1, 'notes': 'Automation tools'}
             ]
@@ -260,45 +257,6 @@ class ACIPlanner:
             'specific_risks': risks,
             'confidence_level': 'high' if risk_score < 40 else 'medium' if risk_score < 70 else 'low'
         }
-
-    def _generate_onboard_plan(self) -> Dict[str, Any]:
-        """Generate onboarding plan for new ACI deployment."""
-        # Simpler plan for onboarding
-        return {
-            'onboarding_phases': [
-                {
-                    'phase': 'Discovery',
-                    'duration_weeks': 1,
-                    'tasks': ['Network audit', 'Requirements gathering', 'Topology design']
-                },
-                {
-                    'phase': 'Design',
-                    'duration_weeks': 2,
-                    'tasks': ['Tenant design', 'EPG mapping', 'Contract definition']
-                },
-                {
-                    'phase': 'Implementation',
-                    'duration_weeks': 4,
-                    'tasks': ['ACI fabric deployment', 'Tenant configuration', 'Migration']
-                },
-                {
-                    'phase': 'Validation',
-                    'duration_weeks': 1,
-                    'tasks': ['Testing', 'Documentation', 'Handover']
-                }
-            ],
-            'total_duration_weeks': 8,
-            'recommendations': [
-                {
-                    'priority': 'high',
-                    'category': 'design',
-                    'title': 'Follow ACI Best Practices',
-                    'description': 'Use Cisco ACI design guidelines for tenant and EPG structure',
-                    'action': 'Review Cisco ACI design guide'
-                }
-            ]
-        }
-
 
 def generate_migration_plan(fabric_data: Dict[str, Any], mode: str) -> Dict[str, Any]:
     """Generate migration plan - public API."""

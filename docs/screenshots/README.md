@@ -1,24 +1,18 @@
-# Screenshots Directory
+﻿# Screenshots Directory
 
-This directory contains screenshots of acimig v1.0 user interface.
+This directory contains screenshots of the ACI Migrator v2.0 user interface.
 
 ## Status
 
-Screenshots are currently **pending capture**. Please follow the instructions in `SCREENSHOT_GUIDE.md` to capture the required screenshots.
+Screenshots are captured for the current UI. If you need to refresh them, follow the instructions in `SCREENSHOT_GUIDE.md`.
 
 ## Required Screenshots
 
-- [ ] `home.png` - Dashboard/Home page with sidebar
-- [ ] `upload.png` - Data upload interface
-- [ ] `analyze.png` - Data analysis page with tables
-- [ ] `plan.png` - Migration planning page
-- [ ] `visualize.png` - Visualization dashboard
-- [ ] `report.png` - Reports page
-
-## How to Capture
-
-See `SCREENSHOT_GUIDE.md` for detailed instructions on capturing high-quality screenshots.
-
-## Placeholder
-
-Until screenshots are captured, the README.md uses descriptive text to explain the UI features.
+- [x] `home.png` - Dashboard/Home page with sidebar
+- [x] `upload.png` - Data upload interface
+- [x] `analyze.png` - Data analysis page with tables
+- [x] `plan.png` - Migration planning page
+- [x] `visualize.png` - Visualization dashboard
+- [x] `report.png` - Reports page
+- [x] `sidebar-collapsed.png` - Collapsed sidebar view
+- [x] `mobile-view.png` - Mobile responsive view

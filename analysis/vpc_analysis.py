@@ -21,7 +21,6 @@ class VPCAnalyzer:
     - Port-channel member interface extraction
     - LACP configuration analysis
     - Dual-homing topology mapping
-    - ESI (Ethernet Segment Identifier) candidate identification for EVPN
     - MLAG migration recommendations
     """
 
@@ -179,10 +178,10 @@ class VPCAnalyzer:
         if results['vpc_pairs']:
             results['recommendations'].append({
                 'level': 'info',
-                'category': 'evpn_migration',
-                'message': f'{len(results["vpc_pairs"])} VPC pairs ready for MLAG/ESI migration',
-                'details': 'VPC pairs can be migrated to EVPN ESI (multi-homing) or vendor-specific MLAG',
-                'action': 'Generate ESI configurations for dual-homed endpoints'
+                'category': 'migration_planning',
+                'message': f'{len(results["vpc_pairs"])} VPC pairs ready for multi-chassis LAG planning',
+                'details': 'VPC pairs can be mapped to MLAG or vendor-specific multi-chassis LAG implementations',
+                'action': 'Capture redundancy requirements for dual-homed endpoints'
             })
 
         return results
@@ -240,7 +239,7 @@ class VPCAnalyzer:
                 'member_count': pc.get('activePorts', 0),
                 'description': pc.get('descr', ''),
                 'usage': pc.get('usage'),
-                'migration_type': 'MLAG/ESI' if is_vpc else 'Standard LAG'
+                'migration_type': 'MLAG' if is_vpc else 'Standard LAG'
             }
 
             results['port_channels'].append(pc_info)
@@ -260,13 +259,13 @@ class VPCAnalyzer:
             Dictionary containing:
             - dual_homed_endpoints: List of endpoints with dual connections
             - single_homed_endpoints: List of single-attached endpoints
-            - esi_candidates: Endpoints suitable for EVPN ESI migration
+            - dual_homed_candidates: Endpoints suitable for multi-chassis LAG planning
             - migration_priority: Prioritized list for migration
         """
         results = {
             'dual_homed_endpoints': [],
             'single_homed_endpoints': [],
-            'esi_candidates': [],
+            'dual_homed_candidates': [],
             'migration_priority': []
         }
 
@@ -305,7 +304,7 @@ class VPCAnalyzer:
                 vpc_connections = [c for c in connections if c['is_vpc']]
 
                 if len(vpc_connections) >= 2:
-                    # Dual-homed via VPC (ideal for ESI migration)
+                    # Dual-homed via VPC (good candidate for multi-chassis LAG planning)
                     endpoint_info = {
                         'epg': epg,
                         'vlan': encap,
@@ -313,15 +312,15 @@ class VPCAnalyzer:
                         'vpc_count': len(vpc_connections),
                         'interfaces': [c['interface'] for c in connections],
                         'redundancy': 'vpc_dual_homed',
-                        'esi_ready': True,
+                        'redundancy_ready': True,
                         'migration_complexity': 'low'
                     }
                     results['dual_homed_endpoints'].append(endpoint_info)
-                    results['esi_candidates'].append(endpoint_info)
+                    results['dual_homed_candidates'].append(endpoint_info)
                     results['migration_priority'].append({
                         **endpoint_info,
                         'priority': 1,  # High priority - clean dual-homing
-                        'reason': 'VPC dual-homed, direct ESI mapping available'
+                        'reason': 'VPC dual-homed, direct MLAG mapping available'
                     })
 
                 else:
@@ -332,7 +331,7 @@ class VPCAnalyzer:
                         'connection_count': len(connections),
                         'interfaces': [c['interface'] for c in connections],
                         'redundancy': 'multi_attached',
-                        'esi_ready': False,
+                        'redundancy_ready': False,
                         'migration_complexity': 'medium'
                     }
                     results['dual_homed_endpoints'].append(endpoint_info)
@@ -363,67 +362,6 @@ class VPCAnalyzer:
 
         return results
 
-    def generate_esi_mapping(self) -> Dict[str, Any]:
-        """
-        Generate ESI (Ethernet Segment Identifier) recommendations for EVPN migration.
-
-        Returns:
-            Dictionary containing:
-            - esi_mappings: VPC to ESI mapping recommendations
-            - lacp_system_id: Suggested LACP system IDs
-            - configuration_template: Sample ESI configuration
-        """
-        results = {
-            'esi_mappings': [],
-            'lacp_system_id': [],
-            'configuration_template': {}
-        }
-
-        # Get VPC pair information
-        vpc_analysis = self.analyze_vpc_domains()
-
-        for vpc_pair in vpc_analysis.get('vpc_pairs', []):
-            vpc_id = vpc_pair['vpc_domain_id']
-
-            # Generate ESI (format: LACP-based ESI)
-            # ESI format: 00:00:00:00:00:00:VV:VV:00:00 (VV:VV = VPC domain ID in hex)
-            esi_value = f"00:00:00:00:00:00:{int(vpc_id):04x}:00:00"
-
-            # LACP system ID (use VPC virtual MAC or generate)
-            lacp_sys_id = f"00:00:00:00:{int(vpc_id):04x}"
-
-            esi_mapping = {
-                'vpc_domain_id': vpc_id,
-                'vpc_pair': f"{vpc_pair['node1_name']} <-> {vpc_pair['node2_name']}",
-                'recommended_esi': esi_value,
-                'lacp_system_id': lacp_sys_id,
-                'node1': vpc_pair['node1'],
-                'node2': vpc_pair['node2'],
-                'virtual_ip': vpc_pair.get('virtual_ip'),
-                'migration_notes': [
-                    'Configure same ESI on both leaf switches',
-                    'Use LACP for port-channel negotiation',
-                    'Ensure both leaves are in same EVPN instance',
-                    'Configure ESI as all-active (LACP) or single-active'
-                ]
-            }
-
-            results['esi_mappings'].append(esi_mapping)
-            results['lacp_system_id'].append({
-                'vpc_id': vpc_id,
-                'system_id': lacp_sys_id
-            })
-
-        # Generate sample configuration template
-        if results['esi_mappings']:
-            first_esi = results['esi_mappings'][0]
-            results['configuration_template'] = {
-                'nx-os': self._generate_nxos_esi_config(first_esi),
-                'eos': self._generate_eos_esi_config(first_esi),
-                'junos': self._generate_junos_esi_config(first_esi)
-            }
-
-        return results
 
     # Helper methods
 
@@ -459,50 +397,6 @@ class VPCAnalyzer:
                 return mode.lower()
         return 'unknown'
 
-    def _generate_nxos_esi_config(self, esi_mapping: Dict[str, Any]) -> str:
-        """Generate NX-OS ESI configuration sample."""
-        return f"""! NX-OS EVPN ESI Configuration
-interface port-channel <id>
-  evpn multi-site fabric-tracking
-  evpn ethernet-segment {esi_mapping['recommended_esi']}
-  lacp system-id {esi_mapping['lacp_system_id']}
-
-! Apply to both VPC peer switches:
-! {esi_mapping['vpc_pair']}"""
-
-    def _generate_eos_esi_config(self, esi_mapping: Dict[str, Any]) -> str:
-        """Generate Arista EOS ESI configuration sample."""
-        return f"""! Arista EOS EVPN ESI Configuration
-interface Port-Channel <id>
-   evpn ethernet-segment
-      identifier {esi_mapping['recommended_esi']}
-      route-target import {esi_mapping['lacp_system_id']}
-   lacp system-id {esi_mapping['lacp_system_id']}
-
-! Apply to both MLAG peers:
-! {esi_mapping['vpc_pair']}"""
-
-    def _generate_junos_esi_config(self, esi_mapping: Dict[str, Any]) -> str:
-        """Generate Juniper Junos ESI configuration sample."""
-        return f"""/* Junos EVPN ESI Configuration */
-interfaces {{
-    ae<id> {{
-        esi {{
-            {esi_mapping['recommended_esi']};
-            all-active;
-        }}
-        aggregated-ether-options {{
-            lacp {{
-                system-id {esi_mapping['lacp_system_id']};
-            }}
-        }}
-    }}
-}}
-
-/* Apply to both MC-LAG peers:
- * {esi_mapping['vpc_pair']}
- */"""
-
     def get_summary(self) -> Dict[str, Any]:
         """
         Get comprehensive summary of VPC/port-channel analysis.
@@ -513,7 +407,6 @@ interfaces {{
         vpc_domains = self.analyze_vpc_domains()
         port_channels = self.analyze_port_channels()
         dual_homed = self.identify_dual_homed_servers()
-        esi_mapping = self.generate_esi_mapping()
 
         return {
             'vpc_summary': {
@@ -530,11 +423,7 @@ interfaces {{
             'endpoint_summary': {
                 'dual_homed': len(dual_homed['dual_homed_endpoints']),
                 'single_homed': len(dual_homed['single_homed_endpoints']),
-                'esi_ready': len(dual_homed['esi_candidates'])
-            },
-            'esi_summary': {
-                'esi_mappings': len(esi_mapping['esi_mappings']),
-                'lacp_system_ids': len(esi_mapping['lacp_system_id'])
+                'redundancy_ready': len(dual_homed['dual_homed_candidates'])
             },
             'migration_readiness': self._assess_migration_readiness(
                 vpc_domains, port_channels, dual_homed

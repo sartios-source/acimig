@@ -16,8 +16,8 @@
                 ACI Migrator
             </h1>
             <p class="mt-6 text-xl text-primary-100 max-w-2xl animate-fade-in-delay">
-                Professional ACI to EVPN/VXLAN migration analysis tool. Transform your Cisco ACI infrastructure with
-                comprehensive planning, automated configuration generation, and expert guidance.
+                ACI migration analysis platform. Transform your Cisco ACI infrastructure with
+                comprehensive planning, intelligent recommendations, and actionable insights.
             </p>
             <div class="mt-10 flex items-center gap-x-6 animate-fade-in-delay-2">
                 <a href="{{ url_for('analyze') }}" class="rounded-lg bg-white px-6 py-3 text-sm font-semibold text-primary-600 shadow-lg hover:bg-primary-50 transition-all duration-200 hover:shadow-xl hover:scale-105">
@@ -162,7 +162,7 @@
 
 <!-- Version Display - Bottom Left -->
 <div class="fixed bottom-6 left-6 z-10">
-    <span class="text-sm text-gray-500 font-medium">v1.01</span>
+    <span class="text-sm text-gray-500 font-medium">v{{ app_version }}</span>
 </div>
 
 <!-- Create Fabric Modal -->
