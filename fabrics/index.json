@@ -27,5 +27,31 @@
         "path": "C:\\Users\\shabb\\aciv2\\fabrics\\test_fabric\\sample_aci.json"
       }
     ]
+  },
+  "test": {
+    "created": "2026-01-26T15:34:26.043699",
+    "modified": "2026-01-26T15:34:26.043699",
+    "datasets": []
+  },
+  "demo_fabric": {
+    "created": "2026-01-26T15:42:58.428621",
+    "modified": "2026-01-26T15:42:58.551624",
+    "datasets": [
+      {
+        "filename": "sample_large_scale.json",
+        "type": "aci",
+        "format": "json",
+        "uploaded": "2026-01-26T15:42:58.433254",
+        "objects": 4237,
+        "path": "C:\\Users\\shabb\\aciv2\\data\\samples\\sample_large_scale.json"
+      },
+      {
+        "filename": "sample_large_scale_cmdb.csv",
+        "type": "cmdb",
+        "uploaded": "2026-01-26T15:42:58.433254",
+        "records": 426,
+        "path": "C:\\Users\\shabb\\aciv2\\data\\samples\\sample_large_scale_cmdb.csv"
+      }
+    ]
   }
 }
