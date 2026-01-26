@@ -330,24 +330,7 @@
             </a>
         </nav>
 
-        <!-- Mode Selector Section -->
-        <div class="border-t border-slate-700 p-4">
-            <div class="sidebar-text">
-                <label class="text-xs font-medium text-slate-400 uppercase tracking-wide">Mode</label>
-                <div class="mt-2 flex rounded-lg bg-slate-900 p-1">
-                    <a href="{{ url_for('set_mode', mode='evpn') }}"
-                       class="flex-1 text-center px-3 py-2 text-xs font-medium rounded-md transition-all duration-200
-                              {% if mode == 'evpn' %}bg-purple-600 text-white shadow-lg{% else %}text-slate-400 hover:text-white{% endif %}">
-                        EVPN
-                    </a>
-                    <a href="{{ url_for('set_mode', mode='onboard') }}"
-                       class="flex-1 text-center px-3 py-2 text-xs font-medium rounded-md transition-all duration-200
-                              {% if mode == 'onboard' %}bg-green-600 text-white shadow-lg{% else %}text-slate-400 hover:text-white{% endif %}">
-                        Onboard
-                    </a>
-                </div>
-            </div>
-        </div>
+        <!-- Mode Selector Section removed (single mode only) -->
     </aside>
 
     <!-- Mobile Sidebar Overlay -->

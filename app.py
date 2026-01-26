@@ -376,7 +376,7 @@ def health_check():
 @app.route('/')
 def index():
     """Landing page with mode selection and fabric-specific statistics."""
-    mode = session.get('mode', 'evpn')
+    mode = 'evpn'
     current_fabric = session.get('current_fabric')
     fabric_stats = None
 
@@ -444,15 +444,14 @@ def index():
 @app.route('/set_mode/<mode>')
 def set_mode(mode):
     """Toggle between onboard and evpn modes."""
-    if mode in ['onboard', 'evpn']:
-        session['mode'] = mode
+    session['mode'] = 'evpn'
     return redirect(url_for('index'))
 
 
 @app.route('/upload_page')
 def upload_page():
     """Upload page - file upload interface."""
-    mode = session.get('mode', 'evpn')
+    mode = 'evpn'
     current_fabric = session.get('current_fabric')
 
     datasets = []
@@ -469,7 +468,7 @@ def upload_page():
 @app.route('/analyze')
 def analyze():
     """Analysis page - unified data view with comprehensive filtering."""
-    mode = session.get('mode', 'evpn')
+    mode = 'evpn'
     current_fabric = session.get('current_fabric')
 
     datasets = []
@@ -972,7 +971,7 @@ def transform_mcp_to_aci_format(mcp_data):
 @handle_route_errors
 def visualize():
     """Visualization page - interactive dashboards with charts and graphs."""
-    mode = session.get('mode', 'evpn')
+    mode = 'evpn'
     current_fabric = session.get('current_fabric')
 
     viz_data = {}
@@ -1037,7 +1036,7 @@ def visualize():
 @handle_route_errors
 def plan():
     """Planning page - recommendations and what-if scenarios."""
-    mode = session.get('mode', 'evpn')
+    mode = 'evpn'
     current_fabric = session.get('current_fabric')
 
     plan_data = {}
@@ -1060,7 +1059,7 @@ def plan():
 @handle_route_errors
 def report():
     """Report generation page - HTML, Markdown, CSV exports."""
-    mode = session.get('mode', 'evpn')
+    mode = 'evpn'
     current_fabric = session.get('current_fabric')
 
     report_data = {}
@@ -1078,7 +1077,7 @@ def report():
 @handle_route_errors
 def evpn_migration_page():
     """EVPN migration planning and configuration generation."""
-    mode = session.get('mode', 'evpn')
+    mode = 'evpn'
     current_fabric = session.get('current_fabric')
 
     evpn_data = {}
@@ -1149,7 +1148,7 @@ def download_report(format):
         return redirect(url_for('index'))
 
     fabric_data = fm.get_fabric_data(current_fabric)
-    mode = session.get('mode', 'evpn')
+    mode = 'evpn'
 
     # Prepare report data
     report_data = prepare_report_data(fabric_data, current_fabric, mode)
@@ -1211,7 +1210,7 @@ def download_offline_collector():
 @app.route('/help')
 def help_page():
     """In-app documentation and ACI object reference."""
-    mode = session.get('mode', 'evpn')
+    mode = 'evpn'
     return render_template('help.html', mode=mode)
 
 
@@ -1531,7 +1530,7 @@ def batch_export_reports():
     data = request.get_json()
     fabric_names = data.get('fabrics', [])
     formats = data.get('formats', ['markdown', 'csv'])
-    mode = data.get('mode', 'evpn')
+    mode = 'evpn'
 
     if not fabric_names or not isinstance(fabric_names, list):
         return jsonify({'error': 'fabric names required'}), 400
