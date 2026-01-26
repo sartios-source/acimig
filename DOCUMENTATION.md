@@ -349,17 +349,18 @@ docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics ACI Migrator:2.0
 
 ### Advanced Features
 
-#### Local MCP Testing (No VMs)
+#### Local MCP Testing (Out of the Box)
 
-Run the MCP server locally with mock ACI data to test MCP import without cloud deployment.
+Use the MCP Import tab with the URL `mock` to import bundled sample data. No MCP server is required.
 
+```text
+MCP Server URL: mock
+```
+
+If you want to run a standalone MCP server locally:
 ```bash
-# Terminal 1: start MCP server on an alternate port
 set MCP_PORT=5001
 python gcp-deployment/mcp-server/server.py --mock-data data/samples/sample_aci.json
-
-# Terminal 2: start ACI Migrator
-python app.py
 ```
 
 Then use the MCP Import UI with `http://127.0.0.1:5001`, or run:

@@ -816,6 +816,14 @@ def test_mcp_connection():
         if not mcp_url:
             return jsonify({'error': 'MCP URL required'}), 400
 
+        if mcp_url.strip().lower() == 'mock':
+            return jsonify({
+                'status': 'healthy',
+                'service': 'Mock MCP',
+                'version': APP_VERSION,
+                'mode': 'mock'
+            })
+
         from mcp_client import test_mcp_connection
         result = test_mcp_connection(mcp_url)
 
@@ -844,6 +852,38 @@ def import_from_mcp():
             fabric_name = validate_fabric_name(fabric_name)
         except ValueError as e:
             return jsonify({'error': str(e)}), 400
+
+        if mcp_url.strip().lower() == 'mock':
+            sample_path = BASE_DIR / 'data' / 'samples' / 'sample_aci.json'
+            if not sample_path.exists():
+                return jsonify({'error': f'Mock data file not found: {sample_path}'}), 500
+
+            sample_objects = json.loads(read_file_safely(sample_path))
+
+            # Create fabric directory
+            fabric_dir = FABRICS_DIR / fabric_name
+            fabric_dir.mkdir(exist_ok=True, parents=True)
+
+            mock_file = fabric_dir / f'mcp_mock_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+            mock_file.write_text(json.dumps(sample_objects, indent=2), encoding='utf-8')
+
+            fm.add_dataset(fabric_name, {
+                'filename': mock_file.name,
+                'type': 'aci_json',
+                'uploaded': datetime.now().isoformat(),
+                'source': 'mcp-mock',
+                'path': str(mock_file)
+            })
+
+            session['current_fabric'] = fabric_name
+            invalidate_fabric_cache(fabric_name)
+
+            return jsonify({
+                'success': True,
+                'fabric_name': fabric_name,
+                'statistics': {},
+                'message': 'Imported bundled sample data via mock MCP'
+            })
 
         from mcp_client import MCPClient, MCPDataValidator
 
