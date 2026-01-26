@@ -286,12 +286,19 @@ def _generate_recommendations(
     # Get migration flags
     flags = analyzer.analyze_migration_flags()
 
+    wave_summary = plan_data.get('wave_summary', [])
+    wave1 = next(
+        (wave for wave in wave_summary if wave.get('wave', '').lower().startswith('wave 1')),
+        {}
+    )
+    wave1_epgs = wave1.get('epg_count', 0)
+
     recommendations.append({
         'priority': 'Critical',
         'title': 'Follow Wave-Based Migration',
         'description': 'Execute migration in planned waves to minimize risk',
         'action_items': [
-            f"Start with Wave 1: {plan_data.get('migration_waves', {}).get('wave1_standalone', {}).get('epg_count', 0)} standalone EPGs",
+            f"Start with Wave 1: {wave1_epgs} standalone EPGs",
             'Validate each wave before proceeding to next',
             'Maintain parallel operation during transition'
         ]
