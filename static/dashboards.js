@@ -62,6 +62,20 @@ function switchTab(tabName) {
         panel.classList.remove('active');
     });
     document.getElementById(`${tabName}-dashboard`).classList.add('active');
+
+    resizeChartsInPanel(tabName);
+}
+
+function resizeChartsInPanel(tabName) {
+    const panel = document.getElementById(`${tabName}-dashboard`);
+    if (!panel || !window.Chart || !Chart.getChart) return;
+
+    panel.querySelectorAll('canvas').forEach(canvas => {
+        const chart = Chart.getChart(canvas);
+        if (chart && chart.resize) {
+            chart.resize();
+        }
+    });
 }
 
 // ===== Overview Dashboard =====
@@ -224,6 +238,11 @@ function createTopologyVisualization() {
     const nodes = vizData.topology.nodes || [];
     const edges = vizData.topology.edges || [];
 
+    window.topologyData = { nodes, edges };
+    window.topologyLeafIdMap = buildTopologyLeafIdMap(nodes);
+    window.overloadedLeafIds = getOverloadedLeafIds();
+    populateLeafFilterOptions(nodes);
+
     // Create force simulation
     topologySimulation = d3.forceSimulation(nodes)
         .force('link', d3.forceLink(edges).id(d => d.id).distance(100))
@@ -282,9 +301,15 @@ function createTopologyVisualization() {
             .attr('transform', d => `translate(${d.x},${d.y})`);
     });
 
+    // Store selections for filtering/highlighting
+    window.topologyNodeSelection = node;
+    window.topologyLinkSelection = link;
+
     // Store for zoom controls
     window.topologyZoom = zoom;
     window.topologySvg = svg;
+    updateTopologyStats(null);
+    highlightOverloaded();
 
     function dragstarted(event) {
         if (!event.active) topologySimulation.alphaTarget(0.3).restart();
@@ -334,6 +359,174 @@ function toggleLabels() {
     const showLabels = document.getElementById('show-labels').checked;
     document.querySelectorAll('.topology-label').forEach(label => {
         label.style.display = showLabels ? 'block' : 'none';
+    });
+}
+
+function buildTopologyLeafIdMap(nodes) {
+    const map = {};
+    nodes.filter(node => node.type === 'leaf').forEach(node => {
+        const rawId = String(node.id ?? '');
+        const nameId = String(node.name ?? '');
+        const match = rawId.match(/(\d+)/g) || nameId.match(/(\d+)/g);
+        const leafId = match ? match[match.length - 1] : rawId || nameId;
+        if (leafId) {
+            map[leafId] = node.id;
+        }
+    });
+    return map;
+}
+
+function populateLeafFilterOptions(nodes) {
+    const filter = document.getElementById('leaf-filter');
+    if (!filter) return;
+
+    while (filter.options.length > 1) {
+        filter.remove(1);
+    }
+
+    const leafNodes = nodes.filter(node => node.type === 'leaf');
+    leafNodes.forEach(node => {
+        const rawId = String(node.id ?? '');
+        const nameId = String(node.name ?? '');
+        const match = rawId.match(/(\d+)/g) || nameId.match(/(\d+)/g);
+        const leafId = match ? match[match.length - 1] : rawId || nameId;
+        const option = document.createElement('option');
+        option.value = leafId || rawId;
+        option.textContent = node.name || node.id || `Leaf-${leafId}`;
+        filter.appendChild(option);
+    });
+}
+
+function getOverloadedLeafIds() {
+    const mappings = vizData.leaf_fex_mapping?.mappings || [];
+    const overloadedIds = new Set();
+    mappings.forEach(mapping => {
+        if (mapping.overloaded) {
+            overloadedIds.add(String(mapping.leaf_id));
+        }
+    });
+    return overloadedIds;
+}
+
+function updateTopologyStats(visibleIds) {
+    const statsLeafs = document.getElementById('leafs-shown');
+    const statsFex = document.getElementById('fex-shown');
+    const statsAvg = document.getElementById('avg-fex-leaf');
+    const nodes = window.topologyData?.nodes || [];
+
+    const visibleNodes = visibleIds
+        ? nodes.filter(node => visibleIds.has(String(node.id)))
+        : nodes;
+
+    const leafCount = visibleNodes.filter(node => node.type === 'leaf').length;
+    const fexCount = visibleNodes.filter(node => node.type !== 'leaf').length;
+    const avgFex = leafCount ? (fexCount / leafCount).toFixed(2) : '0';
+
+    if (statsLeafs) statsLeafs.textContent = leafCount;
+    if (statsFex) statsFex.textContent = fexCount;
+    if (statsAvg) statsAvg.textContent = avgFex;
+}
+
+function filterTopology() {
+    const filter = document.getElementById('leaf-filter');
+    if (!filter || !window.topologyData) return;
+
+    const selected = filter.value;
+    const nodeSelection = window.topologyNodeSelection;
+    const linkSelection = window.topologyLinkSelection;
+    const edges = window.topologyData.edges || [];
+
+    let visibleIds = null;
+    if (selected !== 'all') {
+        const leafNodeId = window.topologyLeafIdMap?.[selected] || selected;
+        visibleIds = new Set([String(leafNodeId)]);
+
+        edges.forEach(edge => {
+            const sourceId = String(edge.source?.id ?? edge.source);
+            const targetId = String(edge.target?.id ?? edge.target);
+            if (sourceId === String(leafNodeId) || targetId === String(leafNodeId)) {
+                visibleIds.add(sourceId);
+                visibleIds.add(targetId);
+            }
+        });
+    }
+
+    if (nodeSelection) {
+        nodeSelection.style('display', d => {
+            if (!visibleIds) return 'block';
+            return visibleIds.has(String(d.id)) ? 'block' : 'none';
+        });
+    }
+
+    if (linkSelection) {
+        linkSelection.style('display', d => {
+            if (!visibleIds) return 'block';
+            const sourceId = String(d.source?.id ?? d.source);
+            const targetId = String(d.target?.id ?? d.target);
+            return visibleIds.has(sourceId) && visibleIds.has(targetId) ? 'block' : 'none';
+        });
+    }
+
+    updateTopologyStats(visibleIds);
+    highlightOverloaded();
+}
+
+function highlightOverloaded() {
+    const checkbox = document.getElementById('highlight-overloaded');
+    const nodeSelection = window.topologyNodeSelection;
+    if (!checkbox || !nodeSelection) return;
+
+    const overloadedIds = window.overloadedLeafIds || new Set();
+    const highlight = checkbox.checked;
+
+    nodeSelection.select('circle')
+        .style('stroke', d => {
+            const leafId = String(d.id ?? '');
+            const match = leafId.match(/(\d+)/g);
+            const shortId = match ? match[match.length - 1] : leafId;
+            const isOverloaded = overloadedIds.has(leafId) || overloadedIds.has(shortId);
+            if (highlight && d.type === 'leaf' && isOverloaded) {
+                return '#ef4444';
+            }
+            return '#fff';
+        })
+        .style('stroke-width', d => {
+            const leafId = String(d.id ?? '');
+            const match = leafId.match(/(\d+)/g);
+            const shortId = match ? match[match.length - 1] : leafId;
+            const isOverloaded = overloadedIds.has(leafId) || overloadedIds.has(shortId);
+            if (highlight && d.type === 'leaf' && isOverloaded) {
+                return 3;
+            }
+            return 2;
+        });
+}
+
+// ===== Mapping Table =====
+function filterMappingTable() {
+    const searchInput = document.getElementById('mapping-search');
+    const showOverloaded = document.getElementById('show-overloaded-only');
+    const rows = document.querySelectorAll('#mapping-table tbody tr.mapping-row');
+
+    if (!rows.length) return;
+
+    const query = (searchInput?.value || '').toLowerCase();
+    const overloadedOnly = !!showOverloaded?.checked;
+
+    rows.forEach(row => {
+        const rowText = row.textContent.toLowerCase();
+        const fexCount = parseInt(row.getAttribute('data-fex-count') || '0', 10);
+        const isOverloaded = fexCount > 12;
+
+        let visible = true;
+        if (query && !rowText.includes(query)) {
+            visible = false;
+        }
+        if (overloadedOnly && !isOverloaded) {
+            visible = false;
+        }
+
+        row.style.display = visible ? 'table-row' : 'none';
     });
 }
 
@@ -811,7 +1004,7 @@ function initializeHierarchyDashboard() {
     if (tenantFilter) {
         const tenants = new Set();
         Object.values(vizData.device_mapping.device_map || {}).forEach(device => {
-            device.tenants.forEach(tenant => tenants.add(tenant));
+            (device.tenants || []).forEach(tenant => tenants.add(tenant));
         });
 
         Array.from(tenants).sort().forEach(tenant => {
@@ -885,7 +1078,8 @@ function filterHierarchy() {
 
     leafNodes.forEach(leafNode => {
         const leafId = leafNode.getAttribute('data-leaf-id');
-        const leafTitle = leafNode.querySelector('.node-title').textContent.toLowerCase();
+        const leafTitleElement = leafNode.querySelector('.node-title');
+        const leafTitle = leafTitleElement ? leafTitleElement.textContent.toLowerCase() : '';
 
         // Check leaf filter
         if (leafFilter !== 'all' && leafId !== leafFilter) {
@@ -900,7 +1094,8 @@ function filterHierarchy() {
             // Check FEX and EPG names
             const fexNodes = leafNode.querySelectorAll('.fex-node');
             fexNodes.forEach(fexNode => {
-                const fexTitle = fexNode.querySelector('.node-title').textContent.toLowerCase();
+                const fexTitleElement = fexNode.querySelector('.node-title');
+                const fexTitle = fexTitleElement ? fexTitleElement.textContent.toLowerCase() : '';
                 if (fexTitle.includes(searchText)) {
                     matchFound = true;
                 }
@@ -908,7 +1103,8 @@ function filterHierarchy() {
 
             const epgItems = leafNode.querySelectorAll('.epg-item');
             epgItems.forEach(epgItem => {
-                const epgName = epgItem.querySelector('.epg-name').textContent.toLowerCase();
+                const epgNameElement = epgItem.querySelector('.epg-name');
+                const epgName = epgNameElement ? epgNameElement.textContent.toLowerCase() : '';
                 if (epgName.includes(searchText)) {
                     matchFound = true;
                 }
@@ -932,7 +1128,8 @@ function filterHierarchy() {
             epgItems.forEach(epgItem => {
                 const tenant = epgItem.getAttribute('data-tenant');
                 const vlan = epgItem.getAttribute('data-vlan');
-                const epgName = epgItem.querySelector('.epg-name').textContent.toLowerCase();
+                const epgNameElement = epgItem.querySelector('.epg-name');
+                const epgName = epgNameElement ? epgNameElement.textContent.toLowerCase() : '';
 
                 let visible = true;
 
@@ -975,7 +1172,8 @@ function filterHierarchy() {
         directEpgs.forEach(epgItem => {
             const tenant = epgItem.getAttribute('data-tenant');
             const vlan = epgItem.getAttribute('data-vlan');
-            const epgName = epgItem.querySelector('.epg-name').textContent.toLowerCase();
+            const epgNameElement = epgItem.querySelector('.epg-name');
+            const epgName = epgNameElement ? epgNameElement.textContent.toLowerCase() : '';
 
             let visible = true;
 
@@ -1012,8 +1210,8 @@ function filterHierarchy() {
     // Filter the stats table
     const tableRows = document.querySelectorAll('.stats-table tbody tr');
     tableRows.forEach(row => {
-        const deviceId = row.querySelector('td:first-child strong').textContent;
-        const searchable = row.textContent.toLowerCase();
+        const deviceCell = row.querySelector('td:first-child');
+        const searchable = (deviceCell ? deviceCell.textContent : row.textContent).toLowerCase();
 
         let visible = true;
 
@@ -1028,6 +1226,8 @@ function filterHierarchy() {
 }
 
 function scrollToDevice(deviceId) {
+    switchTab('hierarchy');
+
     // Find the device in the hierarchy
     const deviceNode = document.querySelector(`[data-leaf-id="${deviceId}"], [data-fex-id="${deviceId}"]`);
 

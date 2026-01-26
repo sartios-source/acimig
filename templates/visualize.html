@@ -430,15 +430,15 @@
     <!-- Hierarchical Tree View -->
     <div class="space-y-4">
         {% for leaf_data in viz_data.get('device_mapping', {}).get('hierarchy', []) %}
-        <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hierarchy-node" data-leaf-id="{{ leaf_data.leaf_id }}">
-            <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-white border-b border-gray-200 cursor-pointer hover:bg-blue-50 transition-colors" onclick="toggleNode(this)">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hierarchy-node leaf-node" data-leaf-id="{{ leaf_data.leaf_id }}">
+            <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-white border-b border-gray-200 cursor-pointer hover:bg-blue-50 transition-colors node-header" onclick="toggleNode(this)">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
                         <span class="toggle-icon text-gray-400 transition-transform">▶</span>
                         <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                         </svg>
-                        <div>
+                        <div class="node-title">
                             <span class="text-lg font-semibold text-gray-900">Leaf-{{ leaf_data.leaf_id }}</span>
                             <span class="text-gray-600 ml-2">({{ leaf_data.leaf_name }})</span>
                         </div>
@@ -452,15 +452,15 @@
             </div>
             <div class="node-content px-6 py-4" style="display: none;">
                 {% if leaf_data.direct_epgs %}
-                <div class="mb-6">
+                <div class="mb-6 epg-section">
                     <h4 class="text-sm font-semibold text-gray-700 mb-3">EPGs directly on Leaf-{{ leaf_data.leaf_id }}:</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                         {% for epg in leaf_data.direct_epgs %}
-                        <div class="flex items-center space-x-2 px-3 py-2 bg-gray-50 rounded-lg" data-tenant="{{ epg.tenant }}" data-vlan="{{ epg.vlan }}">
+                        <div class="flex items-center space-x-2 px-3 py-2 bg-gray-50 rounded-lg epg-item" data-tenant="{{ epg.tenant }}" data-vlan="{{ epg.vlan }}">
                             <svg class="h-4 w-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                             </svg>
-                            <span class="text-sm font-medium text-gray-900">{{ epg.epg }}</span>
+                            <span class="text-sm font-medium text-gray-900 epg-name">{{ epg.epg }}</span>
                             <span class="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-800">{{ epg.tenant }}</span>
                             <span class="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">VLAN {{ epg.vlan if epg.vlan else 'N/A' }}</span>
                         </div>
@@ -470,15 +470,15 @@
                 {% endif %}
 
                 {% for fex in leaf_data.fex_devices %}
-                <div class="mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                    <div class="px-4 py-3 bg-gradient-to-r from-green-50 to-white border-b border-gray-200 cursor-pointer hover:bg-green-50 transition-colors" onclick="toggleNode(this)">
+                <div class="mb-4 border border-gray-200 rounded-lg overflow-hidden fex-node" data-fex-id="{{ fex.fex_id }}">
+                    <div class="px-4 py-3 bg-gradient-to-r from-green-50 to-white border-b border-gray-200 cursor-pointer hover:bg-green-50 transition-colors node-header" onclick="toggleNode(this)">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-3">
                                 <span class="toggle-icon text-gray-400 text-sm transition-transform">▶</span>
                                 <svg class="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                 </svg>
-                                <span class="font-semibold text-gray-900">FEX-{{ fex.fex_id }}</span>
+                                <span class="font-semibold text-gray-900 node-title">FEX-{{ fex.fex_id }}</span>
                                 <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">{{ fex.fex_model }}</span>
                                 <span class="px-2 py-1 text-xs font-medium rounded-full {% if fex.status == 'active' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
                                     {{ fex.status }}
@@ -495,11 +495,11 @@
                         {% if fex.epgs %}
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                             {% for epg in fex.epgs %}
-                            <div class="flex items-center space-x-2 px-3 py-2 bg-white rounded-lg shadow-sm" data-tenant="{{ epg.tenant }}" data-vlan="{{ epg.vlan }}">
+                            <div class="flex items-center space-x-2 px-3 py-2 bg-white rounded-lg shadow-sm epg-item" data-tenant="{{ epg.tenant }}" data-vlan="{{ epg.vlan }}">
                                 <svg class="h-4 w-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                                 </svg>
-                                <span class="text-sm font-medium text-gray-900">{{ epg.epg }}</span>
+                                <span class="text-sm font-medium text-gray-900 epg-name">{{ epg.epg }}</span>
                                 <span class="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-800">{{ epg.tenant }}</span>
                                 <span class="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">VLAN {{ epg.vlan if epg.vlan else 'N/A' }}</span>
                             </div>
@@ -526,7 +526,7 @@
             <h3 class="text-lg font-semibold text-gray-900">Quick Statistics by Device</h3>
         </div>
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="min-w-full divide-y divide-gray-200 stats-table">
                 <thead class="bg-gray-50">
                     <tr>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Device ID</th>
@@ -779,21 +779,5 @@ function viewLeafTopology(leafId) {
     }
 }
 
-// Scroll to device in hierarchy
-function scrollToDevice(deviceId) {
-    // Switch to hierarchy tab
-    switchTab('hierarchy');
-    // Find and scroll to the device
-    setTimeout(() => {
-        const deviceNode = document.querySelector(`[data-leaf-id="${deviceId}"], [data-fex-id="${deviceId}"]`);
-        if (deviceNode) {
-            deviceNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            deviceNode.classList.add('ring-2', 'ring-primary-500');
-            setTimeout(() => {
-                deviceNode.classList.remove('ring-2', 'ring-primary-500');
-            }, 2000);
-        }
-    }, 100);
-}
 </script>
 {% endblock %}
