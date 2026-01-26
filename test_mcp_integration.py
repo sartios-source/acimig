@@ -11,7 +11,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from mcp_client import MCPClient, MCPDataValidator, test_mcp_connection, fetch_and_validate_data
+from mcp_client import MCPClient, MCPDataValidator, test_mcp_connection as mcp_test_connection, fetch_and_validate_data
 
 
 class TestMCPClient(unittest.TestCase):
@@ -198,7 +198,7 @@ class TestMCPHelperFunctions(unittest.TestCase):
         }
         mock_client_class.return_value = mock_client
 
-        result = test_mcp_connection("http://test:5000")
+        result = mcp_test_connection("http://test:5000")
 
         self.assertTrue(result['success'])
         self.assertEqual(result['status'], 'healthy')
@@ -210,7 +210,7 @@ class TestMCPHelperFunctions(unittest.TestCase):
         mock_client.health_check.side_effect = Exception("Connection failed")
         mock_client_class.return_value = mock_client
 
-        result = test_mcp_connection("http://test:5000")
+        result = mcp_test_connection("http://test:5000")
 
         self.assertFalse(result['success'])
         self.assertIn('error', result)

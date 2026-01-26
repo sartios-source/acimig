@@ -260,6 +260,27 @@
 }
 </style>
 
+{% if ui_mode is none %}
+<div class="fixed inset-0 bg-gray-900/70 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full mx-4">
+        <h3 class="text-2xl font-bold text-gray-900 mb-2">Choose Your UI</h3>
+        <p class="text-sm text-gray-600 mb-6">
+            Pick the layout you want to start with.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <a href="{{ url_for('select_ui_mode', mode='legacy', next='/') }}" class="rounded-xl border border-gray-200 p-4 hover:shadow-lg transition-all">
+                <p class="font-semibold text-gray-900">Classic UI</p>
+                <p class="text-xs text-gray-600 mt-1">Current layout you already know.</p>
+            </a>
+            <a href="{{ url_for('select_ui_mode', mode='new', next='/') }}" class="rounded-xl border border-primary-700 bg-primary-700 text-white p-4 hover:bg-primary-800 transition-all">
+                <p class="font-semibold">New UI</p>
+                <p class="text-xs text-primary-100 mt-1">Cleaner flow and clearer next steps.</p>
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}

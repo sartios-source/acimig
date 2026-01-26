@@ -36,6 +36,8 @@ Thumbs.db
 /output/*.csv
 /output/*.html
 /output/*.json
+/output/*.pdf
+/output/*.xlsx
 /fabrics/index.json
 /aci-migration-data-sme.skill
 

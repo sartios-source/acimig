@@ -1,0 +1,488 @@
+{
+  "imdata": [
+    {
+      "fabricNode": {
+        "attributes": {
+          "dn": "topology/pod-1/node-101",
+          "id": "101",
+          "name": "leaf-101",
+          "role": "leaf",
+          "model": "N9K-C93180YC",
+          "serial": "FDO1234567"
+        }
+      }
+    },
+    {
+      "fabricNode": {
+        "attributes": {
+          "dn": "topology/pod-1/node-102",
+          "id": "102",
+          "name": "leaf-102",
+          "role": "leaf",
+          "model": "N9K-C93180YC",
+          "serial": "FDO1234568"
+        }
+      }
+    },
+    {
+      "fabricNode": {
+        "attributes": {
+          "dn": "topology/pod-1/node-201",
+          "id": "201",
+          "name": "spine-201",
+          "role": "spine",
+          "model": "N9K-C9364C",
+          "serial": "FDO9999999"
+        }
+      }
+    },
+    {
+      "eqptFex": {
+        "attributes": {
+          "dn": "topology/pod-1/node-101/sys/extch-301",
+          "id": "301",
+          "name": "FEX-301",
+          "ser": "FOX1234567",
+          "model": "N2K-C2248TP",
+          "operSt": "up"
+        }
+      }
+    },
+    {
+      "fvTenant": {
+        "attributes": {
+          "dn": "uni/tn-tenantA",
+          "name": "tenantA"
+        }
+      }
+    },
+    {
+      "fvCtx": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/ctx-vrfA",
+          "name": "vrfA"
+        }
+      }
+    },
+    {
+      "fvBD": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/BD-bdA",
+          "name": "bdA",
+          "arpFlood": "no",
+          "unicastRoute": "yes"
+        }
+      }
+    },
+    {
+      "fvRsCtx": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/BD-bdA/rsctx",
+          "tDn": "uni/tn-tenantA/ctx-vrfA",
+          "tnFvCtxName": "vrfA"
+        }
+      }
+    },
+    {
+      "fvAEPg": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/ap-appA/epg-web",
+          "name": "web"
+        }
+      }
+    },
+    {
+      "fvAEPg": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/ap-appA/epg-db",
+          "name": "db"
+        }
+      }
+    },
+    {
+      "fvRsBd": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/ap-appA/epg-web/rsbd",
+          "tDn": "uni/tn-tenantA/BD-bdA",
+          "tnFvBDName": "bdA"
+        }
+      }
+    },
+    {
+      "fvRsBd": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/ap-appA/epg-db/rsbd",
+          "tDn": "uni/tn-tenantA/BD-bdA",
+          "tnFvBDName": "bdA"
+        }
+      }
+    },
+    {
+      "fvSubnet": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/BD-bdA/subnet-[10.0.0.1/24]",
+          "ip": "10.0.0.1/24",
+          "scope": "private"
+        }
+      }
+    },
+    {
+      "fvRsPathAtt": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/ap-appA/epg-web/rspathAtt-[topology/pod-1/protpaths-101-102/pathep-[vpc-web]]",
+          "tDn": "topology/pod-1/protpaths-101-102/pathep-[vpc-web]",
+          "encap": "vlan-10",
+          "mode": "regular"
+        }
+      }
+    },
+    {
+      "fvRsPathAtt": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/ap-appA/epg-db/rspathAtt-[topology/pod-1/paths-101/pathep-[eth1/1]]",
+          "tDn": "topology/pod-1/paths-101/pathep-[eth1/1]",
+          "encap": "vlan-20",
+          "mode": "regular"
+        }
+      }
+    },
+    {
+      "ethpmPhysIf": {
+        "attributes": {
+          "dn": "topology/pod-1/node-101/sys/phys-[eth1/1]",
+          "operSt": "up",
+          "operSpeed": "10G",
+          "adminSt": "up",
+          "usage": "regular"
+        }
+      }
+    },
+    {
+      "ethpmPhysIf": {
+        "attributes": {
+          "dn": "topology/pod-1/node-102/sys/phys-[eth1/2]",
+          "operSt": "down",
+          "operSpeed": "10G",
+          "adminSt": "down",
+          "usage": "unused"
+        }
+      }
+    },
+    {
+      "physDomP": {
+        "attributes": {
+          "dn": "uni/phys-physDomA",
+          "name": "physDomA"
+        }
+      }
+    },
+    {
+      "vmmDomP": {
+        "attributes": {
+          "dn": "uni/vmmp-VMware/dom-vmmDomA",
+          "name": "vmmDomA"
+        }
+      }
+    },
+    {
+      "l3extDomP": {
+        "attributes": {
+          "dn": "uni/l3dom-l3DomA",
+          "name": "l3DomA"
+        }
+      }
+    },
+    {
+      "fvnsVlanInstP": {
+        "attributes": {
+          "dn": "uni/infra/vlanns-[vlanPoolA]-static",
+          "name": "vlanPoolA"
+        }
+      }
+    },
+    {
+      "fvnsEncapBlk": {
+        "attributes": {
+          "dn": "uni/infra/vlanns-[vlanPoolA]-static/from-[vlan-1]-to-[vlan-4094]",
+          "from": "vlan-1",
+          "to": "vlan-4094",
+          "allocMode": "static"
+        }
+      }
+    },
+    {
+      "infraRsVlanNs": {
+        "attributes": {
+          "dn": "uni/phys-physDomA/rsvlanNs",
+          "tDn": "uni/infra/vlanns-[vlanPoolA]-static"
+        }
+      }
+    },
+    {
+      "vmmRsVlanNs": {
+        "attributes": {
+          "dn": "uni/vmmp-VMware/dom-vmmDomA/rsvlanNs",
+          "tDn": "uni/infra/vlanns-[vlanPoolA]-static"
+        }
+      }
+    },
+    {
+      "l3extRsVlanNs": {
+        "attributes": {
+          "dn": "uni/l3dom-l3DomA/rsvlanNs",
+          "tDn": "uni/infra/vlanns-[vlanPoolA]-static"
+        }
+      }
+    },
+    {
+      "vpcDom": {
+        "attributes": {
+          "dn": "topology/pod-1/node-101/sys/vpc/inst/dom-1",
+          "id": "1",
+          "peerIp": "10.255.0.2",
+          "virtualIp": "10.255.0.1",
+          "operSt": "up",
+          "role": "primary"
+        }
+      }
+    },
+    {
+      "pcAggrIf": {
+        "attributes": {
+          "dn": "topology/pod-1/node-101/sys/aggr-[po10]",
+          "id": "po10",
+          "name": "po10"
+        }
+      }
+    },
+    {
+      "lacpEntity": {
+        "attributes": {
+          "dn": "topology/pod-1/node-101/sys/lacp/inst",
+          "mode": "active"
+        }
+      }
+    },
+    {
+      "vpcIf": {
+        "attributes": {
+          "dn": "topology/pod-1/node-101/sys/vpc/inst/vpc-[vpc-web]",
+          "name": "vpc-web",
+          "id": "10"
+        }
+      }
+    },
+    {
+      "vzBrCP": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/brc-web",
+          "name": "web",
+          "scope": "context"
+        }
+      }
+    },
+    {
+      "vzSubj": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/brc-web/subj-http",
+          "name": "http"
+        }
+      }
+    },
+    {
+      "vzFilter": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/flt-http",
+          "name": "http"
+        }
+      }
+    },
+    {
+      "vzEntry": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/flt-http/entry-http",
+          "name": "http",
+          "prot": "tcp",
+          "dFromPort": "80",
+          "dToPort": "80",
+          "sFromPort": "any",
+          "sToPort": "any",
+          "etherT": "ip"
+        }
+      }
+    },
+    {
+      "vzRsSubjFiltAtt": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/brc-web/subj-http/rssubjFiltAtt-[uni/tn-tenantA/flt-http]",
+          "tDn": "uni/tn-tenantA/flt-http"
+        }
+      }
+    },
+    {
+      "fvRsCons": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/ap-appA/epg-web/rscons-web",
+          "tnVzBrCPName": "web"
+        }
+      }
+    },
+    {
+      "fvRsProv": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/ap-appA/epg-db/rsprov-web",
+          "tnVzBrCPName": "web"
+        }
+      }
+    },
+    {
+      "l3extOut": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/out-inet",
+          "name": "inet"
+        }
+      }
+    },
+    {
+      "l3extInstP": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/out-inet/instP-ext",
+          "name": "ext"
+        }
+      }
+    },
+    {
+      "l3extLNodeP": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/out-inet/lnodep-nodeprof",
+          "name": "nodeprof"
+        }
+      }
+    },
+    {
+      "l3extLIfP": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/out-inet/lnodep-nodeprof/lifp-1",
+          "name": "lifp-1"
+        }
+      }
+    },
+    {
+      "l3extRsNodeL3OutAtt": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/out-inet/lnodep-nodeprof/rsnodeL3OutAtt-[topology/pod-1/node-101]",
+          "tDn": "topology/pod-1/node-101"
+        }
+      }
+    },
+    {
+      "l3extSubnet": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/out-inet/instP-ext/subnet-[0.0.0.0/0]",
+          "ip": "0.0.0.0/0"
+        }
+      }
+    },
+    {
+      "l3extRsEctx": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/out-inet/rsectx",
+          "tDn": "uni/tn-tenantA/ctx-vrfA"
+        }
+      }
+    },
+    {
+      "bgpPeerP": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/out-inet/bgpeer-[1.1.1.1]",
+          "addr": "1.1.1.1"
+        }
+      }
+    },
+    {
+      "ospfIfP": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/out-inet/ospfifp-1",
+          "name": "ospfifp-1"
+        }
+      }
+    },
+    {
+      "ipRouteP": {
+        "attributes": {
+          "dn": "uni/tn-tenantA/out-inet/iproutep-1",
+          "name": "static-1"
+        }
+      }
+    },
+    {
+      "infraAccPortGrp": {
+        "attributes": {
+          "dn": "uni/infra/funcprof/accportgrp-access",
+          "name": "access"
+        }
+      }
+    },
+    {
+      "infraAccBndlGrp": {
+        "attributes": {
+          "dn": "uni/infra/funcprof/accbundlegrp-vpc",
+          "name": "vpc",
+          "lagT": "node"
+        }
+      }
+    },
+    {
+      "infraAccPortP": {
+        "attributes": {
+          "dn": "uni/infra/accportprof-1",
+          "name": "portprof-1"
+        }
+      }
+    },
+    {
+      "infraHPortS": {
+        "attributes": {
+          "dn": "uni/infra/accportprof-1/hports-1",
+          "name": "hports-1",
+          "type": "range"
+        }
+      }
+    },
+    {
+      "infraAttEntityP": {
+        "attributes": {
+          "dn": "uni/infra/attentp-aep1",
+          "name": "aep1"
+        }
+      }
+    },
+    {
+      "infraRsDomP": {
+        "attributes": {
+          "dn": "uni/infra/attentp-aep1/rsdomP-[uni/phys-physDomA]",
+          "tDn": "uni/phys-physDomA"
+        }
+      }
+    },
+    {
+      "lldpAdjEp": {
+        "attributes": {
+          "dn": "topology/pod-1/node-101/sys/lldp/inst/if-[eth1/1]/adj-1",
+          "sysName": "server1",
+          "portIdV": "eth0"
+        }
+      }
+    },
+    {
+      "cdpAdjEp": {
+        "attributes": {
+          "dn": "topology/pod-1/node-102/sys/cdp/inst/if-[eth1/2]/adj-1",
+          "devId": "switch1",
+          "portId": "Gi1/0/1",
+          "platId": "N9K"
+        }
+      }
+    }
+  ]
+}

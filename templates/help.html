@@ -120,6 +120,59 @@
     </div>
 </div>
 
+<!-- UI Modes and Navigation -->
+<div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
+    <div class="px-6 py-4 bg-gradient-to-r from-slate-50 to-white border-b border-gray-200">
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+            <svg class="h-6 w-6 mr-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+            UI Modes and Navigation
+        </h2>
+    </div>
+    <div class="p-6 space-y-4">
+        <p class="text-sm text-gray-700">
+            The app supports two UI layouts. Choose on launch, or switch any time from the sidebar.
+        </p>
+        <ul class="space-y-2 text-sm text-gray-700">
+            <li><strong class="text-gray-900">Classic UI:</strong> Original layout and workflows.</li>
+            <li><strong class="text-gray-900">New UI:</strong> Mission-control layout focused on workflow clarity.</li>
+        </ul>
+        <p class="text-sm text-gray-700">
+            To switch, use <strong class="text-gray-900">Switch to New UI</strong> or
+            <strong class="text-gray-900">Switch to Classic UI</strong> in the sidebar.
+        </p>
+    </div>
+</div>
+
+<!-- Analyze Page: Sections and Spreadsheet Views -->
+<div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
+    <div class="px-6 py-4 bg-gradient-to-r from-emerald-50 to-white border-b border-gray-200">
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+            <svg class="h-6 w-6 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 00-4-4H3m0 0a4 4 0 004 4h2m4-8h6m-6 0a4 4 0 014-4h2m-6 8h6m-6 0a4 4 0 00-4 4v2"/>
+            </svg>
+            Analyze: Sections and Spreadsheet Views
+        </h2>
+    </div>
+    <div class="p-6 space-y-4">
+        <p class="text-sm text-gray-700">
+            The Analyze page is split into tabs to avoid scrolling. Use the tabs at the top of Analyze.
+        </p>
+        <ul class="space-y-2 text-sm text-gray-700">
+            <li><strong class="text-gray-900">Overview:</strong> High-level counts and fabric summary.</li>
+            <li><strong class="text-gray-900">Validation:</strong> Completeness, missing data, and quality checks.</li>
+            <li><strong class="text-gray-900">Data Explorer:</strong> Filterable table for all objects.</li>
+            <li><strong class="text-gray-900">Spreadsheet:</strong> Excel-style grid with per-column filters.</li>
+            <li><strong class="text-gray-900">Port Status:</strong> Up/down counts, port usage, and EPG attachment context.</li>
+        </ul>
+        <p class="text-sm text-gray-700">
+            Port Status requires <code class="bg-gray-100 px-1 rounded">ethpmPhysIf</code> and
+            <code class="bg-gray-100 px-1 rounded">fvRsPathAtt</code>. If missing, upload those classes to enable it.
+        </p>
+    </div>
+</div>
+
 <!-- Data Collection Tools -->
 <div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
     <div class="px-6 py-4 bg-gradient-to-r from-slate-50 to-white border-b border-gray-200">

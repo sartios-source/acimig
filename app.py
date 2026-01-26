@@ -129,7 +129,8 @@ def inject_fabrics():
     """Make common values available to all templates."""
     return {
         'fabrics': fm.list_fabrics(),
-        'app_version': APP_VERSION
+        'app_version': APP_VERSION,
+        'ui_mode': session.get('ui_mode')
     }
 
 
@@ -379,6 +380,7 @@ def health_check():
 def index():
     """Landing page with mode selection and fabric-specific statistics."""
     mode = 'migration'
+    ui_mode = session.get('ui_mode')
     current_fabric = session.get('current_fabric')
     fabric_stats = None
 
@@ -437,10 +439,28 @@ def index():
             app.logger.warning(f"Could not load detailed analyzer stats for {current_fabric}: {e}")
             # Keep default zeros if analyzer fails
 
-    return render_template('index.html',
+    template_name = 'index_new.html' if ui_mode == 'new' else 'index.html'
+
+    return render_template(template_name,
                          mode=mode,
+                         ui_mode=ui_mode,
                          current_fabric=current_fabric,
                          fabric_stats=fabric_stats)
+
+
+@app.route('/ui/select')
+def select_ui_mode():
+    """Persist the preferred UI mode in the session."""
+    requested_mode = request.args.get('mode', '').strip().lower()
+    if requested_mode not in {'new', 'legacy'}:
+        return jsonify({'error': 'Invalid UI mode'}), 400
+
+    session['ui_mode'] = requested_mode
+    next_path = request.args.get('next', '/')
+    if not next_path.startswith('/'):
+        next_path = '/'
+
+    return redirect(next_path)
 
 
 @app.route('/upload_page')
@@ -473,6 +493,19 @@ def analyze():
     types = ['FEX', 'Leaf', 'EPG', 'BD', 'VRF', 'Contract', 'Subnet', 'Interface']
     type_counts = {}
     validation_results = None
+    port_status_data = {
+        'rows': [],
+        'summary': {
+            'total_ports': 0,
+            'up_ports': 0,
+            'down_ports': 0,
+            'unknown_ports': 0,
+            'ports_with_epg': 0,
+            'epg_paths': 0
+        },
+        'data_ready': False,
+        'missing': []
+    }
 
     if current_fabric:
         fabric_data = fm.get_fabric_data(current_fabric)
@@ -694,6 +727,73 @@ def analyze():
             for obj_type in types:
                 type_counts[obj_type] = sum(1 for item in unified_data if item['type'] == obj_type)
 
+            # Build port status spreadsheet data
+            port_rows = {}
+            for iface in analyzer._interfaces:
+                iface_dn = iface.get('dn', '')
+                node_id = analyzer._extract_node_id_from_dn(iface_dn) or ''
+                iface_id = analyzer._extract_interface_id_from_dn(iface_dn) or iface.get('id', '') or ''
+                key = f"{node_id}:{iface_id}"
+                port_rows[key] = {
+                    'node': node_id,
+                    'interface': iface_id,
+                    'status': iface.get('operSt', 'unknown'),
+                    'admin': iface.get('adminSt', ''),
+                    'speed': iface.get('operSpeed', '') or iface.get('speed', ''),
+                    'usage': iface.get('usage', ''),
+                    'epg_count': 0,
+                    'epgs': [],
+                    'path_count': 0,
+                    'encaps': []
+                }
+
+            for path in analyzer._path_attachments:
+                tdn = path.get('tDn', '')
+                nodes = analyzer._extract_nodes_from_tdn(tdn)
+                iface_id = analyzer._extract_interface_id_from_dn(tdn)
+                if not iface_id:
+                    match = re.search(r'pathep-\[(.*?)\]', tdn)
+                    iface_id = match.group(1) if match else ''
+                epg_dn = analyzer._extract_epg_from_path_dn(path.get('dn', ''))
+                epg_name = epg_dn.split('/epg-')[-1] if epg_dn and '/epg-' in epg_dn else epg_dn
+                encap = path.get('encap', '')
+
+                for node_id in nodes or ['']:
+                    key = f"{node_id}:{iface_id}"
+                    if key not in port_rows:
+                        port_rows[key] = {
+                            'node': node_id,
+                            'interface': iface_id,
+                            'status': 'unknown',
+                            'admin': '',
+                            'speed': '',
+                            'usage': '',
+                            'epg_count': 0,
+                            'epgs': [],
+                            'path_count': 0,
+                            'encaps': []
+                        }
+                    if epg_name:
+                        if epg_name not in port_rows[key]['epgs']:
+                            port_rows[key]['epgs'].append(epg_name)
+                        port_rows[key]['epg_count'] = len(port_rows[key]['epgs'])
+                    port_rows[key]['path_count'] += 1
+                    if encap and encap not in port_rows[key]['encaps']:
+                        port_rows[key]['encaps'].append(encap)
+
+            port_status_data['rows'] = list(port_rows.values())
+            port_status_data['summary']['total_ports'] = len(port_rows)
+            port_status_data['summary']['up_ports'] = sum(1 for r in port_rows.values() if r['status'] == 'up')
+            port_status_data['summary']['down_ports'] = sum(1 for r in port_rows.values() if r['status'] == 'down')
+            port_status_data['summary']['unknown_ports'] = sum(1 for r in port_rows.values() if r['status'] not in {'up', 'down'})
+            port_status_data['summary']['ports_with_epg'] = sum(1 for r in port_rows.values() if r['epg_count'] > 0)
+            port_status_data['summary']['epg_paths'] = sum(r['path_count'] for r in port_rows.values())
+            port_status_data['data_ready'] = len(analyzer._interfaces) > 0 and len(analyzer._path_attachments) > 0
+            if len(analyzer._interfaces) == 0:
+                port_status_data['missing'].append('ethpmPhysIf')
+            if len(analyzer._path_attachments) == 0:
+                port_status_data['missing'].append('fvRsPathAtt')
+
         except Exception as e:
             app.logger.error(f"Error during analysis: {str(e)}", exc_info=True)
             unified_data = []
@@ -704,6 +804,7 @@ def analyze():
                           datasets=datasets,
                           validation_results=validation_results,
                           unified_data=unified_data,
+                          port_status_data=port_status_data,
                           tenants=tenants,
                          vrfs=vrfs,
                          types=types,
@@ -885,6 +986,7 @@ def import_from_mcp():
 
         if mcp_url.strip().lower() == 'mock':
             sample_candidates = [
+                BASE_DIR / 'data' / 'samples' / 'sample_full_mock.json',
                 BASE_DIR / 'data' / 'samples' / 'sample_large_scale.json',
                 BASE_DIR / 'data' / 'samples' / 'sample_aci.json',
             ]
@@ -897,6 +999,24 @@ def import_from_mcp():
             # Create fabric directory
             fabric_dir = FABRICS_DIR / fabric_name
             fabric_dir.mkdir(exist_ok=True, parents=True)
+
+            # Remove older mock datasets to avoid stale completeness scores
+            fabric_data = fm.get_fabric_data(fabric_name)
+            cleaned_datasets = []
+            for dataset in fabric_data.get('datasets', []):
+                if dataset.get('source') == 'mcp-mock' or str(dataset.get('filename', '')).startswith('mcp_mock_'):
+                    path_value = dataset.get('path')
+                    if path_value:
+                        try:
+                            Path(path_value).unlink(missing_ok=True)
+                        except Exception:
+                            app.logger.warning(f"Failed to delete old mock file: {path_value}")
+                    continue
+                cleaned_datasets.append(dataset)
+
+            if cleaned_datasets != fabric_data.get('datasets', []):
+                fabric_data['datasets'] = cleaned_datasets
+                fm.save_fabric_metadata(fabric_name, fabric_data)
 
             mock_file = fabric_dir / f'mcp_mock_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
             mock_file.write_text(json.dumps(sample_objects, indent=2), encoding='utf-8')
@@ -1796,6 +1916,20 @@ def clear_cache():
 
 
 if __name__ == '__main__':
+    import socket
+
+    def _is_port_free(port: int) -> bool:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            return sock.connect_ex(('127.0.0.1', port)) != 0
+
+    def _pick_port(start_port: int = 5001, max_tries: int = 50) -> int:
+        for candidate in range(start_port, start_port + max_tries):
+            if _is_port_free(candidate):
+                return candidate
+        return start_port
+
+    selected_port = _pick_port(5001)
     print("=" * 70)
     print("ACI Migrator - Professional ACI Migration Tool")
     print(f"Version: {APP_VERSION}")
@@ -1804,7 +1938,7 @@ if __name__ == '__main__':
     print(f"Fabrics directory: {FABRICS_DIR}")
     print(f"Output directory: {OUTPUT_DIR}")
     print("=" * 70)
-    print("Access the application at: http://127.0.0.1:5000")
+    print(f"Access the application at: http://0.0.0.0:{selected_port}")
     print("=" * 70)
 
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=selected_port)
