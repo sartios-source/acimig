@@ -6,6 +6,9 @@ Captures all required UI screenshots for README.md
 import os
 import sys
 import time
+import json
+import urllib.request
+import urllib.error
 from playwright.sync_api import sync_playwright
 
 # Set UTF-8 encoding for console output on Windows
@@ -13,16 +16,64 @@ if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
 # Configuration
-BASE_URL = "http://127.0.0.1:5000"
 SCREENSHOTS_DIR = "docs/screenshots"
 VIEWPORT = {"width": 1920, "height": 1080}
 
 # Create screenshots directory if it doesn't exist
 os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
 
+def resolve_base_url():
+    env_url = os.getenv("ACI_BASE_URL")
+    if env_url:
+        return env_url.rstrip("/")
+
+    candidate_ports = list(range(5001, 5051)) + [5000]
+    for port in candidate_ports:
+        url = f"http://127.0.0.1:{port}"
+        try:
+            with urllib.request.urlopen(f"{url}/health", timeout=2) as resp:
+                if resp.status == 200:
+                    return url
+        except Exception:
+            continue
+
+    raise RuntimeError("Could not detect running ACI Migrator instance on 127.0.0.1:5000-5050")
+
+
+def prepare_demo_data(page, base_url):
+    """Ensure a demo fabric exists and mock data is loaded for screenshots."""
+    demo_fabric = "demo-fabric"
+    page.goto(f"{base_url}/ui/select?mode=legacy&next=/", wait_until="networkidle", timeout=30000)
+
+    js = f"""
+    (async () => {{
+        const fabricName = "{demo_fabric}";
+        try {{
+            await fetch('/fabrics', {{
+                method: 'POST',
+                headers: {{'Content-Type': 'application/json'}},
+                body: JSON.stringify({{name: fabricName}})
+            }});
+        }} catch (e) {{}}
+
+        try {{
+            await fetch('/api/mcp/import', {{
+                method: 'POST',
+                headers: {{'Content-Type': 'application/json'}},
+                body: JSON.stringify({{mcp_url: 'mock', fabric_name: fabricName}})
+            }});
+        }} catch (e) {{}}
+    }})()
+    """
+    page.evaluate(js)
+    page.wait_for_timeout(1500)
+
 def capture_screenshots():
     """Capture all required screenshots"""
     print("Starting screenshot capture for ACI Migrator v2.0...")
+
+    base_url = resolve_base_url()
+    print(f"Using base URL: {base_url}")
 
     with sync_playwright() as p:
         # Launch browser
@@ -31,11 +82,19 @@ def capture_screenshots():
         context = browser.new_context(viewport=VIEWPORT)
         page = context.new_page()
 
+        prepare_demo_data(page, base_url)
+
         screenshots = [
             {
-                "name": "home.png",
-                "url": "/",
-                "title": "Dashboard/Home Page",
+                "name": "home-classic.png",
+                "url": "/ui/select?mode=legacy&next=/",
+                "title": "Dashboard/Home Page (Classic UI)",
+                "wait": 2000
+            },
+            {
+                "name": "home-new.png",
+                "url": "/ui/select?mode=new&next=/",
+                "title": "Dashboard/Home Page (New UI)",
                 "wait": 2000
             },
             {
@@ -49,6 +108,34 @@ def capture_screenshots():
                 "url": "/analyze",
                 "title": "Analyze Data Page",
                 "wait": 1500
+            },
+            {
+                "name": "analyze-validation.png",
+                "url": "/analyze",
+                "title": "Analyze Validation Tab",
+                "wait": 1500,
+                "tab": "validation"
+            },
+            {
+                "name": "analyze-data-explorer.png",
+                "url": "/analyze",
+                "title": "Analyze Data Explorer Tab",
+                "wait": 1500,
+                "tab": "data"
+            },
+            {
+                "name": "analyze-spreadsheet.png",
+                "url": "/analyze",
+                "title": "Analyze Spreadsheet Tab",
+                "wait": 1500,
+                "tab": "spreadsheet"
+            },
+            {
+                "name": "analyze-ports.png",
+                "url": "/analyze",
+                "title": "Analyze Port Status Tab",
+                "wait": 1500,
+                "tab": "ports"
             },
             {
                 "name": "visualize.png",
@@ -75,12 +162,17 @@ def capture_screenshots():
                 print(f"\n[{i}/{len(screenshots)}] Capturing {screenshot['title']}...")
 
                 # Navigate to page
-                url = f"{BASE_URL}{screenshot['url']}"
+                url = f"{base_url}{screenshot['url']}"
                 print(f"   URL: {url}")
                 page.goto(url, wait_until="networkidle", timeout=30000)
 
                 # Wait for animations and content to load
                 page.wait_for_timeout(screenshot['wait'])
+
+                if screenshot.get("tab"):
+                    tab_selector = f"button.analysis-tab[data-panel='{screenshot['tab']}']"
+                    page.click(tab_selector, timeout=10000)
+                    page.wait_for_timeout(800)
 
                 # Take screenshot
                 filepath = os.path.join(SCREENSHOTS_DIR, screenshot['name'])
@@ -96,7 +188,7 @@ def capture_screenshots():
         # Optional: Capture sidebar collapsed view
         try:
             print("\n[Extra] Capturing Sidebar Collapsed View...")
-            page.goto(f"{BASE_URL}/", wait_until="networkidle")
+            page.goto(f"{base_url}/ui/select?mode=legacy&next=/", wait_until="networkidle")
             page.wait_for_timeout(1000)
 
             try:
@@ -123,7 +215,7 @@ def capture_screenshots():
                 user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15"
             )
             mobile_page = mobile_context.new_page()
-            mobile_page.goto(f"{BASE_URL}/", wait_until="networkidle")
+            mobile_page.goto(f"{base_url}/ui/select?mode=legacy&next=/", wait_until="networkidle")
             mobile_page.wait_for_timeout(2000)
 
             filepath = os.path.join(SCREENSHOTS_DIR, "mobile-view.png")
@@ -152,7 +244,7 @@ if __name__ == "__main__":
     print("ACI Migrator v2.0 Screenshot Capture Tool")
     print("=" * 70)
     print("\nIMPORTANT: Make sure the Flask application is running.")
-    print(f"Expected URL: {BASE_URL}")
+    print("Expected URL: http://127.0.0.1:<port>")
     print("\nPress Ctrl+C to cancel, or wait 3 seconds to continue...")
 
     try:

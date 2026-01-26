@@ -72,25 +72,45 @@ Export comprehensive analysis reports in multiple formats including HTML (intera
 
 ## Screenshots
 
-### Dashboard with Sidebar Navigation
-The professional sidebar navigation provides quick access to all features with collapsible menu and integrated fabric manager.
+### Home (Classic UI)
+The classic dashboard layout with sidebar navigation and fabric manager.
 
-![Dashboard](docs/screenshots/home.png)
+![Home Classic](docs/screenshots/home-classic.png)
 
-**Key Sidebar Features:**
-- Quick navigation to all pages (Home, Upload, Analyze, Visualize, Plan, Report, Help)
-- Integrated Fabric Manager (collapsible panel)
-- Responsive design with mobile support
+### Home (New UI)
+Mission-control layout with a clearer workflow orientation.
+
+![Home New](docs/screenshots/home-new.png)
 
 ### Data Upload Interface
 Drag-and-drop file upload with real-time progress tracking and multi-file queue management.
 
 ![Upload](docs/screenshots/upload.png)
 
-### Analysis Dashboard
-Comprehensive data analysis with interactive tables, search filtering, and data completeness validation.
+### Analysis Overview
+High-level counts and readiness at a glance.
 
-![Analyze](docs/screenshots/analyze.png)
+![Analyze Overview](docs/screenshots/analyze.png)
+
+### Validation
+Completeness and data quality checks before analysis.
+
+![Analyze Validation](docs/screenshots/analyze-validation.png)
+
+### Data Explorer
+Filterable table for all objects.
+
+![Analyze Data Explorer](docs/screenshots/analyze-data-explorer.png)
+
+### Spreadsheet View
+Excel-style grid with per-column filters.
+
+![Analyze Spreadsheet](docs/screenshots/analyze-spreadsheet.png)
+
+### Port Status
+Up/down counts, EPG attachments, and path context.
+
+![Analyze Port Status](docs/screenshots/analyze-ports.png)
 
 ### Migration Planning
 Automated recommendations with priority scoring, implementation steps, and risk assessments.
