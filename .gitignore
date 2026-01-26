@@ -35,6 +35,7 @@ Thumbs.db
 /output/*.md
 /output/*.csv
 /output/*.html
+/output/*.json
 
 # Keep directory structure
 !.gitkeep
