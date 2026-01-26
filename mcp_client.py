@@ -44,7 +44,7 @@ class MCPClient:
             self.last_health_check = datetime.utcnow()
             return response.json()
 
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             logger.error(f"MCP health check failed: {e}")
             raise Exception(f"Failed to connect to MCP server: {e}")
 

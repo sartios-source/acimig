@@ -67,7 +67,34 @@ class ACIAnalyzer:
 
         for dataset in self.datasets:
             try:
-                path = Path(dataset['path'])
+                if not isinstance(dataset, dict):
+                    logger.warning(f"Skipping invalid dataset entry: {dataset}")
+                    continue
+
+                # Allow in-memory datasets used by tests or tooling
+                objects = dataset.get('objects')
+                if objects is not None:
+                    if isinstance(objects, dict) and 'imdata' in objects:
+                        self._aci_objects.extend(objects.get('imdata', []))
+                        logger.info("Loaded ACI objects from in-memory imdata dataset")
+                        continue
+                    if isinstance(objects, list):
+                        self._aci_objects.extend(objects)
+                        logger.info("Loaded ACI objects from in-memory dataset list")
+                        continue
+
+                records = dataset.get('records')
+                if isinstance(records, list):
+                    self._cmdb_records.extend(records)
+                    logger.info("Loaded CMDB records from in-memory dataset list")
+                    continue
+
+                path_value = dataset.get('path')
+                if not path_value:
+                    logger.warning(f"Dataset missing path: {dataset.get('filename')}")
+                    continue
+
+                path = Path(path_value)
                 if not path.exists():
                     logger.warning(f"Dataset file not found: {path}")
                     continue
@@ -75,12 +102,13 @@ class ACIAnalyzer:
                 # Read file with encoding fallback
                 content = self._read_file_safe(path)
 
-                if dataset['type'] == 'aci':
+                dataset_type = dataset.get('type')
+                if dataset_type in {'aci', 'aci_json'}:
                     parsed = parsers.parse_aci(content, dataset['format'])
                     self._aci_objects.extend(parsed['objects'])
                     logger.info(f"Loaded {len(parsed['objects'])} ACI objects from {dataset['filename']}")
 
-                elif dataset['type'] == 'cmdb':
+                elif dataset_type == 'cmdb':
                     parsed = parsers.parse_cmdb_csv(content)
                     self._cmdb_records.extend(parsed)
                     logger.info(f"Loaded {len(parsed)} CMDB records from {dataset['filename']}")

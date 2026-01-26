@@ -523,10 +523,14 @@
             if (!fabricName) return;
 
             fetch(`/fabrics/${fabricName}/select`, {method: 'POST'})
-                .then(response => response.json())
-                .then(data => {
-                    showToast(`Fabric "${fabricName}" selected`, 'success');
-                    setTimeout(() => location.reload(), 1000);
+                .then(response => parseJsonResponse(response).then(data => ({ok: response.ok, data})))
+                .then(({ok, data}) => {
+                    if (ok && data.success) {
+                        showToast(`Fabric "${fabricName}" selected`, 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showToast(data.error || 'Error selecting fabric', 'error');
+                    }
                 })
                 .catch(error => {
                     showToast('Error selecting fabric', 'error');
@@ -538,16 +542,28 @@
         function deleteFabricFromSidebar(fabricName) {
             if (confirm(`Are you sure you want to delete fabric "${fabricName}"? This action cannot be undone.`)) {
                 fetch(`/fabrics/${fabricName}`, {method: 'DELETE'})
-                    .then(response => response.json())
-                    .then(data => {
-                        showToast('Fabric deleted successfully', 'success');
-                        setTimeout(() => location.reload(), 1000);
+                    .then(response => parseJsonResponse(response).then(data => ({ok: response.ok, data})))
+                    .then(({ok, data}) => {
+                        if (ok && data.success) {
+                            showToast('Fabric deleted successfully', 'success');
+                            setTimeout(() => location.reload(), 1000);
+                        } else {
+                            showToast(data.error || 'Error deleting fabric', 'error');
+                        }
                     })
                     .catch(error => {
                         showToast('Error deleting fabric', 'error');
                         console.error('Error:', error);
                     });
             }
+        }
+
+        function parseJsonResponse(response) {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                return response.json();
+            }
+            return response.text().then(text => ({error: text || `Request failed (${response.status})`}));
         }
 
         // Show create fabric dialog (will be defined in index.html if needed, or create here)

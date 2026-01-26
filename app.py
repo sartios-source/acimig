@@ -39,12 +39,14 @@ app = Flask(__name__)
 
 # Load configuration
 config_name = os.environ.get('FLASK_ENV', 'development')
-app.config.from_object(get_config(config_name))
+config_class = get_config(config_name)
+app.config.from_object(config_class)
 
 # Initialize configuration
-get_config(config_name).init_app(app)
+config_class.init_app(app)
 
-# Set secret key
+# Ensure SECRET_KEY reflects any init_app changes (e.g., dev auto-generation)
+app.config['SECRET_KEY'] = config_class.SECRET_KEY
 app.secret_key = app.config['SECRET_KEY']
 
 # Setup logging
@@ -177,13 +179,16 @@ def handle_api_errors(f):
 
 # Security helper functions
 def validate_fabric_name(name: str) -> str:
-    """Sanitize fabric name to prevent path traversal and injection attacks."""
+    """Validate fabric name to prevent path traversal and injection attacks."""
     import re
-    # Only allow alphanumeric, underscore, and hyphen
-    sanitized = re.sub(r'[^a-zA-Z0-9_-]', '', name)
-    if not sanitized or len(sanitized) > 64:
+    if not isinstance(name, str):
         raise ValueError("Invalid fabric name. Use only alphanumeric characters, underscore, and hyphen (max 64 chars)")
-    return sanitized
+    name = name.strip()
+    if not name:
+        raise ValueError("Invalid fabric name. Use only alphanumeric characters, underscore, and hyphen (max 64 chars)")
+    if not re.fullmatch(r'[a-zA-Z0-9_-]{1,64}', name):
+        raise ValueError("Invalid fabric name. Use only alphanumeric characters, underscore, and hyphen (max 64 chars)")
+    return name
 
 
 def validate_file_path(file_path: Path, allowed_parent: Path) -> bool:
@@ -671,12 +676,12 @@ def analyze():
             app.logger.error(f"Error during analysis: {str(e)}", exc_info=True)
             unified_data = []
 
-    return render_template('analyze.html',
-                         mode=mode,
-                         current_fabric=current_fabric,
-                         datasets=datasets,
-                         unified_data=unified_data,
-                         tenants=tenants,
+    return render_template('analyze_enhanced.html',
+                          mode=mode,
+                          current_fabric=current_fabric,
+                          datasets=datasets,
+                          unified_data=unified_data,
+                          tenants=tenants,
                          vrfs=vrfs,
                          types=types,
                          type_counts=type_counts)
@@ -1290,8 +1295,10 @@ def list_fabrics():
 @csrf.exempt
 def create_fabric():
     """Create a new fabric."""
-    data = request.get_json()
-    fabric_name = data.get('name')
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Invalid JSON payload'}), 400
+    fabric_name = data.get('name', '').strip()
 
     if not fabric_name:
         return jsonify({'error': 'Fabric name required'}), 400

@@ -505,6 +505,14 @@ function hideCreateFabricDialog() {
     document.getElementById('fabric-name').value = '';
 }
 
+function parseJsonResponse(response) {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+        return response.json();
+    }
+    return response.text().then(text => ({error: text || `Request failed (${response.status})`}));
+}
+
 function createFabric(event) {
     event.preventDefault();
     const name = document.getElementById('fabric-name').value;
@@ -514,9 +522,9 @@ function createFabric(event) {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({name: name})
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+    .then(response => parseJsonResponse(response).then(data => ({ok: response.ok, data})))
+    .then(({ok, data}) => {
+        if (ok && data.success) {
             showToast('Fabric created successfully!', 'success');
             setTimeout(() => location.reload(), 1000);
         } else {
@@ -556,5 +564,15 @@ function deleteFabric(name) {
             });
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('create_fabric') === 'true') {
+        showCreateFabricDialog();
+        const url = new URL(window.location.href);
+        url.searchParams.delete('create_fabric');
+        window.history.replaceState({}, '', url);
+    }
+});
 </script>
 {% endblock %}
