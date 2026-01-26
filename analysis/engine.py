@@ -108,7 +108,12 @@ class ACIAnalyzer:
 
                 dataset_type = dataset.get('type')
                 if dataset_type in {'aci', 'aci_json'}:
-                    parsed = parsers.parse_aci(content, dataset['format'])
+                    dataset_format = dataset.get('format')
+                    if not dataset_format and path.suffix:
+                        dataset_format = path.suffix.lstrip('.').lower()
+                    if not dataset_format:
+                        dataset_format = 'json'
+                    parsed = parsers.parse_aci(content, dataset_format)
                     self._aci_objects.extend(parsed['objects'])
                     logger.info(f"Loaded {len(parsed['objects'])} ACI objects from {dataset['filename']}")
 

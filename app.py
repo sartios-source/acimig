@@ -903,6 +903,7 @@ def import_from_mcp():
             fm.add_dataset(fabric_name, {
                 'filename': mock_file.name,
                 'type': 'aci_json',
+                'format': 'json',
                 'uploaded': datetime.now().isoformat(),
                 'source': 'mcp-mock',
                 'path': str(mock_file)
