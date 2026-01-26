@@ -471,6 +471,7 @@ def analyze():
     vrfs = []
     types = ['FEX', 'Leaf', 'EPG', 'BD', 'VRF', 'Contract', 'Subnet', 'Interface']
     type_counts = {}
+    validation_results = None
 
     if current_fabric:
         fabric_data = fm.get_fabric_data(current_fabric)
@@ -483,21 +484,28 @@ def analyze():
             # Load data for display
             analyzer._load_data()
 
+            # Data completeness and validation
+            validation_results = analyzer.get_data_completeness()
+
+            # BD lookup by name for VRF resolution
+            bd_by_name = {bd.get('name', ''): bd for bd in analyzer._bds if bd.get('name')}
+
             # Build unified data list with all objects
             # Add FEX devices
             for fex in analyzer._fexes:
+                fex_id = fex.get('id', '')
                 unified_data.append({
                     'type': 'FEX',
-                    'name': fex.get('name', ''),
-                    'id': str(fex.get('id', '')),
+                    'name': fex.get('name', f"FEX-{fex_id}") if fex_id else fex.get('name', ''),
+                    'id': str(fex_id),
                     'tenant': '',
                     'vrf': '',
                     'bd': '',
                     'encap': '',
                     'ip_subnet': '',
                     'model': fex.get('model', ''),
-                    'serial': fex.get('serial', ''),
-                    'status': fex.get('status', 'Active'),
+                    'serial': fex.get('ser') or fex.get('serial', ''),
+                    'status': fex.get('operSt', 'unknown'),
                     'role': '',
                     'app_profile': '',
                     'scope': '',
@@ -507,6 +515,7 @@ def analyze():
 
             # Add Leaf switches
             for leaf in analyzer._leafs:
+                leaf_dn = leaf.get('dn', '')
                 unified_data.append({
                     'type': 'Leaf',
                     'name': leaf.get('name', ''),
@@ -518,30 +527,36 @@ def analyze():
                     'ip_subnet': '',
                     'model': leaf.get('model', ''),
                     'serial': leaf.get('serial', ''),
-                    'status': leaf.get('status', 'Active'),
-                    'role': leaf.get('role', 'Leaf'),
+                    'status': leaf.get('operSt', 'unknown'),
+                    'role': leaf.get('role', 'leaf'),
                     'app_profile': '',
                     'scope': '',
-                    'node': '',
+                    'node': analyzer._extract_node_id_from_dn(leaf_dn) or '',
                     'speed': ''
                 })
 
             # Add EPGs
             for epg in analyzer._epgs:
+                epg_dn = epg.get('dn', '')
+                epg_tenant = analyzer._extract_tenant_from_dn(epg_dn)
+                epg_bd = analyzer._get_bd_name_for_epg(epg)
+                epg_vrf = ''
+                if epg_bd and epg_bd in bd_by_name:
+                    epg_vrf = analyzer._get_vrf_name_for_bd(bd_by_name[epg_bd])
                 unified_data.append({
                     'type': 'EPG',
                     'name': epg.get('name', ''),
                     'id': '',
-                    'tenant': epg.get('tenant', ''),
-                    'vrf': '',
-                    'bd': epg.get('bd', ''),
+                    'tenant': epg_tenant,
+                    'vrf': epg_vrf,
+                    'bd': epg_bd,
                     'encap': epg.get('encap', ''),
                     'ip_subnet': '',
                     'model': '',
                     'serial': '',
                     'status': '',
                     'role': '',
-                    'app_profile': epg.get('app_profile', ''),
+                    'app_profile': analyzer._extract_app_profile_from_dn(epg_dn),
                     'scope': '',
                     'node': '',
                     'speed': ''
@@ -550,15 +565,20 @@ def analyze():
             # Add Bridge Domains
             for bd in analyzer._bds:
                 # Get subnets if available
-                subnets_list = bd.get('subnets', [])
+                bd_dn = bd.get('dn', '')
+                subnets_list = [
+                    subnet.get('ip')
+                    for subnet in analyzer._subnets
+                    if bd_dn and bd_dn in subnet.get('dn', '')
+                ]
                 subnet_str = ', '.join(subnets_list) if subnets_list else ''
 
                 unified_data.append({
                     'type': 'BD',
                     'name': bd.get('name', ''),
                     'id': '',
-                    'tenant': bd.get('tenant', ''),
-                    'vrf': bd.get('vrf', ''),
+                    'tenant': analyzer._extract_tenant_from_dn(bd_dn),
+                    'vrf': analyzer._get_vrf_name_for_bd(bd),
                     'bd': '',
                     'encap': '',
                     'ip_subnet': subnet_str,
@@ -574,11 +594,12 @@ def analyze():
 
             # Add VRFs
             for vrf in analyzer._vrfs:
+                vrf_dn = vrf.get('dn', '')
                 unified_data.append({
                     'type': 'VRF',
                     'name': vrf.get('name', ''),
                     'id': '',
-                    'tenant': vrf.get('tenant', ''),
+                    'tenant': analyzer._extract_tenant_from_dn(vrf_dn),
                     'vrf': '',
                     'bd': '',
                     'encap': '',
@@ -588,18 +609,19 @@ def analyze():
                     'status': '',
                     'role': '',
                     'app_profile': '',
-                    'scope': vrf.get('pce_policy', 'enforced'),
+                    'scope': vrf.get('pcEnfPref') or vrf.get('pce_policy', 'enforced'),
                     'node': '',
                     'speed': ''
                 })
 
             # Add Contracts
             for contract in analyzer._contracts:
+                contract_dn = contract.get('dn', '')
                 unified_data.append({
                     'type': 'Contract',
                     'name': contract.get('name', ''),
                     'id': '',
-                    'tenant': contract.get('tenant', ''),
+                    'tenant': analyzer._extract_tenant_from_dn(contract_dn),
                     'vrf': '',
                     'bd': '',
                     'encap': '',
@@ -616,13 +638,18 @@ def analyze():
 
             # Add Subnets
             for subnet in analyzer._subnets:
+                subnet_dn = subnet.get('dn', '')
+                subnet_bd = analyzer._extract_bd_name_from_dn(subnet_dn)
+                subnet_vrf = ''
+                if subnet_bd and subnet_bd in bd_by_name:
+                    subnet_vrf = analyzer._get_vrf_name_for_bd(bd_by_name[subnet_bd])
                 unified_data.append({
                     'type': 'Subnet',
                     'name': '',
                     'id': '',
-                    'tenant': subnet.get('tenant', ''),
-                    'vrf': '',
-                    'bd': subnet.get('bd', ''),
+                    'tenant': analyzer._extract_tenant_from_dn(subnet_dn),
+                    'vrf': subnet_vrf,
+                    'bd': subnet_bd,
                     'encap': '',
                     'ip_subnet': subnet.get('ip', ''),
                     'model': '',
@@ -637,10 +664,11 @@ def analyze():
 
             # Add Interfaces
             for iface in analyzer._interfaces:
+                iface_dn = iface.get('dn', '')
                 unified_data.append({
                     'type': 'Interface',
                     'name': '',
-                    'id': iface.get('id', ''),
+                    'id': analyzer._extract_interface_id_from_dn(iface_dn) or iface.get('id', ''),
                     'tenant': '',
                     'vrf': '',
                     'bd': '',
@@ -648,12 +676,12 @@ def analyze():
                     'ip_subnet': '',
                     'model': '',
                     'serial': '',
-                    'status': iface.get('oper_state', 'down'),
-                    'role': iface.get('usage', ''),
+                    'status': iface.get('operSt', 'unknown'),
+                    'role': iface.get('usage', '') or iface.get('usage', ''),
                     'app_profile': '',
                     'scope': '',
-                    'node': iface.get('node', ''),
-                    'speed': iface.get('speed', '')
+                    'node': analyzer._extract_node_id_from_dn(iface_dn) or '',
+                    'speed': iface.get('operSpeed', '') or iface.get('speed', '')
                 })
 
             # Extract unique values for filters
@@ -673,6 +701,7 @@ def analyze():
                           mode=mode,
                           current_fabric=current_fabric,
                           datasets=datasets,
+                          validation_results=validation_results,
                           unified_data=unified_data,
                           tenants=tenants,
                          vrfs=vrfs,
@@ -854,9 +883,13 @@ def import_from_mcp():
             return jsonify({'error': str(e)}), 400
 
         if mcp_url.strip().lower() == 'mock':
-            sample_path = BASE_DIR / 'data' / 'samples' / 'sample_aci.json'
-            if not sample_path.exists():
-                return jsonify({'error': f'Mock data file not found: {sample_path}'}), 500
+            sample_candidates = [
+                BASE_DIR / 'data' / 'samples' / 'sample_large_scale.json',
+                BASE_DIR / 'data' / 'samples' / 'sample_aci.json',
+            ]
+            sample_path = next((p for p in sample_candidates if p.exists()), None)
+            if not sample_path:
+                return jsonify({'error': 'Mock data file not found in data/samples'}), 500
 
             sample_objects = json.loads(read_file_safely(sample_path))
 
@@ -882,7 +915,7 @@ def import_from_mcp():
                 'success': True,
                 'fabric_name': fabric_name,
                 'statistics': {},
-                'message': 'Imported bundled sample data via mock MCP'
+                'message': f'Imported bundled sample data via mock MCP ({sample_path.name})'
             })
 
         from mcp_client import MCPClient, MCPDataValidator

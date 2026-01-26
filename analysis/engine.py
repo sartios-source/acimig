@@ -48,12 +48,16 @@ class ACIAnalyzer:
         self._subnets = []
         self._interfaces = []
         self._physical_domains = []
+        self._epg_bd_relations = []
+        self._bd_vrf_relations = []
 
         # Lookup dictionaries for performance
         self._fex_by_id = {}
         self._leaf_by_id = {}
         self._epg_by_dn = {}
         self._bd_by_dn = {}
+        self._epg_bd_map = {}
+        self._bd_vrf_map = {}
 
     def _load_data(self):
         """Load and parse all datasets (ACI and CMDB)."""
@@ -179,6 +183,20 @@ class ACIAnalyzer:
 
             elif obj_type == 'physDomP':
                 self._physical_domains.append(attrs)
+
+            elif obj_type == 'fvRsBd':
+                self._epg_bd_relations.append(attrs)
+                epg_dn = self._extract_epg_dn_from_relation_dn(attrs.get('dn', ''))
+                bd_name = attrs.get('tnFvBDName') or self._extract_bd_name_from_dn(attrs.get('tDn', ''))
+                if epg_dn and bd_name:
+                    self._epg_bd_map[epg_dn] = bd_name
+
+            elif obj_type == 'fvRsCtx':
+                self._bd_vrf_relations.append(attrs)
+                bd_dn = self._extract_bd_dn_from_relation_dn(attrs.get('dn', ''))
+                vrf_name = attrs.get('tnFvCtxName') or self._extract_vrf_name_from_dn(attrs.get('tDn', ''))
+                if bd_dn and vrf_name:
+                    self._bd_vrf_map[bd_dn] = vrf_name
 
         logger.info(
             f"Categorized objects: {len(self._fexes)} FEX, {len(self._leafs)} leafs, "
@@ -461,16 +479,16 @@ class ACIAnalyzer:
         for bd in self._bds:
             bd_name = bd.get('name', '')
             bd_dn = bd.get('dn', '')
-            vrf_name = bd.get('vrf', '')
+            vrf_name = self._get_vrf_name_for_bd(bd)
 
             # Extract tenant from DN
             tenant = self._extract_tenant_from_dn(bd_dn)
 
             # Find EPGs in this BD
-            epgs_in_bd = [
-                epg for epg in self._epgs
-                if epg.get('bd') == bd_name and tenant in epg.get('dn', '')
-            ]
+            epgs_in_bd = []
+            for epg in self._epgs:
+                if self._get_bd_name_for_epg(epg) == bd_name and tenant in epg.get('dn', ''):
+                    epgs_in_bd.append(epg)
 
             # Find subnets in this BD
             bd_subnets = [
@@ -950,6 +968,66 @@ class ACIAnalyzer:
         """Extract tenant name from DN."""
         match = re.search(r'tn-([^/]+)', dn)
         return match.group(1) if match else 'unknown'
+
+    def _extract_app_profile_from_dn(self, dn: str) -> str:
+        """Extract application profile name from DN."""
+        match = re.search(r'ap-([^/]+)', dn)
+        return match.group(1) if match else ''
+
+    def _extract_bd_name_from_dn(self, dn: str) -> str:
+        """Extract BD name from DN."""
+        match = re.search(r'BD-([^/]+)', dn)
+        return match.group(1) if match else ''
+
+    def _extract_vrf_name_from_dn(self, dn: str) -> str:
+        """Extract VRF name from DN."""
+        match = re.search(r'ctx-([^/]+)', dn)
+        return match.group(1) if match else ''
+
+    def _extract_bd_dn_from_relation_dn(self, dn: str) -> str:
+        """Extract BD DN from a relation DN."""
+        match = re.search(r'(uni/tn-[^/]+/BD-[^/]+)', dn)
+        return match.group(1) if match else ''
+
+    def _extract_epg_dn_from_relation_dn(self, dn: str) -> str:
+        """Extract EPG DN from a relation DN."""
+        match = re.search(r'(uni/tn-[^/]+/ap-[^/]+/epg-[^/]+)', dn)
+        return match.group(1) if match else ''
+
+    def _extract_node_id_from_dn(self, dn: str) -> Optional[str]:
+        """Extract node ID from DN."""
+        match = re.search(r'node-(\d+)', dn)
+        return match.group(1) if match else None
+
+    def _extract_interface_id_from_dn(self, dn: str) -> str:
+        """Extract interface ID from DN."""
+        match = re.search(r'phys-\[(.*?)\]', dn)
+        if match:
+            return match.group(1)
+        match = re.search(r'aggr-\[(.*?)\]', dn)
+        if match:
+            return match.group(1)
+        return ''
+
+    def _get_bd_name_for_epg(self, epg: Dict[str, Any]) -> str:
+        """Resolve BD name for an EPG using attributes or relation map."""
+        bd_name = epg.get('bd', '')
+        if bd_name:
+            return bd_name
+        epg_dn = epg.get('dn', '')
+        if epg_dn and epg_dn in self._epg_bd_map:
+            return self._epg_bd_map[epg_dn]
+        return ''
+
+    def _get_vrf_name_for_bd(self, bd: Dict[str, Any]) -> str:
+        """Resolve VRF name for a BD using attributes or relation map."""
+        vrf_name = bd.get('vrf', '')
+        if vrf_name:
+            return vrf_name
+        bd_dn = bd.get('dn', '')
+        if bd_dn and bd_dn in self._bd_vrf_map:
+            return self._bd_vrf_map[bd_dn]
+        return ''
 
     def _extract_epg_from_path_dn(self, dn: str) -> str:
         """Extract EPG DN from path attachment DN."""
@@ -1616,63 +1694,349 @@ class ACIAnalyzer:
         """
         self._load_data()
 
+        # Count all object types present in the dataset
+        type_counts = defaultdict(int)
+        for obj in self._aci_objects:
+            obj_type = obj.get('type')
+            if obj_type:
+                type_counts[obj_type] += 1
+
         # Define required and optional object types
-        object_types = {
-            'EPGs (fvAEPg)': {
-                'count': len(self._epgs),
+        object_definitions = [
+            {
+                'label': 'EPGs (fvAEPg)',
+                'type': 'fvAEPg',
                 'required': True,
                 'description': 'Application Endpoint Groups - defines workload placement',
                 'collection_command': 'moquery -c fvAEPg -o json > epgs.json'
             },
-            'Leafs (fabricNode)': {
-                'count': len(self._leafs),
+            {
+                'label': 'Leafs (fabricNode)',
+                'type': 'fabricNode',
                 'required': True,
                 'description': 'Leaf switches - fabric infrastructure',
                 'collection_command': 'moquery -c fabricNode -o json > nodes.json'
             },
-            'Path Attachments (fvRsPathAtt)': {
-                'count': len(self._path_attachments),
+            {
+                'label': 'Path Attachments (fvRsPathAtt)',
+                'type': 'fvRsPathAtt',
                 'required': True,
                 'description': 'EPG bindings to physical interfaces',
                 'collection_command': 'moquery -c fvRsPathAtt -o json > paths.json'
             },
-            'FEX Devices (eqptFex)': {
-                'count': len(self._fexes),
+            {
+                'label': 'Bridge Domains (fvBD)',
+                'type': 'fvBD',
+                'required': True,
+                'description': 'Layer 2 forwarding domains',
+                'collection_command': 'moquery -c fvBD -o json > bridge_domains.json'
+            },
+            {
+                'label': 'VRFs (fvCtx)',
+                'type': 'fvCtx',
+                'required': True,
+                'description': 'Layer 3 routing contexts',
+                'collection_command': 'moquery -c fvCtx -o json > vrfs.json'
+            },
+            {
+                'label': 'Tenants (fvTenant)',
+                'type': 'fvTenant',
+                'required': True,
+                'description': 'Multi-tenancy containers',
+                'collection_command': 'moquery -c fvTenant -o json > tenants.json'
+            },
+            {
+                'label': 'Subnets (fvSubnet)',
+                'type': 'fvSubnet',
+                'required': True,
+                'description': 'IP subnet definitions',
+                'collection_command': 'moquery -c fvSubnet -o json > subnets.json'
+            },
+            {
+                'label': 'Physical Interfaces (ethpmPhysIf)',
+                'type': 'ethpmPhysIf',
+                'required': True,
+                'description': 'Physical interface inventory for utilization and cabling analysis',
+                'collection_command': 'moquery -c ethpmPhysIf -o json > interfaces.json'
+            },
+            {
+                'label': 'Physical Domains (physDomP)',
+                'type': 'physDomP',
+                'required': True,
+                'description': 'Physical domains for VLAN/domain mapping',
+                'collection_command': 'moquery -c physDomP -o json > phys_domains.json'
+            },
+            {
+                'label': 'FEX Devices (eqptFex)',
+                'type': 'eqptFex',
                 'required': False,
                 'description': 'Fabric Extenders - used for port utilization and consolidation analysis',
                 'collection_command': 'moquery -c eqptFex -o json > fex.json'
             },
-            'Bridge Domains (fvBD)': {
-                'count': len(self._bds),
-                'required': False,
-                'description': 'Layer 2 forwarding domains',
-                'collection_command': 'moquery -c fvBD -o json > bridge_domains.json'
-            },
-            'VRFs (fvCtx)': {
-                'count': len(self._vrfs),
-                'required': False,
-                'description': 'Layer 3 routing contexts',
-                'collection_command': 'moquery -c fvCtx -o json > vrfs.json'
-            },
-            'Contracts (vzBrCP)': {
-                'count': len(self._contracts),
+            {
+                'label': 'Contracts (vzBrCP)',
+                'type': 'vzBrCP',
                 'required': False,
                 'description': 'Inter-EPG communication policies',
                 'collection_command': 'moquery -c vzBrCP -o json > contracts.json'
             },
-            'Subnets (fvSubnet)': {
-                'count': len(self._subnets),
+            {
+                'label': 'Contract Subjects (vzSubj)',
+                'type': 'vzSubj',
                 'required': False,
-                'description': 'IP subnet definitions',
-                'collection_command': 'moquery -c fvSubnet -o json > subnets.json'
+                'description': 'Contract subjects for ACL translation',
+                'collection_command': 'moquery -c vzSubj -o json > contract_subjects.json'
             },
-            'Tenants (fvTenant)': {
-                'count': len(self._tenants),
+            {
+                'label': 'Contract Filters (vzFilter)',
+                'type': 'vzFilter',
                 'required': False,
-                'description': 'Multi-tenancy containers',
-                'collection_command': 'moquery -c fvTenant -o json > tenants.json'
+                'description': 'Contract filters for ACL translation',
+                'collection_command': 'moquery -c vzFilter -o json > contract_filters.json'
+            },
+            {
+                'label': 'Contract Entries (vzEntry)',
+                'type': 'vzEntry',
+                'required': False,
+                'description': 'Filter entries (rules) for ACL translation',
+                'collection_command': 'moquery -c vzEntry -o json > contract_entries.json'
+            },
+            {
+                'label': 'Subject Filter Attachments (vzRsSubjFiltAtt)',
+                'type': 'vzRsSubjFiltAtt',
+                'required': False,
+                'description': 'Filter bindings to contract subjects',
+                'collection_command': 'moquery -c vzRsSubjFiltAtt -o json > subj_filter_bindings.json'
+            },
+            {
+                'label': 'Contract Consumers (fvRsCons)',
+                'type': 'fvRsCons',
+                'required': False,
+                'description': 'EPG-to-contract consumer mappings',
+                'collection_command': 'moquery -c fvRsCons -o json > contract_consumers.json'
+            },
+            {
+                'label': 'Contract Providers (fvRsProv)',
+                'type': 'fvRsProv',
+                'required': False,
+                'description': 'EPG-to-contract provider mappings',
+                'collection_command': 'moquery -c fvRsProv -o json > contract_providers.json'
+            },
+            {
+                'label': 'VPC Domains (vpcDom)',
+                'type': 'vpcDom',
+                'required': False,
+                'description': 'VPC domain configuration',
+                'collection_command': 'moquery -c vpcDom -o json > vpc_domains.json'
+            },
+            {
+                'label': 'Port Channels (pcAggrIf)',
+                'type': 'pcAggrIf',
+                'required': False,
+                'description': 'Port-channel aggregated interfaces',
+                'collection_command': 'moquery -c pcAggrIf -o json > port_channels.json'
+            },
+            {
+                'label': 'LACP Entities (lacpEntity)',
+                'type': 'lacpEntity',
+                'required': False,
+                'description': 'LACP configuration entities',
+                'collection_command': 'moquery -c lacpEntity -o json > lacp.json'
+            },
+            {
+                'label': 'VPC Interfaces (vpcIf)',
+                'type': 'vpcIf',
+                'required': False,
+                'description': 'VPC interface details',
+                'collection_command': 'moquery -c vpcIf -o json > vpc_interfaces.json'
+            },
+            {
+                'label': 'L3Out (l3extOut)',
+                'type': 'l3extOut',
+                'required': False,
+                'description': 'External routed network definitions',
+                'collection_command': 'moquery -c l3extOut -o json > l3outs.json'
+            },
+            {
+                'label': 'External EPGs (l3extInstP)',
+                'type': 'l3extInstP',
+                'required': False,
+                'description': 'External EPGs for L3Out',
+                'collection_command': 'moquery -c l3extInstP -o json > l3ext_epgs.json'
+            },
+            {
+                'label': 'L3Out Node Profiles (l3extLNodeP)',
+                'type': 'l3extLNodeP',
+                'required': False,
+                'description': 'Border leaf associations for L3Out',
+                'collection_command': 'moquery -c l3extLNodeP -o json > l3ext_nodes.json'
+            },
+            {
+                'label': 'L3Out Interface Profiles (l3extLIfP)',
+                'type': 'l3extLIfP',
+                'required': False,
+                'description': 'External interface profiles for L3Out',
+                'collection_command': 'moquery -c l3extLIfP -o json > l3ext_interfaces.json'
+            },
+            {
+                'label': 'L3Out Node Attachments (l3extRsNodeL3OutAtt)',
+                'type': 'l3extRsNodeL3OutAtt',
+                'required': False,
+                'description': 'L3Out node attachments',
+                'collection_command': 'moquery -c l3extRsNodeL3OutAtt -o json > l3ext_node_attach.json'
+            },
+            {
+                'label': 'L3Out Subnets (l3extSubnet)',
+                'type': 'l3extSubnet',
+                'required': False,
+                'description': 'L3Out external subnets',
+                'collection_command': 'moquery -c l3extSubnet -o json > l3ext_subnets.json'
+            },
+            {
+                'label': 'L3Out VRF Binding (l3extRsEctx)',
+                'type': 'l3extRsEctx',
+                'required': False,
+                'description': 'L3Out to VRF bindings',
+                'collection_command': 'moquery -c l3extRsEctx -o json > l3ext_vrf_binding.json'
+            },
+            {
+                'label': 'BGP Peers (bgpPeerP)',
+                'type': 'bgpPeerP',
+                'required': False,
+                'description': 'BGP peer configurations',
+                'collection_command': 'moquery -c bgpPeerP -o json > bgp_peers.json'
+            },
+            {
+                'label': 'OSPF Interfaces (ospfIfP)',
+                'type': 'ospfIfP',
+                'required': False,
+                'description': 'OSPF interface configurations',
+                'collection_command': 'moquery -c ospfIfP -o json > ospf_interfaces.json'
+            },
+            {
+                'label': 'Static Routes (ipRouteP)',
+                'type': 'ipRouteP',
+                'required': False,
+                'description': 'Static route configurations',
+                'collection_command': 'moquery -c ipRouteP -o json > static_routes.json'
+            },
+            {
+                'label': 'VLAN Pools (fvnsVlanInstP)',
+                'type': 'fvnsVlanInstP',
+                'required': False,
+                'description': 'VLAN pool definitions',
+                'collection_command': 'moquery -c fvnsVlanInstP -o json > vlan_pools.json'
+            },
+            {
+                'label': 'VLAN Ranges (fvnsEncapBlk)',
+                'type': 'fvnsEncapBlk',
+                'required': False,
+                'description': 'VLAN allocation ranges',
+                'collection_command': 'moquery -c fvnsEncapBlk -o json > vlan_ranges.json'
+            },
+            {
+                'label': 'VMM Domains (vmmDomP)',
+                'type': 'vmmDomP',
+                'required': False,
+                'description': 'VMM domains for VLAN bindings',
+                'collection_command': 'moquery -c vmmDomP -o json > vmm_domains.json'
+            },
+            {
+                'label': 'L3 Domains (l3extDomP)',
+                'type': 'l3extDomP',
+                'required': False,
+                'description': 'L3 domains for VLAN bindings',
+                'collection_command': 'moquery -c l3extDomP -o json > l3_domains.json'
+            },
+            {
+                'label': 'VLAN Namespace Bindings (infraRsVlanNs)',
+                'type': 'infraRsVlanNs',
+                'required': False,
+                'description': 'VLAN pool bindings for physical domains',
+                'collection_command': 'moquery -c infraRsVlanNs -o json > vlan_bindings_phys.json'
+            },
+            {
+                'label': 'VLAN Namespace Bindings (vmmRsVlanNs)',
+                'type': 'vmmRsVlanNs',
+                'required': False,
+                'description': 'VLAN pool bindings for VMM domains',
+                'collection_command': 'moquery -c vmmRsVlanNs -o json > vlan_bindings_vmm.json'
+            },
+            {
+                'label': 'VLAN Namespace Bindings (l3extRsVlanNs)',
+                'type': 'l3extRsVlanNs',
+                'required': False,
+                'description': 'VLAN pool bindings for L3 domains',
+                'collection_command': 'moquery -c l3extRsVlanNs -o json > vlan_bindings_l3.json'
+            },
+            {
+                'label': 'Access Port Groups (infraAccPortGrp)',
+                'type': 'infraAccPortGrp',
+                'required': False,
+                'description': 'Access port policy groups',
+                'collection_command': 'moquery -c infraAccPortGrp -o json > access_port_groups.json'
+            },
+            {
+                'label': 'Bundle Port Groups (infraAccBndlGrp)',
+                'type': 'infraAccBndlGrp',
+                'required': False,
+                'description': 'Port-channel policy groups',
+                'collection_command': 'moquery -c infraAccBndlGrp -o json > bundle_port_groups.json'
+            },
+            {
+                'label': 'Interface Profiles (infraAccPortP)',
+                'type': 'infraAccPortP',
+                'required': False,
+                'description': 'Interface profile definitions',
+                'collection_command': 'moquery -c infraAccPortP -o json > interface_profiles.json'
+            },
+            {
+                'label': 'Port Selectors (infraHPortS)',
+                'type': 'infraHPortS',
+                'required': False,
+                'description': 'Port selector definitions',
+                'collection_command': 'moquery -c infraHPortS -o json > port_selectors.json'
+            },
+            {
+                'label': 'AEP Domain Bindings (infraRsDomP)',
+                'type': 'infraRsDomP',
+                'required': False,
+                'description': 'Attachable Entity Profile domain bindings',
+                'collection_command': 'moquery -c infraRsDomP -o json > aep_domain_bindings.json'
+            },
+            {
+                'label': 'Attachable Entity Profiles (infraAttEntityP)',
+                'type': 'infraAttEntityP',
+                'required': False,
+                'description': 'Attachable Entity Profiles for physical connectivity',
+                'collection_command': 'moquery -c infraAttEntityP -o json > aeps.json'
+            },
+            {
+                'label': 'LLDP Neighbors (lldpAdjEp)',
+                'type': 'lldpAdjEp',
+                'required': False,
+                'description': 'LLDP neighbor discovery',
+                'collection_command': 'moquery -c lldpAdjEp -o json > lldp_neighbors.json'
+            },
+            {
+                'label': 'CDP Neighbors (cdpAdjEp)',
+                'type': 'cdpAdjEp',
+                'required': False,
+                'description': 'CDP neighbor discovery',
+                'collection_command': 'moquery -c cdpAdjEp -o json > cdp_neighbors.json'
             }
-        }
+        ]
+
+        object_types = {}
+        for obj_def in object_definitions:
+            count = type_counts.get(obj_def['type'], 0)
+            object_types[obj_def['label']] = {
+                'count': count,
+                'required': obj_def['required'],
+                'description': obj_def['description'],
+                'collection_command': obj_def['collection_command'],
+                'aci_class': obj_def['type']
+            }
 
         # Calculate completeness score
         total_required = sum(1 for obj in object_types.values() if obj['required'])
@@ -1696,39 +2060,32 @@ class ACIAnalyzer:
         ]
 
         # Analysis capabilities
-        capabilities = {
-            'Port Utilization': {
-                'enabled': len(self._fexes) > 0 and len(self._interfaces) > 0,
-                'reason': 'Missing FEX devices or interfaces' if not (len(self._fexes) > 0) else None
-            },
-            'Topology Mapping': {
-                'enabled': len(self._leafs) > 0,
-                'reason': 'Missing leaf switches' if len(self._leafs) == 0 else None
-            },
-            'EPG Complexity': {
-                'enabled': len(self._epgs) > 0 and len(self._path_attachments) > 0,
-                'reason': 'Missing EPGs or path attachments' if not (len(self._epgs) > 0 and len(self._path_attachments) > 0) else None
-            },
-            'BD-EPG Mapping': {
-                'enabled': len(self._bds) > 0 and len(self._epgs) > 0,
-                'reason': 'Missing bridge domains' if len(self._bds) == 0 else None
-            },
-            'Contract Analysis': {
-                'enabled': len(self._contracts) > 0,
-                'reason': 'Missing contracts' if len(self._contracts) == 0 else None
-            },
-            'VLAN Distribution': {
-                'enabled': len(self._path_attachments) > 0,
-                'reason': 'Missing path attachments' if len(self._path_attachments) == 0 else None
-            },
-            'Migration Planning': {
-                'enabled': len(self._epgs) > 0 and len(self._path_attachments) > 0,
-                'reason': 'Missing EPGs or path attachments' if not (len(self._epgs) > 0 and len(self._path_attachments) > 0) else None
-            },
-            'CMDB Correlation': {
-                'enabled': self._cmdb_records is not None and len(self._cmdb_records) > 0,
-                'reason': 'Missing CMDB data' if not (self._cmdb_records and len(self._cmdb_records) > 0) else None
+        module_requirements = {
+            'Port Utilization': ['eqptFex', 'ethpmPhysIf'],
+            'Topology Mapping': ['fabricNode'],
+            'EPG Complexity': ['fvAEPg', 'fvRsPathAtt'],
+            'BD-EPG Mapping': ['fvBD', 'fvAEPg', 'fvSubnet'],
+            'Contract Translation': ['vzBrCP', 'vzSubj', 'vzFilter', 'vzEntry', 'vzRsSubjFiltAtt', 'fvRsCons', 'fvRsProv', 'fvAEPg'],
+            'VLAN Distribution': ['fvRsPathAtt'],
+            'VPC Analysis': ['vpcDom', 'pcAggrIf', 'lacpEntity', 'vpcIf', 'fvRsPathAtt'],
+            'L3Out Analysis': ['l3extOut', 'l3extInstP', 'l3extLNodeP', 'l3extLIfP', 'l3extRsNodeL3OutAtt', 'l3extSubnet', 'l3extRsEctx', 'bgpPeerP', 'ospfIfP', 'ipRouteP', 'fvCtx'],
+            'VLAN Pool Analysis': ['fvnsVlanInstP', 'fvnsEncapBlk', 'physDomP', 'vmmDomP', 'l3extDomP', 'infraRsVlanNs', 'vmmRsVlanNs', 'l3extRsVlanNs', 'fvRsPathAtt', 'fvAEPg'],
+            'Physical Connectivity': ['ethpmPhysIf', 'infraAccPortGrp', 'infraAccBndlGrp', 'infraAccPortP', 'infraHPortS', 'infraRsDomP', 'infraAttEntityP', 'lldpAdjEp', 'cdpAdjEp', 'fvRsPathAtt', 'fabricNode'],
+            'Migration Planning': ['fvAEPg', 'fvRsPathAtt', 'fvBD', 'fvCtx', 'fvSubnet']
+        }
+
+        capabilities = {}
+        for module, required_types in module_requirements.items():
+            missing_types = [t for t in required_types if type_counts.get(t, 0) == 0]
+            capabilities[module] = {
+                'enabled': len(missing_types) == 0,
+                'reason': f"Missing: {', '.join(missing_types)}" if missing_types else None,
+                'missing_types': missing_types
             }
+
+        capabilities['CMDB Correlation'] = {
+            'enabled': self._cmdb_records is not None and len(self._cmdb_records) > 0,
+            'reason': 'Missing CMDB data' if not (self._cmdb_records and len(self._cmdb_records) > 0) else None
         }
 
         # Suggestions
@@ -1746,6 +2103,36 @@ class ACIAnalyzer:
                 'command': 'moquery -c vzBrCP -o json > contracts.json'
             })
 
+        if type_counts.get('vzSubj', 0) == 0 or type_counts.get('vzFilter', 0) == 0 or type_counts.get('vzEntry', 0) == 0:
+            suggestions.append({
+                'text': 'Upload contract subjects and filters to enable ACL translation',
+                'command': 'moquery -c vzSubj -o json > contract_subjects.json'
+            })
+
+        if type_counts.get('l3extOut', 0) == 0:
+            suggestions.append({
+                'text': 'Upload L3Out data to analyze external connectivity impact',
+                'command': 'moquery -c l3extOut -o json > l3outs.json'
+            })
+
+        if type_counts.get('fvnsVlanInstP', 0) == 0:
+            suggestions.append({
+                'text': 'Upload VLAN pool data to analyze VLAN namespace conflicts',
+                'command': 'moquery -c fvnsVlanInstP -o json > vlan_pools.json'
+            })
+
+        if type_counts.get('vpcDom', 0) == 0:
+            suggestions.append({
+                'text': 'Upload VPC domain data to validate dual-homing symmetry',
+                'command': 'moquery -c vpcDom -o json > vpc_domains.json'
+            })
+
+        if type_counts.get('ethpmPhysIf', 0) == 0:
+            suggestions.append({
+                'text': 'Upload physical interface data for port utilization and cabling analysis',
+                'command': 'moquery -c ethpmPhysIf -o json > interfaces.json'
+            })
+
         if not self._cmdb_records:
             suggestions.append({
                 'text': 'Upload CMDB data (CSV) for rack-level correlation and physical location mapping',
@@ -1758,11 +2145,63 @@ class ACIAnalyzer:
                 'command': 'moquery -c eqptFex -o json > fex.json'
             })
 
+        # Data quality checks
+        quality_issues = []
+
+        invalid_encap = [
+            p for p in self._path_attachments
+            if not re.search(r'vlan-(\d+)', p.get('encap', ''))
+        ]
+        if invalid_encap:
+            quality_issues.append({
+                'category': 'path_attachment_encap',
+                'message': f'{len(invalid_encap)} path attachments missing or invalid VLAN encap',
+                'severity': 'high'
+            })
+
+        missing_tdn = [
+            p for p in self._path_attachments
+            if not p.get('tDn') or not self._extract_nodes_from_tdn(p.get('tDn', ''))
+        ]
+        if missing_tdn:
+            quality_issues.append({
+                'category': 'path_attachment_target',
+                'message': f'{len(missing_tdn)} path attachments missing target path (tDn)',
+                'severity': 'high'
+            })
+
+        epgs_without_paths = [
+            epg for epg in self._epgs
+            if not any(epg.get('dn', '') in p.get('dn', '') for p in self._path_attachments)
+        ]
+        if epgs_without_paths:
+            quality_issues.append({
+                'category': 'epgs_without_paths',
+                'message': f'{len(epgs_without_paths)} EPGs without path attachments',
+                'severity': 'medium'
+            })
+
+        bds_without_subnets = [
+            bd for bd in self._bds
+            if not any(bd.get('dn', '') in s.get('dn', '') for s in self._subnets)
+        ]
+        if bds_without_subnets:
+            quality_issues.append({
+                'category': 'bds_without_subnets',
+                'message': f'{len(bds_without_subnets)} Bridge Domains without subnets',
+                'severity': 'medium'
+            })
+
         return {
             'completeness_score': completeness_score,
             'object_counts': object_types,
             'missing_required': missing_required,
             'analysis_capabilities': capabilities,
+            'module_requirements': module_requirements,
+            'data_quality': {
+                'issues': quality_issues,
+                'issue_count': len(quality_issues)
+            },
             'suggestions': suggestions,
             'total_objects': len(self._aci_objects) if self._aci_objects else 0,
             'has_cmdb': self._cmdb_records is not None and len(self._cmdb_records) > 0
