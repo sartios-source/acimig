@@ -269,7 +269,8 @@ docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics ACI Migrator:2.0
 **Option A: ACI JSON/XML Export**
 
 1. Navigate to "Upload" page
-2. Drag and drop your ACI export files
+2. Download the offline collector script from the Upload page if you need offline data capture
+3. Drag and drop your ACI export files
 3. Supported formats: `.json`, `.xml`
 4. Wait for parsing to complete
 

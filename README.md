@@ -154,6 +154,7 @@ Multi-format report generation (HTML, Markdown, CSV) for documentation and analy
 
 2. **Upload ACI data**
    - Go to Upload page
+   - Download the offline collector script from the Upload page if needed
    - Drag and drop your ACI JSON/XML files
    - Wait for parsing to complete
    - Files are stored in the currently selected fabric
