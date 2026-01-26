@@ -581,9 +581,8 @@ class ACIAnalyzer:
             # Extract unique leafs/nodes
             nodes = set()
             for path in paths:
-                node_match = re.search(r'node-(\d+)', path.get('tDn', ''))
-                if node_match:
-                    nodes.add(node_match.group(1))
+                for node_id in self._extract_nodes_from_tdn(path.get('tDn', '')):
+                    nodes.add(node_id)
 
             # Calculate complexity score (0-100)
             complexity_score = self._calculate_epg_complexity_score(
@@ -630,14 +629,13 @@ class ACIAnalyzer:
 
             for path in paths:
                 tdn = path.get('tDn', '')
-                node_match = re.search(r'node-(\d+)', tdn)
                 encap = path.get('encap', '')
                 vlan_match = re.search(r'vlan-(\d+)', encap)
 
-                if node_match and vlan_match:
-                    node_id = node_match.group(1)
+                if vlan_match:
                     vlan_id = vlan_match.group(1)
-                    node_vlans[node_id].add(vlan_id)
+                    for node_id in self._extract_nodes_from_tdn(tdn):
+                        node_vlans[node_id].add(vlan_id)
 
             # Look for potential asymmetry (nodes with different VLAN sets)
             if len(node_vlans) > 1:
@@ -928,6 +926,25 @@ class ACIAnalyzer:
         """Extract leaf node ID from FEX DN."""
         match = re.search(r'node-(\d+)', dn)
         return match.group(1) if match else None
+
+    def _extract_nodes_from_tdn(self, tdn: str) -> List[str]:
+        """Extract leaf node IDs from a path attachment target DN."""
+        if not tdn:
+            return []
+
+        protpaths_match = re.search(r'protpaths-(\d+)-(\d+)', tdn)
+        if protpaths_match:
+            return [protpaths_match.group(1), protpaths_match.group(2)]
+
+        paths_match = re.search(r'paths-(\d+)', tdn)
+        if paths_match:
+            return [paths_match.group(1)]
+
+        node_match = re.search(r'node-(\d+)', tdn)
+        if node_match:
+            return [node_match.group(1)]
+
+        return []
 
     def _extract_tenant_from_dn(self, dn: str) -> str:
         """Extract tenant name from DN."""
