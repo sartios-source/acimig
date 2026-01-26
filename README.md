@@ -174,6 +174,24 @@ Multi-format report generation (HTML, Markdown, CSV) for documentation and analy
    - Choose your format (HTML, Markdown, CSV)
    - Download comprehensive analysis
 
+### Local MCP Testing (No VMs)
+
+Run the MCP server locally with mock ACI data to test MCP import without cloud deployment.
+
+```bash
+# Terminal 1: start MCP server on an alternate port
+set MCP_PORT=5001
+python gcp-deployment/mcp-server/server.py --mock-data data/samples/sample_aci.json
+
+# Terminal 2: start ACI Migrator
+python app.py
+```
+
+Then use the MCP Import UI with `http://127.0.0.1:5001`, or run:
+```bash
+python gcp-deployment/scripts/test-mcp-integration.py --mcp-url http://127.0.0.1:5001 --skip-apic
+```
+
 **Fabric Management:**
 - **Switch Fabrics**: Use the dropdown in the Fabric Manager (sidebar)
 - **Delete Fabric**: Click "Delete Fabric" button (requires confirmation)

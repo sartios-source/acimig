@@ -44,9 +44,10 @@ def log_error(msg):
 class MCPIntegrationTester:
     """Test MCP integration"""
 
-    def __init__(self, mcp_url: str, apic_url: str):
+    def __init__(self, mcp_url: str, apic_url: str, skip_apic: bool = False):
         self.mcp_url = mcp_url.rstrip('/')
         self.apic_url = apic_url.rstrip('/')
+        self.skip_apic = skip_apic
         self.test_results = {
             'timestamp': datetime.utcnow().isoformat(),
             'tests': [],
@@ -385,8 +386,9 @@ class MCPIntegrationTester:
         print(f"========================================{Colors.NC}\n")
 
         # Run tests
-        self.test_apic_health()
-        self.test_apic_login()
+        if not self.skip_apic:
+            self.test_apic_health()
+            self.test_apic_login()
         self.test_mcp_health()
         self.test_mcp_fabric_data()
         self.test_mcp_migrator_data()
@@ -428,12 +430,13 @@ class MCPIntegrationTester:
 def main():
     parser = argparse.ArgumentParser(description='Test MCP Integration')
     parser.add_argument('--mcp-url', required=True, help='MCP server URL')
-    parser.add_argument('--apic-url', required=True, help='APIC URL')
+    parser.add_argument('--apic-url', default='http://127.0.0.1', help='APIC URL')
+    parser.add_argument('--skip-apic', action='store_true', help='Skip APIC connectivity checks')
     parser.add_argument('--output', default='test-results.json', help='Output file for results')
 
     args = parser.parse_args()
 
-    tester = MCPIntegrationTester(args.mcp_url, args.apic_url)
+    tester = MCPIntegrationTester(args.mcp_url, args.apic_url, skip_apic=args.skip_apic)
     tester.run_all_tests()
     tester.save_results(args.output)
 

@@ -1,5 +1,7 @@
 # ACI Migrator POC - Complete Zero-Touch Deployment
 
+Optional: This cloud deployment is not required for local MCP testing. Use the mock MCP server path for lightweight validation.
+
 ## Deployment Complete!
 
 This document provides a comprehensive overview of the zero-touch deployment solution created for testing the ACI Migrator application with a simulated Cisco ACI environment on Google Cloud Platform.

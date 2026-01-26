@@ -2,6 +2,8 @@
 
 Get your ACI Migrator POC environment running in 5 minutes!
 
+Optional: For local MCP testing without VMs, run `python gcp-deployment/mcp-server/server.py --mock-data data/samples/sample_aci.json` with `MCP_PORT=5001`.
+
 ## Prerequisites Check (2 minutes)
 
 ```bash

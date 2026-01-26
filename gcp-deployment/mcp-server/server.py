@@ -9,6 +9,7 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 from datetime import datetime
+from pathlib import Path
 import aiohttp
 from aiohttp import web
 import ssl
@@ -364,11 +365,13 @@ class DataTransformer:
 class MCPServer:
     """MCP Server for ACI Migrator"""
 
-    def __init__(self, apic_url: str, username: str, password: str, port: int = 5000):
+    def __init__(self, apic_url: str, username: str, password: str, port: int = 5000,
+                 mock_data_path: Optional[str] = None):
         self.apic_url = apic_url
         self.username = username
         self.password = password
         self.port = port
+        self.mock_data_path = mock_data_path
         self.app = web.Application()
         self.setup_routes()
         self.cached_data = None
@@ -389,17 +392,102 @@ class MCPServer:
             'service': 'ACI MCP Server',
             'version': '1.0.0',
             'apic_url': self.apic_url,
+            'mode': 'mock' if self.mock_data_path else 'apic',
+            'mock_data_path': self.mock_data_path,
             'last_refresh': self.last_refresh.isoformat() if self.last_refresh else None
         })
+
+    def _load_mock_data(self) -> Dict[str, Any]:
+        """Load mock ACI data from a JSON file."""
+        if not self.mock_data_path:
+            raise ValueError("Mock data path not configured.")
+
+        path = Path(self.mock_data_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Mock data file not found: {path}")
+
+        raw = json.loads(path.read_text(encoding='utf-8'))
+
+        # If already in MCP fabric format, normalize and return.
+        if isinstance(raw, dict) and 'nodes' in raw and 'epgs' in raw:
+            raw.setdefault('timestamp', datetime.utcnow().isoformat())
+            return raw
+
+        imdata = raw.get('imdata', [])
+        class_map = {
+            'fabricNode': 'nodes',
+            'fvTenant': 'tenants',
+            'fvCtx': 'vrfs',
+            'fvBD': 'bridge_domains',
+            'fvAp': 'application_profiles',
+            'fvAEPg': 'epgs',
+            'fvRsPathAtt': 'epg_paths',
+            'vzBrCP': 'contracts',
+            'vzFilter': 'filters',
+            'l3extOut': 'l3outs',
+            'topSystem': 'fabric',
+        }
+
+        data = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'fabric': {},
+            'nodes': [],
+            'tenants': [],
+            'vrfs': [],
+            'bridge_domains': [],
+            'application_profiles': [],
+            'epgs': [],
+            'epg_paths': [],
+            'contracts': [],
+            'filters': [],
+            'l3outs': [],
+        }
+
+        fabric_info = None
+        for item in imdata:
+            if not isinstance(item, dict):
+                continue
+            for class_name, payload in item.items():
+                attrs = payload.get('attributes', {}) if isinstance(payload, dict) else {}
+                target = class_map.get(class_name)
+                if not target:
+                    continue
+                if target == 'fabric':
+                    if not fabric_info:
+                        fabric_info = {
+                            'name': attrs.get('name', 'Mock Fabric'),
+                            'version': attrs.get('version', 'unknown'),
+                            'node_count': 0,
+                        }
+                else:
+                    data[target].append(attrs)
+
+        if fabric_info:
+            fabric_info['node_count'] = len(data['nodes'])
+            data['fabric'] = fabric_info
+        else:
+            data['fabric'] = {
+                'name': 'Mock Fabric',
+                'version': 'unknown',
+                'node_count': len(data['nodes'])
+            }
+
+        return data
+
+    async def _fetch_fabric_data(self) -> Dict[str, Any]:
+        """Fetch fabric data from APIC or mock file."""
+        if self.mock_data_path:
+            return self._load_mock_data()
+        async with ACIClient(self.apic_url, self.username, self.password) as client:
+            return await client.get_all_fabric_data()
 
     async def get_fabric_data(self, request):
         """Get raw fabric data from ACI"""
         try:
-            async with ACIClient(self.apic_url, self.username, self.password) as client:
-                data = await client.get_all_fabric_data()
-                self.cached_data = data
-                self.last_refresh = datetime.utcnow()
-                return web.json_response(data)
+            data = await self._fetch_fabric_data()
+            self.cached_data = data
+            self.last_refresh = datetime.utcnow()
+            return web.json_response(data)
         except Exception as e:
             logger.error(f"Failed to get fabric data: {e}")
             return web.json_response({
@@ -409,15 +497,14 @@ class MCPServer:
     async def refresh_fabric_data(self, request):
         """Force refresh of fabric data"""
         try:
-            async with ACIClient(self.apic_url, self.username, self.password) as client:
-                data = await client.get_all_fabric_data()
-                self.cached_data = data
-                self.last_refresh = datetime.utcnow()
-                return web.json_response({
-                    'status': 'refreshed',
-                    'timestamp': self.last_refresh.isoformat(),
-                    'statistics': data.get('statistics', {})
-                })
+            data = await self._fetch_fabric_data()
+            self.cached_data = data
+            self.last_refresh = datetime.utcnow()
+            return web.json_response({
+                'status': 'refreshed',
+                'timestamp': self.last_refresh.isoformat(),
+                'statistics': data.get('statistics', {})
+            })
         except Exception as e:
             logger.error(f"Failed to refresh fabric data: {e}")
             return web.json_response({
@@ -434,15 +521,13 @@ class MCPServer:
                     logger.info("Using cached fabric data")
                     data = self.cached_data
                 else:
-                    async with ACIClient(self.apic_url, self.username, self.password) as client:
-                        data = await client.get_all_fabric_data()
-                        self.cached_data = data
-                        self.last_refresh = datetime.utcnow()
-            else:
-                async with ACIClient(self.apic_url, self.username, self.password) as client:
-                    data = await client.get_all_fabric_data()
+                    data = await self._fetch_fabric_data()
                     self.cached_data = data
                     self.last_refresh = datetime.utcnow()
+            else:
+                data = await self._fetch_fabric_data()
+                self.cached_data = data
+                self.last_refresh = datetime.utcnow()
 
             # Transform data
             migrator_data = DataTransformer.transform_for_migrator(data)
@@ -458,8 +543,7 @@ class MCPServer:
         """Analyze fabric and return recommendations"""
         try:
             # Get migrator data
-            async with ACIClient(self.apic_url, self.username, self.password) as client:
-                data = await client.get_all_fabric_data()
+            data = await self._fetch_fabric_data()
 
             migrator_data = DataTransformer.transform_for_migrator(data)
 
@@ -497,18 +581,27 @@ class MCPServer:
         """Run the MCP server"""
         logger.info(f"Starting MCP Server on port {self.port}")
         logger.info(f"APIC URL: {self.apic_url}")
+        if self.mock_data_path:
+            logger.info(f"Mock data file: {self.mock_data_path}")
         web.run_app(self.app, host='0.0.0.0', port=self.port)
 
 
 if __name__ == '__main__':
     import os
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Run MCP server for ACI Migrator')
+    parser.add_argument('--mock-data', dest='mock_data',
+                        help='Path to mock ACI JSON (imdata or MCP format)')
+    args = parser.parse_args()
 
     # Get configuration from environment
     apic_url = os.getenv('APIC_URL', 'https://localhost')
     username = os.getenv('APIC_USERNAME', 'admin')
     password = os.getenv('APIC_PASSWORD', 'C1sco12345')
     port = int(os.getenv('MCP_PORT', '5000'))
+    mock_data = args.mock_data or os.getenv('MCP_MOCK_DATA')
 
     # Start server
-    server = MCPServer(apic_url, username, password, port)
+    server = MCPServer(apic_url, username, password, port, mock_data_path=mock_data)
     server.run()

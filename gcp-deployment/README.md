@@ -1,5 +1,7 @@
 # ACI Migrator POC - Zero-Touch GCP Deployment
 
+Note: This GCP deployment is optional. For local MCP testing without VMs, run the MCP server in mock mode from the repo root.
+
 Complete automation for deploying a Cisco ACI Simulator with MCP server integration on Google Cloud Platform for ACI Migrator testing.
 
 ## Overview
