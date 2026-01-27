@@ -329,24 +329,6 @@
                 <span class="sidebar-text">Help</span>
             </a>
 
-            {% if ui_mode %}
-            <div class="border-t border-slate-700 my-2"></div>
-            {% if ui_mode == 'new' %}
-            <a href="{{ url_for('select_ui_mode', mode='legacy', next=request.path) }}" class="sidebar-link flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"/>
-                </svg>
-                <span class="sidebar-text">Switch to Classic UI</span>
-            </a>
-            {% else %}
-            <a href="{{ url_for('select_ui_mode', mode='new', next=request.path) }}" class="sidebar-link flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/>
-                </svg>
-                <span class="sidebar-text">Switch to New UI</span>
-            </a>
-            {% endif %}
-            {% endif %}
         </nav>
 
         <!-- Mode Selector Section removed (single mode only) -->

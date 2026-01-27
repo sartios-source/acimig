@@ -28,7 +28,7 @@ See [NEW_FEATURES.md](NEW_FEATURES.md) for complete details.
 ## Features
 
 ### Data Upload & Analysis
-Upload ACI configuration data (JSON/XML), legacy configs (TXT/CFG), and CMDB data (CSV). The tool parses and categorizes network objects including FEX devices, leaf switches, EPGs, bridge domains, VRFs, contracts, subnets, and interfaces.
+Upload ACI configuration data (JSON/XML), legacy configs (TXT/CFG), and CMDB data (CSV). The tool parses and categorizes network objects including FEX devices, leaf switches, EPGs, bridge domains, VRFs, contracts, subnets, and interfaces. Large ACI files are saved and registered immediately, with parsing deferred to analysis time.
 
 **Key Capabilities:**
 - Multi-format data ingestion (ACI JSON/XML, legacy configs, CMDB CSV)
@@ -72,18 +72,13 @@ Export comprehensive analysis reports in multiple formats including HTML (intera
 
 ## Screenshots
 
-### Home (Classic UI)
-The classic dashboard layout with sidebar navigation and fabric manager.
-
-![Home Classic](docs/screenshots/home-classic.png)
-
-### Home (New UI)
+### Home
 Mission-control layout with a clearer workflow orientation.
 
 ![Home New](docs/screenshots/home-new.png)
 
 ### Data Upload Interface
-Drag-and-drop file upload with real-time progress tracking and multi-file queue management.
+Drag-and-drop file upload with real-time progress tracking, overall percentage, and multi-file queue management.
 
 ![Upload](docs/screenshots/upload.png)
 
@@ -176,7 +171,7 @@ Multi-format report generation (HTML, Markdown, CSV) for documentation and analy
    - Go to Upload page
    - Download the offline collector script from the Upload page if needed
    - Drag and drop your ACI JSON/XML files
-   - Wait for parsing to complete
+   - Files over 50MB are registered immediately and parsed during analysis
    - Files are stored in the currently selected fabric
 
 3. **Analyze the data**
@@ -219,7 +214,7 @@ python gcp-deployment/scripts/test-mcp-integration.py --mcp-url http://127.0.0.1
 Use the offline collector to export APIC data into a single JSON file for upload.
 
 ```bash
-python offline_collector.py --apic apic.example.com --username admin --output aci_export.json
+python offline_collector.py --apic-host apic.example.com --apic-username admin --output-dir network_data
 ```
 
 **Fabric Management:**

@@ -151,6 +151,8 @@ def ensure_mock_samples():
 @app.context_processor
 def inject_fabrics():
     """Make common values available to all templates."""
+    if session.get('ui_mode') != 'new':
+        session['ui_mode'] = 'new'
     return {
         'fabrics': fm.list_fabrics(),
         'app_version': APP_VERSION,
@@ -404,7 +406,8 @@ def health_check():
 def index():
     """Landing page with mode selection and fabric-specific statistics."""
     mode = 'migration'
-    ui_mode = session.get('ui_mode')
+    ui_mode = 'new'
+    session['ui_mode'] = 'new'
     current_fabric = session.get('current_fabric')
     fabric_stats = None
 
@@ -463,7 +466,7 @@ def index():
             app.logger.warning(f"Could not load detailed analyzer stats for {current_fabric}: {e}")
             # Keep default zeros if analyzer fails
 
-    template_name = 'index_new.html' if ui_mode == 'new' else 'index.html'
+    template_name = 'index_new.html'
 
     return render_template(template_name,
                          mode=mode,
@@ -476,10 +479,10 @@ def index():
 def select_ui_mode():
     """Persist the preferred UI mode in the session."""
     requested_mode = request.args.get('mode', '').strip().lower()
-    if requested_mode not in {'new', 'legacy'}:
+    if requested_mode not in {'new'}:
         return jsonify({'error': 'Invalid UI mode'}), 400
 
-    session['ui_mode'] = requested_mode
+    session['ui_mode'] = 'new'
     next_path = request.args.get('next', '/')
     if not next_path.startswith('/'):
         next_path = '/'
