@@ -134,6 +134,7 @@ class APICCollector:
             'classes_collected': [],
             'class_errors': [],
             'class_details': {},
+            'class_files': {},
             'missing_required': [],
             'missing_optional': [],
             'methods_used': [],
@@ -546,6 +547,7 @@ class APICCollector:
             self.logger.warning("icurl login failed: %s", exc)
 
         imdata = []
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         for class_name in classes:
             self.logger.info("Collecting %s", class_name)
             class_imdata, method_or_error, attempts = self._fetch_with_fallbacks(class_name)
@@ -559,6 +561,13 @@ class APICCollector:
                 self._update_discovered_nodes(class_imdata)
             if method_or_error and method_or_error not in self.summary['methods_used']:
                 self.summary['methods_used'].append(method_or_error)
+            class_output_path = os.path.join(
+                self.output_dir,
+                f"apic_{self.apic_host}_{timestamp}_{class_name}.json"
+            )
+            with open(class_output_path, 'w', encoding='utf-8') as handle:
+                json.dump({"imdata": class_imdata}, handle, indent=2)
+            self.summary['class_files'][class_name] = class_output_path
 
         completeness_missing = [
             class_name for class_name in DATA_COMPLETENESS_CLASSES
@@ -574,6 +583,13 @@ class APICCollector:
                     self._update_discovered_nodes(class_imdata)
                 if method_or_error and method_or_error not in self.summary['methods_used']:
                     self.summary['methods_used'].append(method_or_error)
+                class_output_path = os.path.join(
+                    self.output_dir,
+                    f"apic_{self.apic_host}_{timestamp}_{class_name}.json"
+                )
+                with open(class_output_path, 'w', encoding='utf-8') as handle:
+                    json.dump({"imdata": class_imdata}, handle, indent=2)
+                self.summary['class_files'][class_name] = class_output_path
 
         collected_set = set(self.summary['classes_collected'])
         self.summary['missing_required'] = [
@@ -597,7 +613,6 @@ class APICCollector:
             self.logger.warning("Missing optional classes: %s", ", ".join(self.summary['missing_optional']))
 
         if imdata:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             output_path = os.path.join(self.output_dir, f"apic_{self.apic_host}_{timestamp}.json")
             with open(output_path, 'w', encoding='utf-8') as handle:
                 json.dump({"imdata": imdata}, handle, indent=2)
