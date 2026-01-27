@@ -92,6 +92,12 @@ try:
     import requests
 except Exception:
     requests = None
+    InsecureRequestWarning = None
+
+try:
+    import urllib3
+except Exception:
+    urllib3 = None
 
 
 class APICCollector:
@@ -177,6 +183,11 @@ class APICCollector:
         }
 
         if requests:
+            if urllib3:
+                try:
+                    urllib3.disable_warnings()
+                except Exception:
+                    pass
             session = requests.Session()
             session.verify = False
             resp = session.post(f"{apic_url}/api/aaaLogin.json", json=payload, timeout=30)
@@ -453,6 +464,7 @@ class APICCollector:
 
         imdata = []
         for class_name in classes:
+            self.logger.info("Collecting %s", class_name)
             class_imdata, method_or_error = self._fetch_with_fallbacks(class_name)
             if not class_imdata:
                 self.summary['class_errors'].append(f"{class_name}: {method_or_error}")
@@ -560,6 +572,15 @@ def main():
     print(f"APIC collection status: {status}")
     print(f"Classes collected: {len(summary.get('classes_collected', []))}/{len(classes)}")
     print(f"Output: {summary.get('output_file', '')}")
+    if summary.get('classes_collected'):
+        print("Collected classes:")
+        print(", ".join(summary.get('classes_collected', [])))
+    if summary.get('missing_required'):
+        print("Missing required classes:")
+        print(", ".join(summary.get('missing_required', [])))
+    if summary.get('missing_optional'):
+        print("Missing optional classes:")
+        print(", ".join(summary.get('missing_optional', [])))
     if summary.get('class_errors'):
         print(f"Errors: {len(summary.get('class_errors'))} (see summary JSON)")
     return 0 if status == 'success' else 1
