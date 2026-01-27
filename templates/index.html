@@ -165,38 +165,6 @@
     <span class="text-sm text-gray-500 font-medium">v{{ app_version }}</span>
 </div>
 
-<!-- Create Fabric Modal -->
-<div id="create-fabric-dialog" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden transition-opacity duration-300">
-    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 transform transition-all duration-300">
-        <div class="flex items-center justify-between mb-6">
-            <h3 class="text-2xl font-bold text-gray-900">Create New Fabric</h3>
-            <button onclick="hideCreateFabricDialog()" class="text-gray-400 hover:text-gray-600 transition-colors">
-                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
-        <form onsubmit="createFabric(event)" class="space-y-6">
-            <div>
-                <label for="fabric-name" class="block text-sm font-medium text-gray-700 mb-2">Fabric Name</label>
-                <input type="text" id="fabric-name" required
-                    class="block w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all duration-200"
-                    placeholder="e.g., production-dc1">
-            </div>
-            <div class="flex gap-3">
-                <button type="submit" class="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 shadow-lg hover:shadow-xl transition-all duration-200">
-                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    Create Fabric
-                </button>
-                <button type="button" onclick="hideCreateFabricDialog()" class="px-6 py-3 rounded-lg bg-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-300 transition-colors duration-200">
-                    Cancel
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
 
 <style>
 /* Custom Animations */
@@ -436,49 +404,6 @@ function animate() {
 animate();
 
 // Fabric Management Functions
-function showCreateFabricDialog() {
-    const dialog = document.getElementById('create-fabric-dialog');
-    dialog.classList.remove('hidden');
-    setTimeout(() => dialog.classList.add('opacity-100'), 10);
-}
-
-function hideCreateFabricDialog() {
-    const dialog = document.getElementById('create-fabric-dialog');
-    dialog.classList.add('hidden');
-    document.getElementById('fabric-name').value = '';
-}
-
-function parseJsonResponse(response) {
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-        return response.json();
-    }
-    return response.text().then(text => ({error: text || `Request failed (${response.status})`}));
-}
-
-function createFabric(event) {
-    event.preventDefault();
-    const name = document.getElementById('fabric-name').value;
-
-    fetch('/fabrics', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name: name})
-    })
-    .then(response => parseJsonResponse(response).then(data => ({ok: response.ok, data})))
-    .then(({ok, data}) => {
-        if (ok && data.success) {
-            showToast('Fabric created successfully!', 'success');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            showToast(data.error || 'Failed to create fabric', 'error');
-        }
-    })
-    .catch(error => {
-        showToast('Error creating fabric', 'error');
-        console.error('Error:', error);
-    });
-}
 
 function selectFabric(name) {
     fetch(`/fabrics/${name}/select`, {method: 'POST'})

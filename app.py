@@ -6,6 +6,8 @@ import json
 import shutil
 import logging
 import re
+import sys
+import subprocess
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from pathlib import Path
@@ -121,6 +123,28 @@ def invalidate_fabric_cache(fabric_name: str):
     for key in keys_to_delete:
         cache.delete(key)
     app.logger.info(f"Invalidated cache for fabric: {fabric_name}")
+
+
+def ensure_mock_samples():
+    """Ensure bundled mock sample data exists for MCP mock imports."""
+    sample_path = BASE_DIR / 'data' / 'samples' / 'sample_full_mock.json'
+    if sample_path.exists():
+        return
+    generator = BASE_DIR / 'scripts' / 'generate_full_mock.py'
+    if not generator.exists():
+        app.logger.warning("Mock sample missing and generator not found: %s", sample_path)
+        return
+    try:
+        subprocess.run(
+            [sys.executable, str(generator)],
+            cwd=str(BASE_DIR),
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        app.logger.info("Generated mock sample data at %s", sample_path)
+    except Exception as exc:
+        app.logger.warning("Failed to generate mock sample data: %s", exc)
 
 
 # Template context processor to inject fabrics into all templates
@@ -985,6 +1009,7 @@ def import_from_mcp():
             return jsonify({'error': str(e)}), 400
 
         if mcp_url.strip().lower() == 'mock':
+            ensure_mock_samples()
             sample_candidates = [
                 BASE_DIR / 'data' / 'samples' / 'sample_full_mock.json',
                 BASE_DIR / 'data' / 'samples' / 'sample_large_scale.json',
