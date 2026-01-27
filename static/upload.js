@@ -364,6 +364,7 @@ function updateOverallProgress() {
     const overallStatus = document.getElementById('overall-status');
     const overallStats = document.getElementById('overall-stats');
     const overallProgressBar = document.getElementById('overall-progress-bar');
+    const overallPercent = document.getElementById('overall-percent');
 
     if (overallStatus) {
         overallStatus.textContent = `${completeFiles} / ${totalFiles} files complete`;
@@ -373,6 +374,9 @@ function updateOverallProgress() {
     }
     if (overallProgressBar) {
         overallProgressBar.style.width = `${overallProgress}%`;
+    }
+    if (overallPercent) {
+        overallPercent.textContent = `${Math.round(overallProgress)}%`;
     }
 }
 

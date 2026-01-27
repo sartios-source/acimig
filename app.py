@@ -892,16 +892,37 @@ def upload():
         file.save(str(file_path))
         app.logger.info(f"File uploaded: {filename} to fabric {current_fabric}")
 
-        # Parse and validate with proper error handling
-        try:
-            content = read_file_safely(file_path)
-        except (FileNotFoundError, PermissionError, ValueError) as e:
-            app.logger.error(f"Error reading file {filename}: {str(e)}")
-            return jsonify({'error': str(e)}), 500
-
         # Parse based on file type
         try:
             if file_type == 'aci':
+                file_size = file_path.stat().st_size if file_path.exists() else 0
+                large_parse_threshold = 50 * 1024 * 1024  # 50MB
+                if file_size > large_parse_threshold:
+                    fm.add_dataset(current_fabric, {
+                        'filename': filename,
+                        'type': 'aci',
+                        'format': file_ext,
+                        'uploaded': datetime.now().isoformat(),
+                        'objects': None,
+                        'deferred_validation': True,
+                        'path': str(file_path)
+                    })
+                    app.logger.info(
+                        f"Deferred parsing for large ACI {file_ext}: {file_size} bytes"
+                    )
+                    return jsonify({
+                        'success': True,
+                        'filename': filename,
+                        'type': file_type,
+                        'message': f'Uploaded {filename}. Validation deferred due to file size.'
+                    })
+
+                try:
+                    content = read_file_safely(file_path)
+                except (FileNotFoundError, PermissionError, ValueError) as e:
+                    app.logger.error(f"Error reading file {filename}: {str(e)}")
+                    return jsonify({'error': str(e)}), 500
+
                 parsed_data = parsers.parse_aci(content, file_ext)
                 fm.add_dataset(current_fabric, {
                     'filename': filename,
@@ -916,6 +937,11 @@ def upload():
                 )
 
             elif file_type == 'cmdb':
+                try:
+                    content = read_file_safely(file_path)
+                except (FileNotFoundError, PermissionError, ValueError) as e:
+                    app.logger.error(f"Error reading file {filename}: {str(e)}")
+                    return jsonify({'error': str(e)}), 500
                 parsed_data = parsers.parse_cmdb_csv(content)
                 fm.add_dataset(current_fabric, {
                     'filename': filename,
@@ -927,6 +953,11 @@ def upload():
                 app.logger.info(f"Parsed CMDB CSV: {len(parsed_data)} records")
 
             elif file_type == 'legacy':
+                try:
+                    content = read_file_safely(file_path)
+                except (FileNotFoundError, PermissionError, ValueError) as e:
+                    app.logger.error(f"Error reading file {filename}: {str(e)}")
+                    return jsonify({'error': str(e)}), 500
                 parsed_data = parsers.parse_legacy_config(content)
                 fm.add_dataset(current_fabric, {
                     'filename': filename,

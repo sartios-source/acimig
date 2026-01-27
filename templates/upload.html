@@ -140,6 +140,18 @@
             </div>
         </div>
 
+        <!-- Overall Progress -->
+        <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div class="flex items-center justify-between text-sm text-gray-700 mb-2">
+                <span id="overall-status">0 / 0 files complete</span>
+                <span id="overall-percent">0%</span>
+            </div>
+            <div class="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
+                <div id="overall-progress-bar" class="h-full bg-primary-600 transition-all duration-200" style="width: 0%"></div>
+            </div>
+            <div class="mt-2 text-xs text-gray-500" id="overall-stats">0 Bytes / 0 Bytes</div>
+        </div>
+
         <!-- File List -->
         <div id="file-list" class="space-y-3">
             <!-- Files will be added here dynamically -->
