@@ -63,6 +63,12 @@ function switchTab(tabName) {
     });
     document.getElementById(`${tabName}-dashboard`).classList.add('active');
 
+    if (tabName === 'topology') {
+        setTimeout(() => {
+            createTopologyVisualization();
+        }, 50);
+    }
+
     resizeChartsInPanel(tabName);
 }
 
