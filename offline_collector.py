@@ -122,6 +122,7 @@ class APICCollector:
             'classes_requested': [],
             'classes_collected': [],
             'class_errors': [],
+            'class_details': {},
             'missing_required': [],
             'missing_optional': [],
             'methods_used': [],
@@ -358,17 +359,22 @@ class APICCollector:
         add(f"/api/node/class/{class_name}.json?rsp-subtree=full")
         add(f"/api/node/class/{class_name}.json?page=0&page-size=50000")
         add(f"/api/node/class/{class_name}.json?page=1&page-size=50000")
+        add(f"/api/node/class/{class_name}.json?page=2&page-size=50000")
 
-        if class_name in REQUIRED_ACI_CLASSES or class_name in {'eqptFex'}:
-            add(f"/api/node/mo/topology.json?query-target=subtree&target-subtree-class={class_name}")
-            for pod_id in sorted(self.discovered_pods):
-                add(f"/api/node/mo/topology/pod-{pod_id}.json?query-target=subtree&target-subtree-class={class_name}")
-            for node_id, pod_id in sorted(self.discovered_nodes.items()):
-                add(f"/api/node/mo/topology/pod-{pod_id}/node-{node_id}.json?query-target=subtree&target-subtree-class={class_name}")
+        add(f"/api/node/mo/topology.json?query-target=subtree&target-subtree-class={class_name}")
+        for pod_id in sorted(self.discovered_pods):
+            add(f"/api/node/mo/topology/pod-{pod_id}.json?query-target=subtree&target-subtree-class={class_name}")
+        for node_id, pod_id in sorted(self.discovered_nodes.items()):
+            add(f"/api/node/mo/topology/pod-{pod_id}/node-{node_id}.json?query-target=subtree&target-subtree-class={class_name}")
 
         if class_name == 'eqptFex':
             add("/api/node/mo/sys.json?query-target=subtree&target-subtree-class=eqptFex")
             add("/api/node/mo/sys/extch.json?query-target=subtree&target-subtree-class=eqptFex")
+            add("/api/node/class/eqptFex.json?query-target-filter=eq(eqptFex.operSt,\"online\")")
+            add("/api/node/class/eqptExtCh.json")
+            add("/api/node/class/eqptCh.json?query-target=subtree&target-subtree-class=eqptFex")
+            for fex_id in range(101, 106):
+                add(f"/api/node/mo/sys/extch/fex-{fex_id}.json")
 
         if class_name == 'fvRsPathAtt':
             add("/api/node/class/fvRsPathAtt.json?query-target-filter=wcArd(fvRsPathAtt.tDn,\"extch\")")
@@ -376,6 +382,12 @@ class APICCollector:
             add("/api/node/class/fvRsPathAtt.json?query-target-filter=wcArd(fvRsPathAtt.tDn,\"paths-\")")
             add("/api/node/class/fvRsPathAtt.json?query-target-filter=wcArd(fvRsPathAtt.tDn,\"protpaths-\")")
             add("/api/node/class/fvRsPathAtt.json?query-target-filter=wcArd(fvRsPathAtt.dn,\"extpaths-\")")
+
+        if not self.discovered_pods:
+            add(f"/api/node/mo/topology/pod-1.json?query-target=subtree&target-subtree-class={class_name}")
+            add(f"/api/node/mo/topology/pod-2.json?query-target=subtree&target-subtree-class={class_name}")
+            for node_id in range(101, 105):
+                add(f"/api/node/mo/topology/pod-1/node-{node_id}.json?query-target=subtree&target-subtree-class={class_name}")
 
         if aggressive:
             tenant_scoped = (
@@ -389,12 +401,14 @@ class APICCollector:
             if tenant_scoped:
                 add(f"/api/node/mo/uni.json?query-target=subtree&target-subtree-class={class_name}")
             add(f"/api/node/mo/sys.json?query-target=subtree&target-subtree-class={class_name}")
+            add(f"/api/node/mo/sys/extch.json?query-target=subtree&target-subtree-class={class_name}")
 
         return queries
 
     def _fetch_with_fallbacks(self, class_name, aggressive=False):
         queries = self._build_query_candidates(class_name, aggressive=aggressive)
         last_error = None
+        attempts = []
 
         if self.rest_session:
             for path in queries:
@@ -402,9 +416,12 @@ class APICCollector:
                     output = self._rest_get_url(path)
                     class_imdata = self._parse_imdata(output, class_name)
                     if class_imdata:
-                        return class_imdata, "rest"
+                        attempts.append({'method': 'rest', 'path': path, 'count': len(class_imdata), 'status': 'success'})
+                        return class_imdata, "rest", attempts
+                    attempts.append({'method': 'rest', 'path': path, 'count': 0, 'status': 'empty'})
                 except Exception as exc:
                     last_error = f"REST {path}: {exc}"
+                    attempts.append({'method': 'rest', 'path': path, 'count': 0, 'status': f'error: {exc}'})
 
         if self.icurl_token:
             for path in queries:
@@ -412,19 +429,25 @@ class APICCollector:
                     output = self._icurl_get_url(path)
                     class_imdata = self._parse_imdata(output, class_name)
                     if class_imdata:
-                        return class_imdata, "icurl"
+                        attempts.append({'method': 'icurl', 'path': path, 'count': len(class_imdata), 'status': 'success'})
+                        return class_imdata, "icurl", attempts
+                    attempts.append({'method': 'icurl', 'path': path, 'count': 0, 'status': 'empty'})
                 except Exception as exc:
                     last_error = f"icurl {path}: {exc}"
+                    attempts.append({'method': 'icurl', 'path': path, 'count': 0, 'status': f'error: {exc}'})
 
         try:
             output = self._moquery_get_class(class_name)
             class_imdata = self._parse_imdata(output, class_name)
             if class_imdata:
-                return class_imdata, "moquery"
+                attempts.append({'method': 'moquery', 'path': None, 'count': len(class_imdata), 'status': 'success'})
+                return class_imdata, "moquery", attempts
+            attempts.append({'method': 'moquery', 'path': None, 'count': 0, 'status': 'empty'})
         except Exception as exc:
             last_error = f"moquery: {exc}"
+            attempts.append({'method': 'moquery', 'path': None, 'count': 0, 'status': f'error: {exc}'})
 
-        return None, last_error or "no data returned"
+        return None, last_error or "no data returned", attempts
 
     def _has_fex_indicators_in_imdata(self, imdata):
         for item in imdata:
@@ -440,9 +463,11 @@ class APICCollector:
     def _retry_missing_classes(self, missing_classes):
         recovered = {}
         for class_name in missing_classes:
-            class_imdata, method_or_error = self._fetch_with_fallbacks(class_name, aggressive=True)
+            class_imdata, method_or_error, attempts = self._fetch_with_fallbacks(class_name, aggressive=True)
             if class_imdata:
-                recovered[class_name] = (class_imdata, method_or_error)
+                recovered[class_name] = (class_imdata, method_or_error, attempts)
+            else:
+                self.summary['class_details'][class_name] = attempts
         return recovered
 
     def collect(self, classes):
@@ -465,7 +490,8 @@ class APICCollector:
         imdata = []
         for class_name in classes:
             self.logger.info("Collecting %s", class_name)
-            class_imdata, method_or_error = self._fetch_with_fallbacks(class_name)
+            class_imdata, method_or_error, attempts = self._fetch_with_fallbacks(class_name)
+            self.summary['class_details'][class_name] = attempts
             if not class_imdata:
                 self.summary['class_errors'].append(f"{class_name}: {method_or_error}")
                 continue
@@ -482,9 +508,10 @@ class APICCollector:
         ]
         if completeness_missing:
             recovered = self._retry_missing_classes(completeness_missing)
-            for class_name, (class_imdata, method_or_error) in recovered.items():
+            for class_name, (class_imdata, method_or_error, attempts) in recovered.items():
                 imdata.extend(class_imdata)
                 self.summary['classes_collected'].append(class_name)
+                self.summary['class_details'][class_name] = attempts
                 if class_name == 'fabricNode':
                     self._update_discovered_nodes(class_imdata)
                 if method_or_error and method_or_error not in self.summary['methods_used']:
@@ -583,6 +610,8 @@ def main():
         print(", ".join(summary.get('missing_optional', [])))
     if summary.get('class_errors'):
         print(f"Errors: {len(summary.get('class_errors'))} (see summary JSON)")
+    if summary.get('class_details'):
+        print("Class details saved to summary JSON.")
     return 0 if status == 'success' else 1
 
 
