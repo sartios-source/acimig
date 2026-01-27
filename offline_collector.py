@@ -88,6 +88,13 @@ ORDER_BY_ATTR = {
     'fvTenant': 'name'
 }
 
+LARGE_QUERY_CLASSES = {
+    'fvRsPathAtt',
+    'ethpmPhysIf',
+    'lldpAdjEp',
+    'cdpAdjEp'
+}
+
 try:
     import requests
 except Exception:
@@ -348,6 +355,10 @@ class APICCollector:
             if path not in queries:
                 queries.append(path)
 
+        if class_name in LARGE_QUERY_CLASSES:
+            add(f"/api/node/class/{class_name}.json?page=0&page-size=50000")
+            add(f"/api/node/class/{class_name}.json?page=1&page-size=50000")
+
         add(f"/api/node/class/{class_name}.json")
         add(f"/api/class/{class_name}.json")
 
@@ -411,7 +422,16 @@ class APICCollector:
         attempts = []
 
         if self.rest_session:
-            for path in queries:
+            for idx, path in enumerate(queries, start=1):
+                percent = int(round((idx / float(len(queries))) * 100))
+                self.logger.info(
+                    "Trying %s (rest) %s/%s (%s%%): %s",
+                    class_name,
+                    idx,
+                    len(queries),
+                    percent,
+                    path
+                )
                 try:
                     output = self._rest_get_url(path)
                     class_imdata = self._parse_imdata(output, class_name)
@@ -424,7 +444,16 @@ class APICCollector:
                     attempts.append({'method': 'rest', 'path': path, 'count': 0, 'status': f'error: {exc}'})
 
         if self.icurl_token:
-            for path in queries:
+            for idx, path in enumerate(queries, start=1):
+                percent = int(round((idx / float(len(queries))) * 100))
+                self.logger.info(
+                    "Trying %s (icurl) %s/%s (%s%%): %s",
+                    class_name,
+                    idx,
+                    len(queries),
+                    percent,
+                    path
+                )
                 try:
                     output = self._icurl_get_url(path)
                     class_imdata = self._parse_imdata(output, class_name)
