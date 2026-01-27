@@ -1,9 +1,9 @@
 /* ACI Analysis Tool - Styles */
 :root {
-    --primary-color: #4A90E2;
-    --bg-color: #FAFAFA;
+    --primary-color: #0070b8;
+    --bg-color: #f4f9fc;
     --card-bg: #FFFFFF;
-    --border-color: #E0E0E0;
+    --border-color: #d7e6f3;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

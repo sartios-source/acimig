@@ -20,6 +20,7 @@ A comprehensive, web-based application for analyzing Cisco ACI fabrics and gener
 - Unified analysis and reporting flow (single mode)
 - Refined migration planning with timelines and resource estimates
 - Documentation and screenshots aligned to v2.0
+- Barclays-aligned visual theme for UI consistency
 
 See [NEW_FEATURES.md](NEW_FEATURES.md) for complete details.
 

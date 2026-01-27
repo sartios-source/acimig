@@ -8,7 +8,7 @@ Screenshots are captured for the current UI. If you need to refresh them, follow
 
 ## Required Screenshots
 
-- [x] `home.png` - Dashboard/Home page with sidebar
+- [x] `home-new.png` - Dashboard/Home page with sidebar
 - [x] `upload.png` - Data upload interface
 - [x] `analyze.png` - Data analysis page with tables
 - [x] `plan.png` - Migration planning page

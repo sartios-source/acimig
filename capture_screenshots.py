@@ -43,7 +43,7 @@ def resolve_base_url():
 def prepare_demo_data(page, base_url):
     """Ensure a demo fabric exists and mock data is loaded for screenshots."""
     demo_fabric = "demo-fabric"
-    page.goto(f"{base_url}/ui/select?mode=legacy&next=/", wait_until="networkidle", timeout=30000)
+    page.goto(f"{base_url}/ui/select?mode=new&next=/", wait_until="networkidle", timeout=30000)
 
     js = f"""
     (async () => {{
@@ -86,15 +86,9 @@ def capture_screenshots():
 
         screenshots = [
             {
-                "name": "home-classic.png",
-                "url": "/ui/select?mode=legacy&next=/",
-                "title": "Dashboard/Home Page (Classic UI)",
-                "wait": 2000
-            },
-            {
                 "name": "home-new.png",
-                "url": "/ui/select?mode=new&next=/",
-                "title": "Dashboard/Home Page (New UI)",
+                "url": "/",
+                "title": "Dashboard/Home Page",
                 "wait": 2000
             },
             {
@@ -188,7 +182,7 @@ def capture_screenshots():
         # Optional: Capture sidebar collapsed view
         try:
             print("\n[Extra] Capturing Sidebar Collapsed View...")
-            page.goto(f"{base_url}/ui/select?mode=legacy&next=/", wait_until="networkidle")
+            page.goto(f"{base_url}/", wait_until="networkidle")
             page.wait_for_timeout(1000)
 
             try:
@@ -215,7 +209,7 @@ def capture_screenshots():
                 user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15"
             )
             mobile_page = mobile_context.new_page()
-            mobile_page.goto(f"{base_url}/ui/select?mode=legacy&next=/", wait_until="networkidle")
+            mobile_page.goto(f"{base_url}/", wait_until="networkidle")
             mobile_page.wait_for_timeout(2000)
 
             filepath = os.path.join(SCREENSHOTS_DIR, "mobile-view.png")

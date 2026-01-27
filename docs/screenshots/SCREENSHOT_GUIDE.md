@@ -19,7 +19,7 @@ Capture the following screenshots after starting the Flask application.
 
 ### Screenshot List
 
-#### 1. `home.png` - Dashboard/Home Page
+#### 1. `home-new.png` - Dashboard/Home Page
 - **URL**: `http://127.0.0.1:5000/`
 - **What to capture**: Full page showing:
   - Left sidebar navigation with v2.0 branding
@@ -79,7 +79,7 @@ Capture the following screenshots after starting the Flask application.
 ### File Naming Convention
 
 Use the exact filenames listed above:
-- `home.png`
+- `home-new.png`
 - `upload.png`
 - `analyze.png`
 - `plan.png`
