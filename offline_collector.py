@@ -95,6 +95,10 @@ LARGE_QUERY_CLASSES = {
     'cdpAdjEp'
 }
 
+ALIAS_ACCEPT_CLASSES = {
+    'eqptFex': ['eqptFex', 'eqptExtCh', 'eqptCh']
+}
+
 try:
     import requests
 except Exception:
@@ -313,18 +317,41 @@ class APICCollector:
             return next(iter(item.keys()))
         return item.get("type")
 
-    def _parse_imdata(self, output, target_class=None):
+    def _collect_children_types(self, item, allowed_types):
+        found = []
+        if not isinstance(item, dict):
+            return found
+        for key, value in item.items():
+            if not isinstance(value, dict):
+                continue
+            children = value.get('children', [])
+            for child in children:
+                child_type = self._extract_imdata_type(child)
+                if child_type in allowed_types:
+                    found.append(child)
+                found.extend(self._collect_children_types(child, allowed_types))
+        return found
+
+    def _parse_imdata(self, output, target_class=None, allowed_types=None):
         if not output:
             return []
         cleaned = self._clean_apic_json_output(output)
         data = json.loads(cleaned)
         imdata = data.get('imdata', [])
-        if target_class and imdata:
-            filtered = [item for item in imdata if self._extract_imdata_type(item) == target_class]
+        if imdata and (target_class or allowed_types):
+            if allowed_types is None:
+                allowed_types = [target_class]
+            filtered = [
+                item for item in imdata
+                if self._extract_imdata_type(item) in allowed_types
+            ]
             if filtered:
                 imdata = filtered
             else:
-                imdata = []
+                child_matches = []
+                for item in imdata:
+                    child_matches.extend(self._collect_children_types(item, allowed_types))
+                imdata = child_matches
         return imdata
 
     def _update_discovered_nodes(self, imdata):
@@ -393,6 +420,7 @@ class APICCollector:
             add("/api/node/class/fvRsPathAtt.json?query-target-filter=wcArd(fvRsPathAtt.tDn,\"paths-\")")
             add("/api/node/class/fvRsPathAtt.json?query-target-filter=wcArd(fvRsPathAtt.tDn,\"protpaths-\")")
             add("/api/node/class/fvRsPathAtt.json?query-target-filter=wcArd(fvRsPathAtt.dn,\"extpaths-\")")
+            add("/api/node/class/fvAEPg.json?rsp-subtree=children&rsp-subtree-class=fvRsPathAtt")
 
         if not self.discovered_pods:
             add(f"/api/node/mo/topology/pod-1.json?query-target=subtree&target-subtree-class={class_name}")
@@ -420,6 +448,7 @@ class APICCollector:
         queries = self._build_query_candidates(class_name, aggressive=aggressive)
         last_error = None
         attempts = []
+        allowed_types = ALIAS_ACCEPT_CLASSES.get(class_name, [class_name])
 
         if self.rest_session:
             for idx, path in enumerate(queries, start=1):
@@ -434,7 +463,7 @@ class APICCollector:
                 )
                 try:
                     output = self._rest_get_url(path)
-                    class_imdata = self._parse_imdata(output, class_name)
+                    class_imdata = self._parse_imdata(output, class_name, allowed_types=allowed_types)
                     if class_imdata:
                         attempts.append({'method': 'rest', 'path': path, 'count': len(class_imdata), 'status': 'success'})
                         return class_imdata, "rest", attempts
@@ -456,7 +485,7 @@ class APICCollector:
                 )
                 try:
                     output = self._icurl_get_url(path)
-                    class_imdata = self._parse_imdata(output, class_name)
+                    class_imdata = self._parse_imdata(output, class_name, allowed_types=allowed_types)
                     if class_imdata:
                         attempts.append({'method': 'icurl', 'path': path, 'count': len(class_imdata), 'status': 'success'})
                         return class_imdata, "icurl", attempts
