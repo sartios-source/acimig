@@ -209,6 +209,10 @@ function startUpload(fileItem) {
 
     const formData = new FormData();
     formData.append('file', fileItem.file);
+    const fabricInput = document.getElementById('fabric-name-input');
+    if (fabricInput && fabricInput.value) {
+        formData.append('fabric_name', fabricInput.value);
+    }
 
     const xhr = new XMLHttpRequest();
     fileItem.xhr = xhr;

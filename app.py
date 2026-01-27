@@ -845,6 +845,16 @@ def upload():
     """Handle file uploads - ACI JSON/XML, legacy configs, CMDB CSV."""
     current_fabric = session.get('current_fabric')
     if not current_fabric:
+        fallback_fabric = request.form.get('fabric_name', '').strip()
+        if fallback_fabric:
+            try:
+                fallback_fabric = validate_fabric_name(fallback_fabric)
+                if fallback_fabric in [f['name'] for f in fm.list_fabrics()]:
+                    current_fabric = fallback_fabric
+                    session['current_fabric'] = fallback_fabric
+            except ValueError:
+                current_fabric = None
+    if not current_fabric:
         app.logger.warning("Upload attempted without fabric selection")
         return jsonify({'error': 'No fabric selected'}), 400
 
