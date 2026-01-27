@@ -6,6 +6,7 @@ import getpass
 import json
 import logging
 import os
+import re
 import ssl
 import subprocess
 import sys
@@ -14,17 +15,78 @@ from datetime import datetime
 import http.cookiejar
 import urllib.request
 
-DEFAULT_ACI_CLASSES = [
-    'fabricNode', 'eqptFex', 'fvAEPg', 'fvBD', 'fvCtx', 'fvTenant', 'fvRsPathAtt',
-    'fvSubnet', 'ethpmPhysIf', 'physDomP', 'vzBrCP', 'vzSubj', 'vzFilter', 'vzEntry',
-    'vzRsSubjFiltAtt', 'fvRsCons', 'fvRsProv', 'vpcDom', 'pcAggrIf', 'lacpEntity',
-    'vpcIf', 'l3extOut', 'l3extInstP', 'l3extLNodeP', 'l3extLIfP',
-    'l3extRsNodeL3OutAtt', 'l3extSubnet', 'l3extRsEctx', 'bgpPeerP', 'ospfIfP',
-    'ipRouteP', 'fvnsVlanInstP', 'fvnsEncapBlk', 'vmmDomP', 'l3extDomP',
-    'infraRsVlanNs', 'vmmRsVlanNs', 'l3extRsVlanNs', 'infraAccPortGrp',
-    'infraAccBndlGrp', 'infraAccPortP', 'infraHPortS', 'infraRsDomP',
-    'infraAttEntityP', 'lldpAdjEp', 'cdpAdjEp', 'fvRsBd', 'fvRsCtx'
+DATA_COMPLETENESS_CLASSES = [
+    'fvAEPg',
+    'fabricNode',
+    'fvRsPathAtt',
+    'fvBD',
+    'fvCtx',
+    'fvTenant',
+    'fvSubnet',
+    'ethpmPhysIf',
+    'physDomP',
+    'eqptFex',
+    'vzBrCP',
+    'vzSubj',
+    'vzFilter',
+    'vzEntry',
+    'vzRsSubjFiltAtt',
+    'fvRsCons',
+    'fvRsProv',
+    'vpcDom',
+    'pcAggrIf',
+    'lacpEntity',
+    'vpcIf',
+    'l3extOut',
+    'l3extInstP',
+    'l3extLNodeP',
+    'l3extLIfP',
+    'l3extRsNodeL3OutAtt',
+    'l3extSubnet',
+    'l3extRsEctx',
+    'bgpPeerP',
+    'ospfIfP',
+    'ipRouteP',
+    'fvnsVlanInstP',
+    'fvnsEncapBlk',
+    'vmmDomP',
+    'l3extDomP',
+    'infraRsVlanNs',
+    'vmmRsVlanNs',
+    'l3extRsVlanNs',
+    'infraAccPortGrp',
+    'infraAccBndlGrp',
+    'infraAccPortP',
+    'infraHPortS',
+    'infraRsDomP',
+    'infraAttEntityP',
+    'lldpAdjEp',
+    'cdpAdjEp'
 ]
+
+REQUIRED_ACI_CLASSES = [
+    'fabricNode',
+    'eqptFex',
+    'fvAEPg',
+    'fvRsPathAtt',
+    'fvBD',
+    'fvCtx',
+    'fvTenant',
+    'fvSubnet',
+    'ethpmPhysIf',
+    'physDomP'
+]
+
+DEFAULT_ACI_CLASSES = DATA_COMPLETENESS_CLASSES + ['fvRsBd', 'fvRsCtx']
+
+ORDER_BY_ATTR = {
+    'fabricNode': 'id',
+    'eqptFex': 'id',
+    'fvAEPg': 'name',
+    'fvBD': 'name',
+    'fvCtx': 'name',
+    'fvTenant': 'name'
+}
 
 try:
     import requests
@@ -45,6 +107,8 @@ class APICCollector:
 
         self.rest_session = None
         self.icurl_token = None
+        self.discovered_pods = set()
+        self.discovered_nodes = {}
 
         self.summary = {
             'hostname': apic_host,
@@ -52,6 +116,8 @@ class APICCollector:
             'classes_requested': [],
             'classes_collected': [],
             'class_errors': [],
+            'missing_required': [],
+            'missing_optional': [],
             'methods_used': [],
             'imdata_count': 0,
             'collection_status': 'failed',
@@ -149,6 +215,18 @@ class APICCollector:
         with session.open(url, timeout=60, context=self.ssl_context) as resp:
             return resp.read().decode("utf-8")
 
+    def _rest_get_url(self, path):
+        if not self.rest_session:
+            return None
+        mode, session = self.rest_session
+        url = f"https://{self.apic_host}{path}"
+        if mode == "requests":
+            resp = session.get(url, timeout=60)
+            resp.raise_for_status()
+            return resp.text
+        with session.open(url, timeout=60, context=self.ssl_context) as resp:
+            return resp.read().decode("utf-8")
+
     def _ssh_command(self, command, timeout=120):
         ssh_cmd = [
             'ssh',
@@ -195,9 +273,166 @@ class APICCollector:
         )
         return self._ssh_command(cmd, timeout=60)
 
+    def _icurl_get_url(self, path):
+        if not self.icurl_token:
+            return None
+        cmd = (
+            "icurl -k -s "
+            f"-H \"Cookie: APIC-cookie={self.icurl_token}\" "
+            f"https://127.0.0.1{path}"
+        )
+        return self._ssh_command(cmd, timeout=60)
+
     def _moquery_get_class(self, class_name):
         cmd = f"moquery -c {class_name} -o json"
         return self._ssh_command(cmd, timeout=120)
+
+    def _extract_imdata_type(self, item):
+        if not isinstance(item, dict):
+            return None
+        if len(item) == 1:
+            return next(iter(item.keys()))
+        return item.get("type")
+
+    def _parse_imdata(self, output, target_class=None):
+        if not output:
+            return []
+        cleaned = self._clean_apic_json_output(output)
+        data = json.loads(cleaned)
+        imdata = data.get('imdata', [])
+        if target_class and imdata:
+            filtered = [item for item in imdata if self._extract_imdata_type(item) == target_class]
+            if filtered:
+                imdata = filtered
+            else:
+                imdata = []
+        return imdata
+
+    def _update_discovered_nodes(self, imdata):
+        for item in imdata:
+            if not isinstance(item, dict) or 'fabricNode' not in item:
+                continue
+            attributes = item.get('fabricNode', {}).get('attributes', {})
+            node_id = attributes.get('id')
+            pod_id = attributes.get('podId')
+            dn = attributes.get('dn', '')
+            if not pod_id and dn:
+                match = re.search(r'topology/pod-(\d+)/node-(\d+)', dn)
+                if match:
+                    pod_id = match.group(1)
+                    if not node_id:
+                        node_id = match.group(2)
+            if node_id:
+                node_id = str(node_id)
+                if pod_id is not None:
+                    pod_id = str(pod_id)
+                    self.discovered_pods.add(pod_id)
+                    self.discovered_nodes[node_id] = pod_id
+
+    def _build_query_candidates(self, class_name, aggressive=False):
+        queries = []
+
+        def add(path):
+            if path not in queries:
+                queries.append(path)
+
+        add(f"/api/node/class/{class_name}.json")
+        add(f"/api/class/{class_name}.json")
+
+        order_attr = ORDER_BY_ATTR.get(class_name)
+        if order_attr:
+            add(f"/api/node/class/{class_name}.json?order-by={class_name}.{order_attr}")
+
+        add(f"/api/node/class/{class_name}.json?query-target=self")
+        add(f"/api/node/class/{class_name}.json?rsp-subtree=full")
+        add(f"/api/node/class/{class_name}.json?page=0&page-size=50000")
+        add(f"/api/node/class/{class_name}.json?page=1&page-size=50000")
+
+        if class_name in REQUIRED_ACI_CLASSES or class_name in {'eqptFex'}:
+            add(f"/api/node/mo/topology.json?query-target=subtree&target-subtree-class={class_name}")
+            for pod_id in sorted(self.discovered_pods):
+                add(f"/api/node/mo/topology/pod-{pod_id}.json?query-target=subtree&target-subtree-class={class_name}")
+            for node_id, pod_id in sorted(self.discovered_nodes.items()):
+                add(f"/api/node/mo/topology/pod-{pod_id}/node-{node_id}.json?query-target=subtree&target-subtree-class={class_name}")
+
+        if class_name == 'eqptFex':
+            add("/api/node/mo/sys.json?query-target=subtree&target-subtree-class=eqptFex")
+            add("/api/node/mo/sys/extch.json?query-target=subtree&target-subtree-class=eqptFex")
+
+        if class_name == 'fvRsPathAtt':
+            add("/api/node/class/fvRsPathAtt.json?query-target-filter=wcArd(fvRsPathAtt.tDn,\"extch\")")
+            add("/api/node/class/fvRsPathAtt.json?query-target-filter=wcArd(fvRsPathAtt.dn,\"extch\")")
+            add("/api/node/class/fvRsPathAtt.json?query-target-filter=wcArd(fvRsPathAtt.tDn,\"paths-\")")
+            add("/api/node/class/fvRsPathAtt.json?query-target-filter=wcArd(fvRsPathAtt.tDn,\"protpaths-\")")
+            add("/api/node/class/fvRsPathAtt.json?query-target-filter=wcArd(fvRsPathAtt.dn,\"extpaths-\")")
+
+        if aggressive:
+            tenant_scoped = (
+                class_name.startswith('fv')
+                or class_name.startswith('vz')
+                or class_name.startswith('l3ext')
+                or class_name.startswith('vmm')
+                or class_name.startswith('infra')
+                or class_name.startswith('fvns')
+            )
+            if tenant_scoped:
+                add(f"/api/node/mo/uni.json?query-target=subtree&target-subtree-class={class_name}")
+            add(f"/api/node/mo/sys.json?query-target=subtree&target-subtree-class={class_name}")
+
+        return queries
+
+    def _fetch_with_fallbacks(self, class_name, aggressive=False):
+        queries = self._build_query_candidates(class_name, aggressive=aggressive)
+        last_error = None
+
+        if self.rest_session:
+            for path in queries:
+                try:
+                    output = self._rest_get_url(path)
+                    class_imdata = self._parse_imdata(output, class_name)
+                    if class_imdata:
+                        return class_imdata, "rest"
+                except Exception as exc:
+                    last_error = f"REST {path}: {exc}"
+
+        if self.icurl_token:
+            for path in queries:
+                try:
+                    output = self._icurl_get_url(path)
+                    class_imdata = self._parse_imdata(output, class_name)
+                    if class_imdata:
+                        return class_imdata, "icurl"
+                except Exception as exc:
+                    last_error = f"icurl {path}: {exc}"
+
+        try:
+            output = self._moquery_get_class(class_name)
+            class_imdata = self._parse_imdata(output, class_name)
+            if class_imdata:
+                return class_imdata, "moquery"
+        except Exception as exc:
+            last_error = f"moquery: {exc}"
+
+        return None, last_error or "no data returned"
+
+    def _has_fex_indicators_in_imdata(self, imdata):
+        for item in imdata:
+            if not isinstance(item, dict) or 'fvRsPathAtt' not in item:
+                continue
+            attributes = item.get('fvRsPathAtt', {}).get('attributes', {})
+            tdn = attributes.get('tDn', '')
+            dn = attributes.get('dn', '')
+            if 'extch' in tdn or 'extpaths' in tdn or 'extch' in dn:
+                return True
+        return False
+
+    def _retry_missing_classes(self, missing_classes):
+        recovered = {}
+        for class_name in missing_classes:
+            class_imdata, method_or_error = self._fetch_with_fallbacks(class_name, aggressive=True)
+            if class_imdata:
+                recovered[class_name] = (class_imdata, method_or_error)
+        return recovered
 
     def collect(self, classes):
         self.summary['classes_requested'] = classes
@@ -218,50 +453,51 @@ class APICCollector:
 
         imdata = []
         for class_name in classes:
-            output = None
-            method = None
-
-            if self.rest_session:
-                try:
-                    output = self._rest_get_class(class_name)
-                    method = "rest"
-                except Exception as exc:
-                    self.logger.warning("REST fetch failed for %s: %s", class_name, exc)
-                    output = None
-
-            if not output and self.icurl_token:
-                try:
-                    output = self._icurl_get_class(class_name)
-                    method = "icurl"
-                except Exception as exc:
-                    self.logger.warning("icurl fetch failed for %s: %s", class_name, exc)
-                    output = None
-
-            if not output:
-                try:
-                    output = self._moquery_get_class(class_name)
-                    method = "moquery"
-                except Exception as exc:
-                    self.logger.warning("moquery fetch failed for %s: %s", class_name, exc)
-                    output = None
-
-            if not output:
-                self.summary['class_errors'].append(f"{class_name}: empty output")
+            class_imdata, method_or_error = self._fetch_with_fallbacks(class_name)
+            if not class_imdata:
+                self.summary['class_errors'].append(f"{class_name}: {method_or_error}")
                 continue
+            imdata.extend(class_imdata)
+            self.summary['classes_collected'].append(class_name)
+            if class_name == 'fabricNode':
+                self._update_discovered_nodes(class_imdata)
+            if method_or_error and method_or_error not in self.summary['methods_used']:
+                self.summary['methods_used'].append(method_or_error)
 
-            try:
-                cleaned = self._clean_apic_json_output(output)
-                data = json.loads(cleaned)
-                class_imdata = data.get('imdata', [])
-                if not class_imdata:
-                    self.summary['class_errors'].append(f"{class_name}: no imdata found")
-                    continue
+        completeness_missing = [
+            class_name for class_name in DATA_COMPLETENESS_CLASSES
+            if class_name not in self.summary['classes_collected']
+        ]
+        if completeness_missing:
+            recovered = self._retry_missing_classes(completeness_missing)
+            for class_name, (class_imdata, method_or_error) in recovered.items():
                 imdata.extend(class_imdata)
                 self.summary['classes_collected'].append(class_name)
-                if method and method not in self.summary['methods_used']:
-                    self.summary['methods_used'].append(method)
-            except Exception as exc:
-                self.summary['class_errors'].append(f"{class_name}: {exc}")
+                if class_name == 'fabricNode':
+                    self._update_discovered_nodes(class_imdata)
+                if method_or_error and method_or_error not in self.summary['methods_used']:
+                    self.summary['methods_used'].append(method_or_error)
+
+        collected_set = set(self.summary['classes_collected'])
+        self.summary['missing_required'] = [
+            class_name for class_name in REQUIRED_ACI_CLASSES
+            if class_name not in collected_set
+        ]
+        self.summary['missing_optional'] = [
+            class_name for class_name in DATA_COMPLETENESS_CLASSES
+            if class_name not in collected_set and class_name not in REQUIRED_ACI_CLASSES
+        ]
+        if 'eqptFex' not in collected_set:
+            if 'eqptFex' not in self.summary['missing_required']:
+                self.summary['missing_required'].append('eqptFex')
+            self.summary['missing_optional'] = [
+                class_name for class_name in self.summary['missing_optional']
+                if class_name != 'eqptFex'
+            ]
+        if self.summary['missing_required']:
+            self.logger.warning("Missing required classes: %s", ", ".join(self.summary['missing_required']))
+        if self.summary['missing_optional']:
+            self.logger.warning("Missing optional classes: %s", ", ".join(self.summary['missing_optional']))
 
         if imdata:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -270,7 +506,10 @@ class APICCollector:
                 json.dump({"imdata": imdata}, handle, indent=2)
             self.summary['imdata_count'] = len(imdata)
             self.summary['output_file'] = output_path
-            self.summary['collection_status'] = 'success'
+            if self.summary['missing_required'] or self.summary['missing_optional']:
+                self.summary['collection_status'] = 'partial'
+            else:
+                self.summary['collection_status'] = 'success'
         else:
             self.summary['collection_status'] = 'failed'
 

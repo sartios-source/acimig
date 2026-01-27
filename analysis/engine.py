@@ -1795,8 +1795,8 @@ class ACIAnalyzer:
             {
                 'label': 'FEX Devices (eqptFex)',
                 'type': 'eqptFex',
-                'required': False,
-                'description': 'Fabric Extenders - used for port utilization and consolidation analysis',
+                'required': True,
+                'description': 'Fabric Extenders - required for port utilization and consolidation analysis',
                 'collection_command': 'moquery -c eqptFex -o json > fex.json'
             },
             {
