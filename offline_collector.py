@@ -13,6 +13,11 @@ import threading
 import time
 import getpass
 import logging
+import ssl
+import urllib.request
+import urllib.error
+import urllib.parse
+import http.cookiejar
 from datetime import datetime
 
 DEFAULT_ACI_CLASSES = [
@@ -26,6 +31,11 @@ DEFAULT_ACI_CLASSES = [
     'infraAccBndlGrp', 'infraAccPortP', 'infraHPortS', 'infraRsDomP',
     'infraAttEntityP', 'lldpAdjEp', 'cdpAdjEp', 'fvRsBd', 'fvRsCtx'
 ]
+
+try:
+    import requests
+except Exception:
+    requests = None
 
 
 class NetworkDataCollector:
@@ -113,6 +123,8 @@ class NetworkDataCollector:
                 }
             }
         }
+
+        self.ssl_context = ssl._create_unverified_context()
 
     # SECTION: logging and errors
     def setup_logging(self, log_level):
@@ -490,6 +502,111 @@ class NetworkDataCollector:
 
         return cleaned.strip()
 
+    def clean_apic_json_output(self, text):
+        if not text:
+            return ""
+
+        lines = text.splitlines()
+        cleaned_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("Warning: Permanently added"):
+                continue
+            if stripped.startswith("Last login"):
+                continue
+            if stripped.startswith("Connection to") and stripped.endswith("closed."):
+                continue
+            cleaned_lines.append(line)
+
+        cleaned = "\n".join(cleaned_lines).strip()
+
+        start_idx = -1
+        for idx, ch in enumerate(cleaned):
+            if ch in "{[":
+                start_idx = idx
+                break
+        if start_idx == -1:
+            return cleaned
+
+        end_idx = max(cleaned.rfind("}"), cleaned.rfind("]"))
+        if end_idx > start_idx:
+            cleaned = cleaned[start_idx:end_idx + 1]
+        else:
+            cleaned = cleaned[start_idx:]
+
+        return cleaned.strip()
+
+    def _escape_single_quotes(self, value: str) -> str:
+        return value.replace("'", "'\"'\"'")
+
+    def _apic_rest_login(self, apic_url, username, password):
+        payload = {
+            "aaaUser": {
+                "attributes": {
+                    "name": username,
+                    "pwd": password
+                }
+            }
+        }
+
+        if requests:
+            session = requests.Session()
+            session.verify = False
+            resp = session.post(f"{apic_url}/api/aaaLogin.json", json=payload, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            token = data.get("imdata", [{}])[0].get("aaaLogin", {}).get("attributes", {}).get("token")
+            if not token:
+                raise ValueError("APIC login returned no token")
+            return ("requests", session)
+
+        cookie_jar = http.cookiejar.CookieJar()
+        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            f"{apic_url}/api/aaaLogin.json",
+            data=body,
+            headers={"Content-Type": "application/json"}
+        )
+        with opener.open(req, timeout=30, context=self.ssl_context) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        token = data.get("imdata", [{}])[0].get("aaaLogin", {}).get("attributes", {}).get("token")
+        if not token:
+            raise ValueError("APIC login returned no token")
+        return ("urllib", opener)
+
+    def _apic_rest_get_class(self, apic_url, session_info, class_name):
+        mode, session = session_info
+        url = f"{apic_url}/api/node/class/{class_name}.json"
+        if mode == "requests":
+            resp = session.get(url, timeout=60)
+            resp.raise_for_status()
+            return resp.text
+        with session.open(url, timeout=60, context=self.ssl_context) as resp:
+            return resp.read().decode("utf-8")
+
+    def _apic_icurl_login(self, hostname, username, password):
+        safe_user = self._escape_single_quotes(username)
+        safe_pass = self._escape_single_quotes(password)
+        payload = f'{{"aaaUser":{{"attributes":{{"name":"{safe_user}","pwd":"{safe_pass}"}}}}}}'
+        cmd = f"icurl -k -s -X POST https://127.0.0.1/api/aaaLogin.json -d '{payload}'"
+        output = self.ssh_command_apic_with_retry(hostname, username, password, cmd, timeout=60)
+        if not output:
+            raise ValueError("icurl login failed")
+        data = json.loads(self.clean_apic_json_output(output))
+        token = data.get("imdata", [{}])[0].get("aaaLogin", {}).get("attributes", {}).get("token")
+        if not token:
+            raise ValueError("icurl login returned no token")
+        return token
+
+    def _apic_icurl_get_class(self, hostname, username, password, token, class_name):
+        cmd = (
+            "icurl -k -s "
+            f"-H \"Cookie: APIC-cookie={token}\" "
+            f"https://127.0.0.1/api/node/class/{class_name}.json"
+        )
+        return self.ssh_command_apic_with_retry(hostname, username, password, cmd, timeout=60)
+
     def ssh_command(self, hostname, username, password, command, timeout=30, attempt=0):
         pagination_commands = ['show interface', 'show port', 'show run', 'show config']
         needs_interactive = any(cmd in command.lower() for cmd in pagination_commands)
@@ -559,6 +676,85 @@ class NetworkDataCollector:
             self.log_error(hostname, 'COMMAND_ERROR', f"Error executing SSH command: {exc}", command)
             return None
 
+    def ssh_command_apic(self, hostname, username, password, command, timeout=120, attempt=0):
+        try:
+            self.logger.debug("Executing APIC command on %s: %s (timeout: %ss, attempt: %s)",
+                              hostname, command, timeout, attempt)
+
+            remote_cmd = ['bash', '-lc', command]
+            if password:
+                ssh_cmd = [
+                    'sshpass', '-p', password,
+                    'ssh',
+                    '-o', 'ConnectTimeout=10',
+                    '-o', 'StrictHostKeyChecking=no',
+                    '-o', 'UserKnownHostsFile=/dev/null',
+                    '-o', 'LogLevel=ERROR',
+                    f'{username}@{hostname}',
+                    *remote_cmd
+                ]
+            else:
+                ssh_cmd = [
+                    'ssh',
+                    '-o', 'ConnectTimeout=10',
+                    '-o', 'StrictHostKeyChecking=no',
+                    '-o', 'UserKnownHostsFile=/dev/null',
+                    '-o', 'LogLevel=ERROR',
+                    f'{username}@{hostname}',
+                    *remote_cmd
+                ]
+
+            result = subprocess.run(
+                ssh_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                timeout=timeout
+            )
+
+            if result.returncode == 0:
+                if result.stdout.strip():
+                    return self.clean_apic_json_output(result.stdout)
+                self.log_missing_data(hostname, 'EMPTY_OUTPUT', f"Command '{command}' returned no output")
+                return ""
+
+            error_msg = result.stderr.strip()
+
+            if 'permission denied' in error_msg.lower():
+                self.log_error(hostname, 'PERMISSION_DENIED', error_msg, command)
+            elif 'connection refused' in error_msg.lower():
+                self.log_error(hostname, 'CONNECTION_TIMEOUT', error_msg, command)
+            elif 'no route to host' in error_msg.lower():
+                self.log_error(hostname, 'HOST_UNREACHABLE', error_msg, command)
+            else:
+                self.log_error(hostname, 'COMMAND_ERROR', error_msg, command)
+
+            return None
+
+        except subprocess.TimeoutExpired:
+            self.log_error(hostname, 'COMMAND_TIMEOUT', f"Command timeout after {timeout}s: {command}", command)
+            return None
+        except Exception as exc:
+            self.log_error(hostname, 'COMMAND_ERROR', f"Error executing SSH command: {exc}", command)
+            return None
+
+    def ssh_command_apic_with_retry(self, hostname, username, password, command, timeout=120, max_retries=2):
+        for attempt in range(max_retries + 1):
+            if attempt > 0:
+                self.logger.info("Retry attempt %s for APIC command '%s' on %s", attempt, command, hostname)
+                time.sleep(2)
+
+            result = self.ssh_command_apic(hostname, username, password, command, timeout, attempt)
+
+            if result is not None:
+                return result
+            if attempt < max_retries:
+                self.logger.warning("APIC command failed, will retry: %s on %s", command, hostname)
+
+        self.log_error(hostname, 'COMMAND_TIMEOUT',
+                       f"APIC command failed after {max_retries} retries: {command}", command)
+        return None
+
     # SECTION: collection flow
     def collect_apic_data(self, hostname, username, classes, use_password=True):
         print("\n{}".format("=" * 60))
@@ -588,14 +784,53 @@ class NetworkDataCollector:
                 return apic_data
 
         imdata = []
+        rest_session = None
+        icurl_token = None
+
+        if password:
+            apic_url = f"https://{hostname}"
+            try:
+                rest_session = self._apic_rest_login(apic_url, username, password)
+                self.logger.info("APIC REST login successful for %s", hostname)
+            except Exception as exc:
+                rest_session = None
+                self.logger.warning("APIC REST login failed for %s: %s", hostname, exc)
+
+            try:
+                icurl_token = self._apic_icurl_login(hostname, username, password)
+                self.logger.info("APIC icurl login successful for %s", hostname)
+            except Exception as exc:
+                icurl_token = None
+                self.logger.warning("APIC icurl login failed for %s: %s", hostname, exc)
+
         for class_name in classes:
-            cmd = f"moquery -c {class_name} -o json"
-            output = self.ssh_command_with_retry(hostname, username, password, cmd, timeout=120)
+            output = None
+
+            if rest_session:
+                try:
+                    output = self._apic_rest_get_class(f"https://{hostname}", rest_session, class_name)
+                except Exception as exc:
+                    self.logger.warning("REST class fetch failed for %s: %s", class_name, exc)
+                    output = None
+
+            if not output and icurl_token:
+                try:
+                    output = self._apic_icurl_get_class(hostname, username, password, icurl_token, class_name)
+                except Exception as exc:
+                    self.logger.warning("icurl class fetch failed for %s: %s", class_name, exc)
+                    output = None
+
+            if not output:
+                cmd = f"moquery -c {class_name} -o json"
+                output = self.ssh_command_apic_with_retry(hostname, username, password, cmd, timeout=120)
+
             if not output:
                 apic_data['class_errors'].append(f"{class_name}: empty output")
                 continue
+
             try:
-                data = json.loads(output)
+                cleaned = self.clean_apic_json_output(output)
+                data = json.loads(cleaned)
                 class_imdata = data.get('imdata', [])
                 if not class_imdata:
                     apic_data['class_errors'].append(f"{class_name}: no imdata found")
@@ -923,11 +1158,30 @@ class NetworkDataCollector:
         print(f"Failed: {len([d for d in self.collected_data if d['collection_status'] != 'success'])}")
         return 0
 
-    def run_apic(self, classes):
-        hosts = self.load_hosts()
-        if not hosts:
-            print("No hosts loaded. Please update hosts file and retry.")
-            return 1
+    def run_apic(self, classes, apic_host=None, apic_username=None):
+        hosts = []
+        if apic_host:
+            hostname = apic_host.strip()
+            username = apic_username or self.default_username or input("APIC username: ").strip()
+            if not hostname:
+                print("No APIC hostname provided.")
+                return 1
+            if not username:
+                print("No APIC username provided.")
+                return 1
+            hosts = [(hostname, username)]
+        else:
+            hosts = self.load_hosts()
+            if not hosts:
+                hostname = input("APIC hostname or IP: ").strip()
+                if not hostname:
+                    print("No APIC hostname provided.")
+                    return 1
+                username = self.default_username or input("APIC username: ").strip()
+                if not username:
+                    print("No APIC username provided.")
+                    return 1
+                hosts = [(hostname, username)]
 
         queue = hosts[:]
         threads = []
@@ -958,6 +1212,8 @@ def parse_args():
     parser.add_argument("--username", help="Default username for hosts without one")
     parser.add_argument("--no-password", action="store_true", help="Do not prompt for passwords")
     parser.add_argument("--apic", action="store_true", help="Collect ACI data from APIC via SSH")
+    parser.add_argument("--apic-host", help="APIC hostname or IP (prompted if not set and hosts file is empty)")
+    parser.add_argument("--apic-username", help="APIC username (prompted if not set)")
     parser.add_argument("--aci-classes", help="Comma-separated ACI classes to collect (defaults to full set)")
     return parser.parse_args()
 
@@ -977,7 +1233,7 @@ def main():
             classes = [c.strip() for c in args.aci_classes.split(',') if c.strip()]
         else:
             classes = DEFAULT_ACI_CLASSES
-        return collector.run_apic(classes)
+        return collector.run_apic(classes, apic_host=args.apic_host, apic_username=args.apic_username)
     return collector.run()
 
 
