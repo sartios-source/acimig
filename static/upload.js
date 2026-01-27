@@ -212,6 +212,7 @@ function startUpload(fileItem) {
 
     const xhr = new XMLHttpRequest();
     fileItem.xhr = xhr;
+    xhr.timeout = 60 * 60 * 1000;
 
     // Progress handler
     xhr.upload.addEventListener('progress', (e) => {
@@ -227,25 +228,34 @@ function startUpload(fileItem) {
     xhr.addEventListener('load', () => {
         activeUploads--;
 
-        if (xhr.status === 200) {
-            const response = JSON.parse(xhr.responseText);
-            if (response.success) {
-                fileItem.status = 'complete';
-                fileItem.progress = 100;
-                updateFileProgress(fileItem);
-                showSuccess(`${fileItem.file.name} uploaded successfully`);
-
-                // Start next queued upload
-                startNextUpload();
-            } else {
-                fileItem.status = 'error';
-                fileItem.error = response.error || 'Upload failed';
-                updateFileProgress(fileItem);
-                showError(`${fileItem.file.name}: ${fileItem.error}`);
+        let response = null;
+        if (xhr.responseText) {
+            try {
+                response = JSON.parse(xhr.responseText);
+            } catch (e) {
+                response = null;
             }
+        }
+
+        if (xhr.status === 200 && response && response.success) {
+            fileItem.status = 'complete';
+            fileItem.progress = 100;
+            updateFileProgress(fileItem);
+            showSuccess(`${fileItem.file.name} uploaded successfully`);
+
+            // Start next queued upload
+            startNextUpload();
         } else {
             fileItem.status = 'error';
-            fileItem.error = `HTTP ${xhr.status}: ${xhr.statusText}`;
+            if (response && response.error) {
+                fileItem.error = response.error;
+            } else if (xhr.status === 0) {
+                fileItem.error = 'Upload failed (network error or CORS)';
+            } else if (!response && xhr.responseText) {
+                fileItem.error = `HTTP ${xhr.status}: ${xhr.statusText} (${xhr.responseText.slice(0, 200)})`;
+            } else {
+                fileItem.error = `HTTP ${xhr.status}: ${xhr.statusText}`;
+            }
             updateFileProgress(fileItem);
             showError(`${fileItem.file.name}: ${fileItem.error}`);
         }
@@ -253,6 +263,30 @@ function startUpload(fileItem) {
         updateOverallProgress();
 
         // Check if all done
+        if (isQueueComplete()) {
+            onAllUploadsComplete();
+        }
+    });
+
+    xhr.addEventListener('error', () => {
+        activeUploads--;
+        fileItem.status = 'error';
+        fileItem.error = 'Network error during upload';
+        updateFileProgress(fileItem);
+        showError(`${fileItem.file.name}: ${fileItem.error}`);
+        updateOverallProgress();
+        if (isQueueComplete()) {
+            onAllUploadsComplete();
+        }
+    });
+
+    xhr.addEventListener('timeout', () => {
+        activeUploads--;
+        fileItem.status = 'error';
+        fileItem.error = 'Upload timed out';
+        updateFileProgress(fileItem);
+        showError(`${fileItem.file.name}: ${fileItem.error}`);
+        updateOverallProgress();
         if (isQueueComplete()) {
             onAllUploadsComplete();
         }
