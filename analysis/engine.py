@@ -126,6 +126,17 @@ class ACIAnalyzer:
                     logger.info(f"Loaded {len(parsed['objects'])} ACI objects from {dataset['filename']}")
 
                 elif dataset_type == 'cmdb':
+                    normalized_path = dataset.get('normalized_path')
+                    if normalized_path and Path(normalized_path).exists():
+                        try:
+                            normalized_content = Path(normalized_path).read_text(encoding='utf-8')
+                            parsed = json.loads(normalized_content)
+                            if isinstance(parsed, list):
+                                self._cmdb_records.extend(parsed)
+                                logger.info(f"Loaded {len(parsed)} CMDB records from normalized file {normalized_path}")
+                                continue
+                        except Exception as e:
+                            logger.warning(f"Failed to load normalized CMDB data: {str(e)}")
                     parsed = parsers.parse_cmdb_csv(content)
                     self._cmdb_records.extend(parsed)
                     logger.info(f"Loaded {len(parsed)} CMDB records from {dataset['filename']}")

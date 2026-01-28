@@ -109,28 +109,38 @@ def parse_legacy_config(content: str) -> Dict[str, Any]:
         'vpcs': [],
     }
 
+def _normalize_cmdb_value(value: Any) -> str:
+    if value is None:
+        return ''
+    if isinstance(value, str):
+        return value.strip()
+    return str(value).strip()
+
+
 def parse_cmdb_csv(content: str) -> List[Dict[str, Any]]:
-    """Parse CMDB CSV file with error handling."""
+    """Parse CMDB CSV file with error handling and normalized field names."""
     try:
         reader = csv.DictReader(StringIO(content))
         records = []
 
         for row_num, row in enumerate(reader, start=2):  # Start at 2 (after header)
             try:
-                serial = row.get('SerialNumber', row.get('Serial', '')).strip()
+                serial = _normalize_cmdb_value(row.get('SerialNumber', row.get('Serial', '')))
                 if not serial:
-                    serial = row.get('serial', row.get('serial_number', '')).strip()
+                    serial = _normalize_cmdb_value(row.get('serial', row.get('serial_number', '')))
                 if serial:
-                    model = row.get('ModelName', row.get('Model', row.get('model', ''))).strip()
+                    model_name = _normalize_cmdb_value(row.get('ModelName', row.get('Model', row.get('model', ''))))
                     records.append({
                         'serial_number': serial,
-                        'name': row.get('Name', row.get('name', '')).strip(),
-                        'model': model,
-                        'rack': row.get('Rack', ''),
-                        'unitlocation': row.get('UnitLocation', row.get('unitlocation', '')),
-                        'building': row.get('Building', ''),
-                        'hall': row.get('Hall', ''),
-                        'site': row.get('Site', ''),
+                        'name': _normalize_cmdb_value(row.get('Name', row.get('name', ''))),
+                        'model_name': model_name,
+                        'model': model_name,
+                        'rack': _normalize_cmdb_value(row.get('Rack', row.get('rack', ''))),
+                        'unit_location': _normalize_cmdb_value(row.get('UnitLocation', row.get('unitlocation', ''))),
+                        'unitlocation': _normalize_cmdb_value(row.get('UnitLocation', row.get('unitlocation', ''))),
+                        'building': _normalize_cmdb_value(row.get('Building', row.get('building', ''))),
+                        'hall': _normalize_cmdb_value(row.get('Hall', row.get('hall', ''))),
+                        'site': _normalize_cmdb_value(row.get('Site', row.get('site', ''))),
                     })
             except Exception as e:
                 # Log warning but continue processing

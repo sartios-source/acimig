@@ -153,7 +153,11 @@
             const td = document.createElement('td');
             td.colSpan = state.visibleColumns.size || 1;
             td.classList.add('de-empty');
-            td.textContent = 'No data to display';
+            if (state.filterSummary && state.filterSummary.active) {
+                td.textContent = `No matching rows (${state.filterSummary.label})`;
+            } else {
+                td.textContent = 'No data to display';
+            }
             tr.appendChild(td);
             tbody.appendChild(tr);
             return;
@@ -345,12 +349,52 @@
             filtered.sort((a, b) => compareValues(getValue(a, state.sort.key), getValue(b, state.sort.key), col.type, state.sort.direction));
         }
 
+        state.currentRows = filtered;
+        updateFilterSummary(state);
+
         const start = (state.page - 1) * state.pageSize;
         const pageRows = filtered.slice(start, start + state.pageSize);
         renderRows(state, tableEl, pageRows);
         updatePagination(state, filtered.length, state.pagination);
+    }
 
-        state.currentRows = filtered;
+    function summarizeFilters(state) {
+        const details = [];
+        if (state.search) {
+            details.push(`Search: "${state.search}"`);
+        }
+        Object.entries(state.filters).forEach(([key, value]) => {
+            if (!value) return;
+            const col = state.columns.find(c => c.key === key);
+            const label = col ? col.label : key;
+            details.push(`${label}: ${value}`);
+        });
+        if (state.customFilters) {
+            state.customFilters.forEach(filter => {
+                if (!filter || filter.value === null || filter.value === '' || filter.value === false) return;
+                details.push(`${filter.label}: ${filter.value}`);
+            });
+        }
+        return details;
+    }
+
+    function updateFilterSummary(state) {
+        const summaryEl = state.container.querySelector('.de-filter-summary');
+        const textEl = state.container.querySelector('.de-filter-text');
+        if (!summaryEl || !textEl) return;
+        const details = summarizeFilters(state);
+        if (!details.length) {
+            summaryEl.setAttribute('hidden', '');
+            state.filterSummary = { active: false, label: '' };
+            return;
+        }
+        const total = state.data.length;
+        const filtered = state.currentRows ? state.currentRows.length : 0;
+        const label = `${details.join(', ')} | Filtered ${filtered} of ${total}`;
+        textEl.textContent = label;
+        summaryEl.removeAttribute('hidden');
+        state.filterSummary = { active: true, label };
+        console.debug(`[DataExplorer] ${state.id} filters`, { filters: details, filtered, total });
     }
 
     function initExplorer(container) {
@@ -375,6 +419,7 @@
             titleFallback: options.titleFallback || 'Details'
         };
 
+        state.container = container;
         state.table = container.querySelector('.de-table');
         state.pagination = container.querySelector('.de-pagination');
         state.columnsPanel = container.querySelector('.de-columns-panel');
@@ -418,6 +463,32 @@
                 state.columnsPanel.setAttribute('hidden', '');
             }
         });
+
+        const clearButton = container.querySelector('.de-clear-filters');
+        if (clearButton) {
+            clearButton.addEventListener('click', () => {
+                state.search = '';
+                state.filters = {};
+                if (state.customFilters) {
+                    state.customFilters.forEach(filter => {
+                        filter.value = '';
+                    });
+                }
+                const searchInput = container.querySelector('.de-search');
+                if (searchInput) searchInput.value = '';
+                container.querySelectorAll('.de-filter-row input').forEach(input => {
+                    input.value = '';
+                });
+                container.querySelectorAll('.de-filters-panel select').forEach(select => {
+                    select.value = '';
+                });
+                container.querySelectorAll('.de-filters-panel input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                state.page = 1;
+                render(state);
+            });
+        }
 
         const flagContainer = container.querySelector('.de-flags');
         const flagToggle = container.querySelector('.de-flag-only');

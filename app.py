@@ -535,6 +535,13 @@ def analyze():
     type_counts = {}
     validation_results = None
     cmdb_rows = []
+    cmdb_stats = {
+        'total': 0,
+        'matched': 0,
+        'unmatched': 0,
+        'duplicate_serials': 0
+    }
+    has_cmdb_dataset = False
     port_status_data = {
         'rows': [],
         'summary': {
@@ -562,6 +569,13 @@ def analyze():
             validation_results = cached.get('validation_results')
             port_status_data = cached.get('port_status_data', port_status_data)
             cmdb_rows = cached.get('cmdb_rows', [])
+            cmdb_stats = cached.get('cmdb_stats', cmdb_stats)
+            has_cmdb_dataset = cached.get('has_cmdb_dataset', False)
+            app.logger.info(
+                "Analyze cache hit for %s: cmdb_rows=%s",
+                current_fabric,
+                len(cmdb_rows)
+            )
             return render_template('analyze_enhanced.html',
                                   mode=mode,
                                   current_fabric=current_fabric,
@@ -569,6 +583,8 @@ def analyze():
                                   validation_results=validation_results,
                                   unified_data=unified_data,
                                   cmdb_rows=cmdb_rows,
+                                  cmdb_stats=cmdb_stats,
+                                  has_cmdb_dataset=has_cmdb_dataset,
                                   port_status_data=port_status_data,
                                   tenants=tenants,
                                   vrfs=vrfs,
@@ -588,37 +604,67 @@ def analyze():
             # CMDB records for dedicated CMDB view
             fex_by_serial = {f.get('ser'): f for f in analyzer._fexes if f.get('ser')}
             leaf_by_serial = {l.get('serial'): l for l in analyzer._leafs if l.get('serial')}
+            has_cmdb_dataset = any(d.get('type') == 'cmdb' for d in datasets)
             cmdb_rows = []
+            duplicate_serials = 0
+            serial_seen = set()
             for record in analyzer._cmdb_records:
-                serial = record.get('serial_number')
+                serial = record.get('serial_number') or record.get('serial') or record.get('SerialNumber')
+                if serial in serial_seen:
+                    duplicate_serials += 1
+                else:
+                    serial_seen.add(serial)
                 fex = fex_by_serial.get(serial)
                 leaf = leaf_by_serial.get(serial)
                 device_type = 'unknown'
                 device_id = None
                 aci_model = None
+                aci_device_name = None
+                aci_role = None
                 if fex:
                     device_type = 'fex'
                     device_id = fex.get('id')
                     aci_model = fex.get('model')
+                    aci_device_name = fex.get('name')
+                    aci_role = 'fex'
                 elif leaf:
                     device_type = 'leaf'
                     device_id = leaf.get('id')
                     aci_model = leaf.get('model')
+                    aci_device_name = leaf.get('name')
+                    aci_role = leaf.get('role', 'leaf')
                 cmdb_rows.append({
                     'serial_number': serial or 'Unknown',
-                    'name': record.get('name') or 'Unknown',
-                    'model_name': record.get('model') or 'Unknown',
+                    'name': record.get('name') or record.get('Name') or 'Unknown',
+                    'model_name': record.get('model_name') or record.get('model') or record.get('ModelName') or 'Unknown',
                     'aci_model': aci_model or 'Unknown',
                     'matched': bool(fex or leaf),
                     'flagged': not bool(fex or leaf),
                     'device_type': device_type,
                     'device_id': device_id or 'Unknown',
-                    'rack': record.get('rack') or 'Unknown',
-                    'building': record.get('building') or 'Unknown',
-                    'hall': record.get('hall') or 'Unknown',
-                    'site': record.get('site') or 'Unknown',
-                    'unit_location': record.get('unitlocation') or 'Unknown'
+                    'aci_device_name': aci_device_name or 'Unknown',
+                    'aci_role': aci_role or 'Unknown',
+                    'rack': record.get('rack') or record.get('Rack') or 'Unknown',
+                    'building': record.get('building') or record.get('Building') or 'Unknown',
+                    'hall': record.get('hall') or record.get('Hall') or 'Unknown',
+                    'site': record.get('site') or record.get('Site') or 'Unknown',
+                    'unit_location': record.get('unit_location') or record.get('unitlocation') or record.get('UnitLocation') or 'Unknown'
                 })
+            cmdb_stats = {
+                'total': len(cmdb_rows),
+                'matched': sum(1 for row in cmdb_rows if row.get('matched')),
+                'unmatched': sum(1 for row in cmdb_rows if not row.get('matched')),
+                'duplicate_serials': duplicate_serials
+            }
+            app.logger.info(
+                "Loaded CMDB rows for %s: total=%s, matched=%s, source=%s",
+                current_fabric,
+                cmdb_stats['total'],
+                cmdb_stats['matched'],
+                'normalized' if any(d.get('normalized_path') for d in datasets if d.get('type') == 'cmdb') else 'csv'
+            )
+            if not has_cmdb_dataset:
+                app.logger.info("No CMDB dataset registered for fabric %s", current_fabric)
 
             # BD lookup by name for VRF resolution
             bd_by_name = {bd.get('name', ''): bd for bd in analyzer._bds if bd.get('name')}
@@ -902,7 +948,9 @@ def analyze():
                 'type_counts': type_counts,
                 'validation_results': validation_results,
                 'port_status_data': port_status_data,
-                'cmdb_rows': cmdb_rows
+                'cmdb_rows': cmdb_rows,
+                'cmdb_stats': cmdb_stats,
+                'has_cmdb_dataset': has_cmdb_dataset
             })
 
         except Exception as e:
@@ -916,6 +964,8 @@ def analyze():
                           validation_results=validation_results,
                           unified_data=unified_data,
                           cmdb_rows=cmdb_rows,
+                          cmdb_stats=cmdb_stats,
+                          has_cmdb_dataset=has_cmdb_dataset,
                           port_status_data=port_status_data,
                           tenants=tenants,
                           vrfs=vrfs,
@@ -1042,12 +1092,24 @@ def upload():
                     app.logger.error(f"Error reading file {filename}: {str(e)}")
                     return jsonify({'error': str(e)}), 500
                 parsed_data = parsers.parse_cmdb_csv(content)
+                # Persist normalized CMDB data for analysis reuse
+                cmdb_dir = DATA_DIR / current_fabric
+                cmdb_dir.mkdir(parents=True, exist_ok=True)
+                cmdb_normalized_path = cmdb_dir / 'cmdb_normalized.json'
+                try:
+                    cmdb_normalized_path.write_text(
+                        json.dumps(parsed_data, indent=2),
+                        encoding='utf-8'
+                    )
+                except Exception as e:
+                    app.logger.warning(f"Failed to write CMDB normalized file: {str(e)}")
                 fm.add_dataset(current_fabric, {
                     'filename': filename,
                     'type': 'cmdb',
                     'uploaded': datetime.now().isoformat(),
                     'records': len(parsed_data),
-                    'path': str(file_path)
+                    'path': str(file_path),
+                    'normalized_path': str(cmdb_normalized_path) if cmdb_normalized_path.exists() else None
                 })
                 app.logger.info(f"Parsed CMDB CSV: {len(parsed_data)} records")
 
