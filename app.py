@@ -134,6 +134,7 @@ def invalidate_fabric_cache(fabric_name: str):
         get_fabric_cache_key(fabric_name, 'planning'),
         get_fabric_cache_key(fabric_name, 'reporting'),
         get_fabric_cache_key(fabric_name, 'analysis'),
+        get_fabric_cache_key(fabric_name, 'data_hub'),
         get_fabric_cache_key(fabric_name, 'stats'),
     ]
     for key in keys_to_delete:
@@ -285,8 +286,8 @@ def ensure_mock_samples():
 @app.context_processor
 def inject_fabrics():
     """Make common values available to all templates."""
-    if session.get('ui_mode') != 'new':
-        session['ui_mode'] = 'new'
+    if 'ui_mode' not in session:
+        session['ui_mode'] = 'classic'
     return {
         'fabrics': fm.list_fabrics(),
         'app_version': APP_VERSION,
@@ -540,8 +541,8 @@ def health_check():
 def index():
     """Landing page with mode selection and fabric-specific statistics."""
     mode = 'migration'
-    ui_mode = 'new'
-    session['ui_mode'] = 'new'
+    ui_mode = session.get('ui_mode', 'classic')
+    session['ui_mode'] = ui_mode
     current_fabric = session.get('current_fabric')
     fabric_stats = None
 
@@ -613,15 +614,34 @@ def index():
 def select_ui_mode():
     """Persist the preferred UI mode in the session."""
     requested_mode = request.args.get('mode', '').strip().lower()
-    if requested_mode not in {'new'}:
+    if requested_mode not in {'classic', 'data', 'new'}:
         return jsonify({'error': 'Invalid UI mode'}), 400
-
-    session['ui_mode'] = 'new'
+    if requested_mode == 'new':
+        requested_mode = 'classic'
+    session['ui_mode'] = requested_mode
     next_path = request.args.get('next', '/')
     if not next_path.startswith('/'):
         next_path = '/'
 
     return redirect(next_path)
+
+
+@app.route('/settings', methods=['GET'])
+def settings():
+    """Settings page to toggle UI mode."""
+    return render_template('settings.html', mode='migration')
+
+
+@app.route('/ui/mode', methods=['POST'])
+def set_ui_mode():
+    """Set UI mode via settings form."""
+    requested_mode = request.form.get('ui_mode', '').strip().lower()
+    if requested_mode not in {'classic', 'data'}:
+        flash("Invalid UI mode selection.", "error")
+        return redirect(url_for('settings'))
+    session['ui_mode'] = requested_mode
+    flash("UI mode updated.", "success")
+    return redirect(url_for('settings'))
 
 
 @app.route('/upload_page')
@@ -1843,6 +1863,157 @@ def visualize():
                          mode=mode,
                          current_fabric=current_fabric,
                          viz_data=viz_data)
+
+
+@app.route('/data')
+@handle_route_errors
+def data_explorer():
+    """Data-centric explorer hub (deduped views)."""
+    mode = 'migration'
+    current_fabric = session.get('current_fabric')
+    hub_data = {}
+
+    if current_fabric:
+        cache_key = get_fabric_cache_key(current_fabric, 'data_hub')
+        cached = cache.get(cache_key)
+        if cached:
+            hub_data = cached
+        else:
+            fabric_data = fm.get_fabric_data(current_fabric)
+            analyzer = engine.ACIAnalyzer(fabric_data)
+            analyzer._load_data()
+
+            raw_cmdb = _load_cmdb_records_for_fabric(fabric_data, current_fabric)
+            cmdb_rows = _correlate_cmdb_records(raw_cmdb, analyzer, current_fabric)
+            cmdb_stats = {
+                'total': len(cmdb_rows),
+                'matched': sum(1 for row in cmdb_rows if row.get('Matched')),
+                'unmatched': sum(1 for row in cmdb_rows if not row.get('Matched'))
+            }
+            has_cmdb_dataset = any(d.get('type') == 'cmdb' for d in fabric_data.get('datasets', []))
+
+            vlan_coupling = analyzer.analyze_vlan_coupling_index()
+            vlan_detail = analyzer.analyze_vlan_coupling_detail()
+            vlan_dist = analyzer.analyze_vlan_distribution()
+            overlap_set = {
+                int(v.get('vlan') or v.get('vlan_id'))
+                for v in vlan_dist.get('overlaps', [])
+                if v.get('vlan') or v.get('vlan_id')
+            }
+            detailed_rows = []
+            for row in vlan_coupling.get('vlans', []):
+                vlan_id = row.get('vlan_id')
+                detail = vlan_detail.get(vlan_id, {})
+                epgs = detail.get('epgs', [])
+                bindings = [b for epg in epgs for b in epg.get('bindings', [])]
+                has_leaf = any(b.get('binding_type') == 'leaf' for b in bindings)
+                has_fex = any(b.get('binding_type') == 'fex' for b in bindings)
+                leaf_ids = {str(b.get('leafId')) for b in bindings if b.get('leafId') is not None}
+                fex_serials = {b.get('fexSerial') for b in bindings if b.get('fexSerial')}
+                racks = {b.get('rack') for b in bindings if b.get('rack')}
+                reasons = [r.strip() for r in str(row.get('why', '')).split(';') if r.strip()]
+                coupling_score = row.get('coupling_score') or 0
+                coupling_level = row.get('coupling_level') or 'low'
+                coupling_severity = 'critical' if coupling_score >= 60 else coupling_level
+                search_blob = ' '.join([
+                    str(vlan_id or ''),
+                    ' '.join(row.get('tenants') or []),
+                    ' '.join(row.get('bds') or []),
+                    ' '.join(row.get('vrfs') or []),
+                    ' '.join([f"{e.get('tenant','')}/{e.get('app','')}/{e.get('epg','')}" for e in epgs]),
+                    ' '.join([str(b.get('leafId') or '') for b in bindings]),
+                    ' '.join([str(b.get('fexId') or '') for b in bindings]),
+                    ' '.join([str(b.get('fexSerial') or '') for b in bindings]),
+                    ' '.join([str(b.get('rack') or '') for b in bindings]),
+                ]).lower()
+
+                detailed_rows.append({
+                    **row,
+                    'overlap': vlan_id in overlap_set if vlan_id is not None else False,
+                    'binding_count': row.get('attachment_spread', {}).get('total_bindings', len(bindings)),
+                    'leaf_count': len(row.get('attachment_spread', {}).get('leafs', []) or leaf_ids),
+                    'fex_count': len(row.get('attachment_spread', {}).get('fex_identifiers', []) or fex_serials),
+                    'rack_count': len(row.get('attachment_spread', {}).get('racks', []) or racks),
+                    'has_leaf_bindings': has_leaf,
+                    'has_fex_bindings': has_fex,
+                    'mixed_bindings': has_leaf and has_fex,
+                    'multi_leaf': len(leaf_ids) > 1,
+                    'multi_rack': len(racks) > 1,
+                    'coupling_severity': coupling_severity,
+                    'reasons': reasons[:3],
+                    'epgs': epgs,
+                    'search_blob': search_blob
+                })
+            vlan_coupling['vlans_detailed'] = detailed_rows
+
+            migration_units = analyzer.analyze_migration_units()
+            epg_complexity = analyzer.analyze_epg_complexity()
+
+            fex_inventory = []
+            for fex in analyzer._fexes:
+                fex_inventory.append({
+                    'id': fex.get('id'),
+                    'name': fex.get('name'),
+                    'model': fex.get('model'),
+                    'serial': fex.get('ser'),
+                    'dn': fex.get('dn')
+                })
+            leaf_inventory = []
+            for leaf in analyzer._leafs:
+                leaf_inventory.append({
+                    'id': leaf.get('id'),
+                    'name': leaf.get('name'),
+                    'model': leaf.get('model'),
+                    'serial': leaf.get('serial') or leaf.get('ser'),
+                    'role': leaf.get('role'),
+                    'dn': leaf.get('dn')
+                })
+
+            contracts = [
+                {
+                    'name': c.get('name'),
+                    'tenant': analyzer._extract_tenant_from_dn(c.get('dn', '')),
+                    'scope': c.get('scope') or c.get('scope', '')
+                }
+                for c in analyzer._contracts
+            ]
+            vrfs = [
+                {
+                    'name': v.get('name'),
+                    'tenant': analyzer._extract_tenant_from_dn(v.get('dn', '')),
+                    'pcEnfPref': v.get('pcEnfPref') or v.get('pce_policy', '')
+                }
+                for v in analyzer._vrfs
+            ]
+            bds = [
+                {
+                    'name': b.get('name'),
+                    'tenant': analyzer._extract_tenant_from_dn(b.get('dn', '')),
+                    'vrf': analyzer._get_vrf_name_for_bd(b)
+                }
+                for b in analyzer._bds
+            ]
+
+            hub_data = {
+                'vlan_coupling': vlan_coupling,
+                'vlan_distribution': vlan_dist,
+                'migration_units': migration_units,
+                'epg_complexity': epg_complexity,
+                'fex_inventory': fex_inventory,
+                'leaf_inventory': leaf_inventory,
+                'contracts': contracts,
+                'vrfs': vrfs,
+                'bds': bds,
+                'cmdb_rows': cmdb_rows,
+                'cmdb_stats': cmdb_stats,
+                'has_cmdb_dataset': has_cmdb_dataset
+            }
+            cache.set(cache_key, hub_data, timeout=300)
+
+    return render_template('data_explorer.html',
+                          mode=mode,
+                          current_fabric=current_fabric,
+                          hub_data=hub_data)
 
 
 @app.route('/plan')
