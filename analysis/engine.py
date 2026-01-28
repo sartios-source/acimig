@@ -139,6 +139,10 @@ class ACIAnalyzer:
             obj_type = obj.get('type')
             attrs = obj.get('attributes', {})
             dn = attrs.get('dn') or obj.get('dn')
+            if obj_type in {'eqptExtCh', 'eqptCh'}:
+                if obj_type == 'eqptExtCh' or (dn and ('extch' in dn or 'fex-' in dn)):
+                    obj_type = 'eqptFex'
+                    obj['type'] = obj_type
             if dn:
                 key = (obj_type, dn)
             else:
