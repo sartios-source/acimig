@@ -4,22 +4,6 @@
 {% block page_title %}Help & Documentation{% endblock %}
 
 {% block extra_css %}
-<!-- Mermaid.js for flowcharts -->
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script>
-    mermaid.initialize({
-        startOnLoad: true,
-        theme: 'default',
-        themeVariables: {
-            primaryColor: '#0070b8',
-            primaryTextColor: '#fff',
-            primaryBorderColor: '#00507a',
-            lineColor: '#64748b',
-            secondaryColor: '#8b5cf6',
-            tertiaryColor: '#10b981'
-        }
-    });
-</script>
 {% endblock %}
 
 {% block content %}
@@ -82,7 +66,7 @@
                         <svg class="h-5 w-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                         </svg>
-                        <span class="text-gray-700"><strong class="text-gray-900">CMDB Data:</strong> CSV file with device serial numbers, locations, and metadata</span>
+                        <span class="text-gray-700"><strong class="text-gray-900">CMDB Data:</strong> CSV with <code class="bg-gray-100 px-1 rounded">SerialNumber</code>, <code class="bg-gray-100 px-1 rounded">Rack</code>, <code class="bg-gray-100 px-1 rounded">Building</code>, <code class="bg-gray-100 px-1 rounded">Hall</code>, <code class="bg-gray-100 px-1 rounded">Site</code>, <code class="bg-gray-100 px-1 rounded">UnitLocation</code>, <code class="bg-gray-100 px-1 rounded">Name</code>, <code class="bg-gray-100 px-1 rounded">ModelName</code>.</span>
                     </li>
                 </ul>
             </div>
@@ -104,7 +88,7 @@
             </div>
             <div class="flex-1">
                 <h3 class="text-lg font-semibold text-gray-900 mb-2">Visualize</h3>
-                <p class="text-gray-700">Explore interactive dashboards with charts, graphs, and topology visualizations</p>
+                <p class="text-gray-700">Use Data Explorer tables for actionable results: VLAN Coupling Explorer, EPG Complexity Explorer, and Migration Units.</p>
             </div>
         </div>
 
@@ -201,197 +185,31 @@
     </div>
 </div>
 
-<!-- Logic Flow Diagrams Section -->
-<div class="mb-8">
-    <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-        <span class="h-1 w-8 bg-primary-600 mr-4 rounded-full"></span>
-        System Logic Flows
-    </h2>
-    <p class="text-gray-600 mb-6">Interactive flowcharts showing how data flows through ACI Migrator v2.0</p>
-
-    <!-- Data Upload Flow -->
-    <div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
-        <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-white border-b border-gray-200">
-            <h3 class="text-xl font-bold text-gray-900 flex items-center">
-                <svg class="h-5 w-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                </svg>
-                Data Upload Flow
-            </h3>
-        </div>
-        <div class="p-6">
-            <div class="mermaid">
-graph LR
-    A[User Uploads File] --> B{File Type Check}
-    B -->|JSON/XML| C[Parse ACI Data]
-    B -->|CSV| D[Parse CMDB Data]
-    B -->|TXT/CFG| E[Parse Legacy Config]
-    B -->|Invalid| F[Show Error]
-    C --> G[Validate Format]
-    D --> G
-    E --> G
-    G -->|Valid| H[Extract Objects]
-    G -->|Invalid| F
-    H --> I[Categorize Data]
-    I --> J[Store in Fabric]
-    J --> K[Display Success]
-    F --> L[User Corrects]
-    L --> A
-            </div>
-        </div>
+<!-- System Logic Summary -->
+<div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
+    <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-white border-b border-gray-200">
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+            <svg class="h-6 w-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            How the app evaluates migration readiness
+        </h2>
     </div>
-
-    <!-- Analysis Flow -->
-    <div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
-        <div class="px-6 py-4 bg-gradient-to-r from-green-50 to-white border-b border-gray-200">
-            <h3 class="text-xl font-bold text-gray-900 flex items-center">
-                <svg class="h-5 w-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                </svg>
-                Analysis Flow
-            </h3>
-        </div>
-        <div class="p-6">
-            <div class="mermaid">
-graph TD
-    A[Select Fabric] --> B[Load All Datasets]
-    B --> C[Initialize Analyzer]
-    C --> D[Run Data Completeness Check]
-    D --> E{Data Complete?}
-    E -->|Yes| F[Categorize Objects]
-    E -->|No| G[Show Missing Data Warning]
-    G --> H[Continue with Available Data]
-    F --> I[Analyze EPGs]
-    F --> J[Analyze FEX Devices]
-    F --> K[Analyze Interfaces]
-    F --> L[Analyze Contracts]
-    I --> M[Generate Statistics]
-    J --> M
-    K --> M
-    L --> M
-    M --> N[Display Results in Tables]
-    N --> O[Enable Filtering & Search]
-            </div>
-        </div>
-    </div>
-
-    <!-- Migration Planning Flow -->
-    <div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
-        <div class="px-6 py-4 bg-gradient-to-r from-purple-50 to-white border-b border-gray-200">
-            <h3 class="text-xl font-bold text-gray-900 flex items-center">
-                <svg class="h-5 w-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
-                Migration Planning Flow
-            </h3>
-        </div>
-        <div class="p-6">
-            <div class="mermaid">
-graph TD
-    A[Start Planning] --> B[Analyze Coupling]
-    B --> C[Analyze VLAN Distribution]
-    C --> D[Analyze Contracts]
-    D --> E[Assess Migration Risk]
-    E --> F[Group into Migration Waves]
-    F --> G[Generate Recommendations]
-    G --> H[Export Reports]
-            </div>
-        </div>
-    </div>
-
-    <!-- Visualization Flow -->
-    <div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
-        <div class="px-6 py-4 bg-gradient-to-r from-yellow-50 to-white border-b border-gray-200">
-            <h3 class="text-xl font-bold text-gray-900 flex items-center">
-                <svg class="h-5 w-5 mr-2 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
-                </svg>
-                Visualization Flow
-            </h3>
-        </div>
-        <div class="p-6">
-            <div class="mermaid">
-graph LR
-    A[Load Fabric Data] --> B[Run Analysis Engine]
-    B --> C[Calculate Metrics]
-    C --> D[Port Utilization]
-    C --> E[VLAN Distribution]
-    C --> F[EPG Complexity]
-    C --> G[VPC Symmetry]
-    D --> H[Generate Chart Data]
-    E --> H
-    F --> H
-    G --> H
-    H --> I[Render Interactive Charts]
-    I --> J[Enable User Interaction]
-    J --> K[Filter by Criteria]
-    J --> L[Drill Down Details]
-    K --> M[Update Visualizations]
-    L --> M
-            </div>
-        </div>
-    </div>
-
-    <!-- Report Generation Flow -->
-    <div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
-        <div class="px-6 py-4 bg-gradient-to-r from-red-50 to-white border-b border-gray-200">
-            <h3 class="text-xl font-bold text-gray-900 flex items-center">
-                <svg class="h-5 w-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-                Report Generation Flow
-            </h3>
-        </div>
-        <div class="p-6">
-            <div class="mermaid">
-graph TD
-    A[Select Report Format] --> B{Format Type?}
-    B -->|HTML| C[Generate Interactive HTML]
-    B -->|Markdown| D[Generate Documentation MD]
-    B -->|CSV| E[Generate Data Export]
-    C --> F[Include Statistics]
-    D --> F
-    E --> F
-    F --> G[Add Recommendations]
-    G --> H[Format Content]
-    H --> I[Save to Output Directory]
-    I --> J[Provide Download Link]
-    J --> K[User Downloads Report]
-            </div>
-        </div>
-    </div>
-
-    <!-- Fabric Management Flow -->
-    <div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
-        <div class="px-6 py-4 bg-gradient-to-r from-teal-50 to-white border-b border-gray-200">
-            <h3 class="text-xl font-bold text-gray-900 flex items-center">
-                <svg class="h-5 w-5 mr-2 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
-                </svg>
-                Fabric Management Flow (Sidebar)
-            </h3>
-        </div>
-        <div class="p-6">
-            <div class="mermaid">
-graph TD
-    A[Open Fabric Manager in Sidebar] --> B{Action?}
-    B -->|Create| C[Enter Fabric Name]
-    B -->|Select| D[Choose from Dropdown]
-    B -->|Delete| E[Confirm Deletion]
-    C --> F[Validate Name]
-    F -->|Valid| G[Create Directory]
-    F -->|Invalid| H[Show Error]
-    G --> I[Set as Current Fabric]
-    I --> J[Reload Page]
-    D --> K[Switch to Fabric]
-    K --> J
-    E --> L[Delete Fabric Data]
-    L --> M[Clear Current Fabric]
-    M --> J
-    H --> N[User Corrects]
-    N --> C
-            </div>
-        </div>
+    <div class="p-6 space-y-4 text-sm text-gray-700">
+        <p>
+            ACI Migrator uses a consistent, table-first workflow. Data Explorer tables are the source of truth,
+            and charts are secondary summaries.
+        </p>
+        <ul class="space-y-2">
+            <li><strong class="text-gray-900">VLAN Coupling Explorer:</strong> Computes coupling score and blast radius per VLAN. This is the primary migration difficulty signal.</li>
+            <li><strong class="text-gray-900">Migration Units:</strong> Actionable work units grouped by leaf/FEX/vPC with coupling-driven difficulty (Easy/Medium/Hard/Blocked).</li>
+            <li><strong class="text-gray-900">EPG Complexity Explorer:</strong> Lists all EPGs with bindings, VLANs, and spread across infrastructure.</li>
+            <li><strong class="text-gray-900">Port Utilization:</strong> Shows utilization only when interface data exists; otherwise values are Unknown.</li>
+        </ul>
+        <p>
+            Missing data never defaults to 0%. Instead, values render as <em>Unknown / N/A</em> and
+            blocked units are surfaced for remediation.
+        </p>
     </div>
 </div>
 

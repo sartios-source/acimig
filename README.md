@@ -36,6 +36,7 @@ Upload ACI configuration data (JSON/XML), legacy configs (TXT/CFG), and CMDB dat
 - Automatic object categorization and relationship mapping
 - Data completeness validation
 - Multi-fabric management support
+- CMDB fields supported: SerialNumber, Rack, Building, Hall, Site, UnitLocation, Name, ModelName
 
 ### Migration Planning
 Generate comprehensive migration recommendations based on your current ACI configuration. Analyze VPC configurations, contract-to-ACL translations, L3Out connectivity, and VLAN namespace management.
@@ -46,18 +47,17 @@ Generate comprehensive migration recommendations based on your current ACI confi
 - L3Out and external connectivity documentation
 - VLAN pool and namespace management
 - Physical connectivity and interface policy analysis
-- Migration readiness assessment with risk scoring
+- Migration readiness as actionable Migration Units with difficulty buckets
 
-### Topology Visualization
-Interactive network topology visualization with detailed device mapping, leaf-FEX relationships, EPG complexity analysis, and port utilization charts.
+### Visualization & Migration Units
+Table-first visualization with reusable Data Explorer tables across all data-heavy tabs. Charts are secondary summaries.
 
 **Visualization Dashboards:**
-- Interactive network topology graphs
-- Leaf-FEX mapping and hierarchies
-- Port utilization heatmaps
-- VLAN distribution analysis
-- EPG complexity scoring
-- Migration readiness indicators
+- VLAN Coupling Explorer (primary migration difficulty signal)
+- Migration Units (actionable work items with difficulty buckets)
+- EPG Complexity Explorer (all EPGs, filterable)
+- Port Utilization (Unknown/N/A when data is missing)
+- Topology and hierarchy context (secondary)
 
 ### Reports & Documentation
 Export comprehensive analysis reports in multiple formats including HTML (interactive), Markdown (documentation), and CSV (data analysis).
@@ -114,7 +114,7 @@ Automated recommendations with priority scoring, implementation steps, and risk 
 ![Plan](docs/screenshots/plan.png)
 
 ### Visualization Dashboard
-Interactive charts and topology graphs for fabric analysis and capacity planning.
+VLAN Coupling and Migration Units tables with exportable, filterable data.
 
 ![Visualize](docs/screenshots/visualize.png)
 

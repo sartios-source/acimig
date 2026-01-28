@@ -50,8 +50,7 @@ ACI Migrator is a professional web-based analysis and migration planning tool fo
 **Frontend:**
 - Tailwind CSS (Utility-first CSS)
 - Vanilla JavaScript (No frameworks)
-- Chart.js (Data visualization)
-- Mermaid.js (Flowcharts)
+- Chart.js (Secondary data visualization)
 
 **Storage:**
 - File-based storage (JSON)
@@ -129,7 +128,7 @@ ACI Migrator is a professional web-based analysis and migration planning tool fo
 ### Data Flow
 
 ```
-Upload → Parse → Validate → Categorize → Store → Analyze → Visualize → Report
+Upload → Parse → Validate → Categorize → Store → Analyze → Visualize (Data Explorer) → Report
 ```
 
 **Step-by-Step:**
@@ -140,7 +139,7 @@ Upload → Parse → Validate → Categorize → Store → Analyze → Visualize
 4. **Categorize**: Objects sorted by type (EPG, FEX, BD, etc.)
 5. **Store**: Data saved to fabric directory
 6. **Analyze**: Analysis engine processes data
-7. **Visualize**: Results rendered in dashboards
+7. **Visualize**: Results rendered in Data Explorer tables with secondary charts
 8. **Report**: Export in multiple formats
 
 ---
@@ -277,11 +276,14 @@ docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics ACI Migrator:2.0
 **Option B: CMDB CSV Import**
 
 1. Prepare CSV with columns:
-   - `device_name`
-   - `serial_number`
-   - `model`
-   - `location`
-   - `rack`
+   - `SerialNumber`
+   - `Rack`
+   - `Building`
+   - `Hall`
+   - `Site`
+   - `UnitLocation`
+   - `Name`
+   - `ModelName`
 2. Upload via "Upload" page
 
 **Option C: Legacy Config Import**
@@ -303,15 +305,15 @@ docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics ACI Migrator:2.0
    - **Contracts**: Policy rules
 4. Use search and filters to focus analysis
 
-#### 4. Visualize Network Topology
+#### 4. Visualize (Table-First)
 
 1. Navigate to "Visualize" page
-2. Explore interactive charts:
-   - **Port Utilization**: Identify underutilized devices
-   - **VLAN Distribution**: Namespace conflicts
-   - **EPG Complexity**: Migration difficulty
-   - **VPC Symmetry**: Configuration consistency
-3. Drill down into specific devices
+2. Use Data Explorer tables (source of truth):
+   - **VLAN Coupling Explorer**: Coupling score + blast radius per VLAN
+   - **Migration Units**: Actionable work items with difficulty buckets
+   - **EPG Complexity Explorer**: All EPGs with bindings, spread, and risk
+   - **Port Utilization**: Utilization only when interface data exists (Unknown otherwise)
+3. Use filters + CSV export for repeatable analysis
 
 #### 5. Generate Migration Plan
 
