@@ -260,6 +260,9 @@
                 <input type="checkbox" id="show-overloaded-only" onchange="filterMappingTable()" class="mr-2 rounded text-primary-600 focus:ring-primary-500">
                 Show Overloaded Only (>12 FEX)
             </label>
+            <button onclick="exportLeafFexEpgMapping()" class="ml-auto px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                Export Leaf/FEX/EPG CSV
+            </button>
         </div>
     </div>
 
@@ -342,6 +345,14 @@
                                 View Topology
                             </button>
                         </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-6 text-sm text-gray-500 italic text-center">No leaf to FEX mapping data available.</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-6 text-sm text-gray-500 italic text-center">No device mapping data available.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -516,6 +527,10 @@
                 <p class="text-sm text-gray-500 italic">No FEX or EPGs on this leaf</p>
                 {% endif %}
             </div>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-6 text-sm text-gray-500 italic text-center">
+            No hierarchy data available. Upload ACI data to populate the hierarchy view.
         </div>
         {% endfor %}
     </div>

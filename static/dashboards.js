@@ -30,13 +30,28 @@ function initializeDashboards() {
     }
 
     // Initialize all dashboard panels
-    initializeOverviewDashboard();
-    initializeTopologyDashboard();
-    initializeUtilizationDashboard();
-    initializeVLANDashboard();
-    initializeComplexityDashboard();
-    initializeMigrationDashboard();
-    initializeHierarchyDashboard();
+    const initializers = [
+        ['overview', initializeOverviewDashboard],
+        ['topology', initializeTopologyDashboard],
+        ['utilization', initializeUtilizationDashboard],
+        ['vlans', initializeVLANDashboard],
+        ['complexity', initializeComplexityDashboard],
+        ['migration', initializeMigrationDashboard],
+        ['hierarchy', initializeHierarchyDashboard]
+    ];
+    initializers.forEach(([name, fn]) => {
+        try {
+            fn();
+        } catch (err) {
+            console.error(`Failed to initialize ${name} dashboard:`, err);
+        }
+    });
+}
+
+function showNoData(canvasId, message) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas.parentElement) return;
+    canvas.parentElement.innerHTML = `<div class="no-data text-sm text-gray-500 italic">${message}</div>`;
 }
 
 // ===== Tab Navigation =====
@@ -95,6 +110,10 @@ function createUtilizationDistributionChart() {
     if (!ctx) return;
 
     const portUtil = vizData.port_utilization || [];
+    if (portUtil.length === 0) {
+        showNoData('utilizationDistributionChart', 'No port utilization data available');
+        return;
+    }
 
     // Group by utilization ranges
     const ranges = {
@@ -158,6 +177,10 @@ function createHealthOverviewChart() {
 
     const stats = vizData.statistics || {};
     const portUtil = vizData.port_utilization || [];
+    if (portUtil.length === 0 && !vizData.vpc_symmetry && !vizData.vlan_distribution) {
+        showNoData('healthOverviewChart', 'No health metrics available');
+        return;
+    }
 
     // Calculate health metrics
     const goodUtil = portUtil.filter(p => p.utilization_pct >= 40 && p.utilization_pct <= 80).length;
@@ -243,6 +266,10 @@ function createTopologyVisualization() {
 
     const nodes = vizData.topology.nodes || [];
     const edges = vizData.topology.edges || [];
+    if (!nodes.length) {
+        container.innerHTML = '<div class="no-data text-sm text-gray-500 italic">No topology data available</div>';
+        return;
+    }
 
     window.topologyData = { nodes, edges };
     window.topologyLeafIdMap = buildTopologyLeafIdMap(nodes);
@@ -548,6 +575,10 @@ function createPortUtilizationChart() {
     if (!ctx) return;
 
     const portUtil = (vizData.port_utilization || []).slice(0, 30);  // Top 30
+    if (portUtil.length === 0) {
+        showNoData('portUtilizationChart', 'No port utilization data available');
+        return;
+    }
 
     charts.portUtilization = new Chart(ctx, {
         type: 'bar',
@@ -606,6 +637,10 @@ function createConsolidationScoreChart() {
     if (!ctx) return;
 
     const portUtil = (vizData.port_utilization || []).slice(0, 20);
+    if (portUtil.length === 0) {
+        showNoData('consolidationScoreChart', 'No consolidation data available');
+        return;
+    }
 
     charts.consolidationScore = new Chart(ctx, {
         type: 'scatter',
@@ -660,6 +695,11 @@ function populateConsolidationTable() {
         .filter(p => p.consolidation_score >= 60)
         .slice(0, 10);
 
+    if (portUtil.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-4 text-sm text-gray-500 italic text-center">No consolidation candidates available.</td></tr>';
+        return;
+    }
+
     tbody.innerHTML = portUtil.map(p => `
         <tr>
             <td>FEX-${p.fex_id}</td>
@@ -683,6 +723,10 @@ function createVLANDistributionChart() {
 
     const vlanData = vizData.vlan_distribution || {};
     const vlanUsage = vlanData.vlan_usage || {};
+    if (!Object.keys(vlanUsage).length) {
+        showNoData('vlanDistributionChart', 'No VLAN data available');
+        return;
+    }
 
     // Get top 20 VLANs by usage
     const vlanEntries = Object.entries(vlanUsage)
@@ -785,6 +829,10 @@ function createComplexityDistributionChart() {
     if (!ctx) return;
 
     const epgComplexity = vizData.epg_complexity || [];
+    if (epgComplexity.length === 0) {
+        showNoData('complexityDistributionChart', 'No EPG complexity data available');
+        return;
+    }
 
     const levels = { low: 0, medium: 0, high: 0 };
     epgComplexity.forEach(epg => {
@@ -817,6 +865,10 @@ function createComplexityFactorsChart() {
     if (!ctx) return;
 
     const epgComplexity = vizData.epg_complexity || [];
+    if (epgComplexity.length === 0) {
+        showNoData('complexityFactorsChart', 'No EPG complexity data available');
+        return;
+    }
 
     // Calculate averages
     const avgPaths = epgComplexity.reduce((sum, e) => sum + e.path_count, 0) / epgComplexity.length || 0;
@@ -852,6 +904,10 @@ function createTopComplexEPGsChart() {
     if (!ctx) return;
 
     const epgComplexity = (vizData.epg_complexity || []).slice(0, 20);
+    if (epgComplexity.length === 0) {
+        showNoData('topComplexEpgsChart', 'No EPG complexity data available');
+        return;
+    }
 
     charts.topComplexEpgs = new Chart(ctx, {
         type: 'bar',
@@ -911,6 +967,10 @@ function createMigrationFlagsChart() {
     if (!ctx) return;
 
     const flags = vizData.migration_flags || [];
+    if (!flags.length) {
+        showNoData('migrationFlagsChart', 'No migration flag data available');
+        return;
+    }
     const categoryCounts = {};
 
     flags.forEach(flag => {
@@ -946,6 +1006,10 @@ function createVPCSymmetryChart() {
 
     const vpcStats = vizData.vpc_symmetry?.statistics || {};
     const symmetryRate = vpcStats.symmetry_rate || 0;
+    if (!Object.keys(vpcStats).length) {
+        showNoData('vpcSymmetryChart', 'No VPC symmetry data available');
+        return;
+    }
 
     charts.vpcSymmetry = new Chart(ctx, {
         type: 'doughnut',
@@ -1328,6 +1392,54 @@ function exportHierarchyData() {
     document.body.removeChild(link);
 
     console.log(`Exported ${rows.length - 1} records to CSV`);
+}
+
+function exportLeafFexEpgMapping() {
+    if (!vizData.device_mapping || !vizData.device_mapping.hierarchy) {
+        alert('No device mapping data available to export');
+        return;
+    }
+
+    const rows = [
+        ['Leaf ID', 'Leaf Name', 'FEX ID', 'EPG Name', 'Tenant', 'VLAN', 'EPG DN']
+    ];
+
+    vizData.device_mapping.hierarchy.forEach(leaf => {
+        const leafId = leaf.leaf_id ? `leaf-${leaf.leaf_id}` : '';
+        const leafName = leaf.leaf_name || '';
+        (leaf.fex_devices || []).forEach(fex => {
+            const fexId = fex.fex_id ? `fex-${fex.fex_id}` : '';
+            if (fex.epgs && fex.epgs.length) {
+                fex.epgs.forEach(epg => {
+                    rows.push([
+                        leafId,
+                        leafName,
+                        fexId,
+                        epg.epg || '',
+                        epg.tenant || '',
+                        epg.vlan || 'N/A',
+                        epg.epg_dn || 'N/A'
+                    ]);
+                });
+            } else {
+                rows.push([leafId, leafName, fexId, '', '', '', '']);
+            }
+        });
+    });
+
+    const csvContent = rows.map(row =>
+        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `leaf_fex_epg_mapping_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 // Cleanup on page unload
