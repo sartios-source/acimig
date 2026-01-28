@@ -321,7 +321,29 @@
         state.drawer.classList.remove('open');
     }
 
+    function buildExportQuery(state) {
+        const params = new URLSearchParams();
+        if (state.search) params.set('search', state.search);
+        Object.entries(state.filters).forEach(([key, value]) => {
+            if (!value) return;
+            params.set(key, value);
+        });
+        if (state.customFilters) {
+            state.customFilters.forEach(filter => {
+                if (!filter || filter.value === null || filter.value === '' || filter.value === false) return;
+                params.set(filter.field, filter.value);
+            });
+        }
+        return params.toString();
+    }
+
     function exportCsv(state, rows) {
+        if (state.exportEndpoint) {
+            const query = buildExportQuery(state);
+            const url = query ? `${state.exportEndpoint}?${query}` : state.exportEndpoint;
+            window.location = url;
+            return;
+        }
         const visibleCols = state.columns.filter(c => state.visibleColumns.has(c.key));
         const header = visibleCols.map(col => `"${col.label.replace(/"/g, '""')}"`).join(',');
         const lines = rows.map(row => visibleCols.map(col => {
@@ -416,7 +438,8 @@
             flagField: options.flagField || '',
             titleField: options.titleField || columns[0]?.key,
             subtitleField: options.subtitleField || '',
-            titleFallback: options.titleFallback || 'Details'
+            titleFallback: options.titleFallback || 'Details',
+            exportEndpoint: options.exportEndpoint || ''
         };
 
         state.container = container;

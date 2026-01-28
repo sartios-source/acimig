@@ -1,0 +1,40 @@
+<div class="vlan-table-controls">
+    <div class="vlan-table-summary" id="vlan-table-summary">Showing 0 of 0 VLANs</div>
+    <div class="vlan-table-actions">
+        <div class="vlan-dropdown" id="vlan-column-dropdown">
+            <button type="button" class="vlan-action-btn">Columns</button>
+            <div class="vlan-dropdown-menu" hidden>
+                <div class="vlan-dropdown-title">Toggle Columns</div>
+                <div class="vlan-dropdown-list" id="vlan-column-list"></div>
+            </div>
+        </div>
+        <div class="vlan-dropdown" id="vlan-export-dropdown">
+            <button type="button" class="vlan-action-btn">Export CSV</button>
+            <div class="vlan-dropdown-menu" hidden>
+                <button type="button" class="vlan-dropdown-item" data-export="summary">Export Summary CSV</button>
+                <button type="button" class="vlan-dropdown-item" data-export="detailed">Export Detailed Mapping CSV</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="vlan-table-wrapper">
+    <table class="vlan-table" id="vlan-table">
+        <thead>
+            <tr>
+                <th class="vlan-col-expander"></th>
+                <th data-col="vlan_id">VLAN</th>
+                <th data-col="coupling_level">Level</th>
+                <th data-col="coupling_score" class="vlan-num">Score</th>
+                <th data-col="epg_count" class="vlan-num">EPGs</th>
+                <th data-col="tenant_count" class="vlan-num">Tenants</th>
+                <th data-col="bd_count" class="vlan-num">BDs</th>
+                <th data-col="vrf_count" class="vlan-num">VRFs</th>
+                <th data-col="binding_count" class="vlan-num">Bindings</th>
+                <th data-col="leaf_count" class="vlan-num">Leaves</th>
+                <th data-col="fex_count" class="vlan-num">FEX</th>
+            </tr>
+        </thead>
+        <tbody id="vlan-table-body"></tbody>
+    </table>
+</div>

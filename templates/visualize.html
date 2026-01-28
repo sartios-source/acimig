@@ -148,62 +148,65 @@
 
 <!-- VLAN Dashboard -->
 <div id="vlans-dashboard" class="dashboard-panel active">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <p class="text-sm font-medium text-gray-600 mb-1">Total VLANs</p>
-            <p class="text-3xl font-bold text-gray-900">{{ viz_data.get('vlan_coupling', {}).get('statistics', {}).get('total_vlans', 0) }}</p>
+    <div class="vlan-kpi-grid">
+        <div class="vlan-kpi-card">
+            <p>Total VLANs</p>
+            <h3>{{ viz_data.get('vlan_coupling', {}).get('statistics', {}).get('total_vlans', 0) }}</h3>
         </div>
-        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <p class="text-sm font-medium text-gray-600 mb-1">Overlap VLANs</p>
-            <p class="text-3xl font-bold text-gray-900">{{ viz_data.get('vlan_distribution', {}).get('statistics', {}).get('overlap_count', 0) }}</p>
+        <div class="vlan-kpi-card">
+            <p>Overlap VLANs</p>
+            <h3>{{ viz_data.get('vlan_distribution', {}).get('overlaps', []) | length }}</h3>
         </div>
-        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <p class="text-sm font-medium text-gray-600 mb-1">High Coupling VLANs</p>
-            <p class="text-3xl font-bold text-gray-900">{{ viz_data.get('vlan_coupling', {}).get('statistics', {}).get('high_coupling', 0) }}</p>
+        <div class="vlan-kpi-card">
+            <p>High Coupling</p>
+            <h3>{{ viz_data.get('vlan_coupling', {}).get('statistics', {}).get('high_coupling', 0) }}</h3>
         </div>
-        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <p class="text-sm font-medium text-gray-600 mb-1">Worst VLAN</p>
-            <p class="text-3xl font-bold text-gray-900">
+        <div class="vlan-kpi-card vlan-kpi-highlight" id="worst-vlan-card" data-worst-vlan="{{ viz_data.get('statistics', {}).get('worst_vlan_id') or '' }}">
+            <p>Worst VLAN</p>
+            <h3>
                 {% if viz_data.get('statistics', {}).get('worst_vlan_id') %}
-                    VLAN {{ viz_data.get('statistics', {}).get('worst_vlan_id') }} ({{ viz_data.get('statistics', {}).get('worst_vlan_score') }})
+                    VLAN {{ viz_data.get('statistics', {}).get('worst_vlan_id') }}
+                    <span>{{ viz_data.get('statistics', {}).get('worst_vlan_score') }}</span>
                 {% else %}
                     N/A
                 {% endif %}
-            </p>
+            </h3>
+            <button type="button" class="vlan-kpi-link">Jump to row</button>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 mb-8">
-        <h3 class="text-lg font-semibold text-gray-900 mb-3">VLAN Coupling Overview</h3>
-        <p class="text-sm text-gray-600 mb-4">Coupling level distribution across all VLANs.</p>
-        <div class="relative" style="height: 260px;">
-            <canvas id="vlanCouplingChart"></canvas>
+    <div class="vlan-overview-grid">
+        <div class="vlan-overview-card">
+            <div class="vlan-overview-header">
+                <h3>Coupling Distribution</h3>
+                <p>Quick distribution across low/medium/high/critical coupling.</p>
+            </div>
+            <div class="vlan-chart">
+                <canvas id="vlanCouplingChart"></canvas>
+            </div>
+        </div>
+        <div class="vlan-overview-card vlan-help">
+            <h3>What this means</h3>
+            <p>Coupling score quantifies migration difficulty driven by shared VLAN usage. Higher scores mean more blast radius.</p>
+            <ul>
+                <li><span class="vlan-badge vlan-badge-low">Low</span> minimal coupling</li>
+                <li><span class="vlan-badge vlan-badge-medium">Medium</span> moderate shared usage</li>
+                <li><span class="vlan-badge vlan-badge-high">High</span> multiple EPGs/tenants/bindings</li>
+                <li><span class="vlan-badge vlan-badge-critical">Critical</span> high blast radius + many bindings</li>
+            </ul>
+            <div class="vlan-help-note">
+                Tip: start with Critical/High VLANs and review their EPG + bindings map before planning migration.
+            </div>
         </div>
     </div>
 
-    {% set vlan_columns = [
-        {'key': 'vlan_id', 'label': 'VLAN', 'type': 'number', 'filter': 'exact'},
-        {'key': 'coupling_level', 'label': 'Coupling Level', 'type': 'text', 'filter': 'exact'},
-        {'key': 'coupling_score', 'label': 'Score', 'type': 'number'},
-        {'key': 'epg_count', 'label': 'EPGs', 'type': 'number'},
-        {'key': 'tenant_count', 'label': 'Tenants', 'type': 'number'},
-        {'key': 'bd_count', 'label': 'BDs', 'type': 'number'},
-        {'key': 'vrf_count', 'label': 'VRFs', 'type': 'number'},
-        {'key': 'attachment_spread.total_bindings', 'label': 'Bindings', 'type': 'number'},
-        {'key': 'attachment_spread.leafs', 'label': 'Leaves', 'type': 'text'},
-        {'key': 'attachment_spread.fex_identifiers', 'label': 'FEXs', 'type': 'text'},
-        {'key': 'attachment_spread.racks', 'label': 'Racks', 'type': 'text'},
-        {'key': 'service_graph_present', 'label': 'Service Graph', 'type': 'text'},
-        {'key': 'why', 'label': 'Reason', 'type': 'text'}
-    ] %}
-    {{ data_explorer(
-        'vlan-explorer',
-        'VLAN Coupling Explorer',
-        'Primary migration pain point: coupling and blast radius per VLAN.',
-        vlan_columns,
-        viz_data.get('vlan_coupling', {}).get('vlans', []),
-        {'defaultSort': 'coupling_score', 'titleField': 'vlan_id', 'subtitleField': 'coupling_level', 'flagField': 'flagged'}
-    ) }}
+    {% include "partials/vlan_filter_bar.html" %}
+
+    {% include "partials/vlan_table.html" %}
+
+    <script id="vlan-rows-data" type="application/json">
+        {{ viz_data.get('vlan_coupling', {}).get('vlans_detailed', []) | tojson }}
+    </script>
 </div>
 
 <!-- Migration Readiness Dashboard -->
@@ -326,6 +329,7 @@ canvas {
 
 <script src="{{ url_for('static', filename='data_explorer.js') }}"></script>
 <script src="{{ url_for('static', filename='dashboards.js') }}"></script>
+<script src="{{ url_for('static', filename='vlan_explorer.js') }}"></script>
 
 <script>
 // Enhanced toggle function for hierarchy nodes

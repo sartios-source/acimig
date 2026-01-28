@@ -767,7 +767,7 @@
         {'key': 'name', 'label': 'Name', 'type': 'text'},
         {'key': 'model_name', 'label': 'ModelName', 'type': 'text'},
         {'key': 'aci_model', 'label': 'ACI Model', 'type': 'text'},
-        {'key': 'matched', 'label': 'Matched', 'type': 'text'},
+        {'key': 'matched_label', 'label': 'Matched', 'type': 'text', 'filter': 'exact'},
         {'key': 'device_type', 'label': 'Device Type', 'type': 'text', 'filter': 'exact'},
         {'key': 'device_id', 'label': 'Device ID', 'type': 'text'},
         {'key': 'aci_device_name', 'label': 'ACI Device Name', 'type': 'text'},
@@ -787,11 +787,12 @@
         {
             'defaultSort': 'serial_number',
             'titleField': 'serial_number',
-            'subtitleField': 'matched',
+            'subtitleField': 'matched_label',
             'flagField': 'flagged',
+            'exportEndpoint': url_for('export_cmdb'),
             'filtersPanel': true,
             'filters': [
-                {'field': 'matched', 'label': 'Matched', 'type': 'select', 'operator': 'eq'},
+                {'field': 'matched_label', 'label': 'Matched', 'type': 'select', 'operator': 'eq', 'values': ['Matched', 'Unmatched']},
                 {'field': 'site', 'label': 'Site', 'type': 'select', 'operator': 'eq'},
                 {'field': 'hall', 'label': 'Hall', 'type': 'select', 'operator': 'eq'},
                 {'field': 'rack', 'label': 'Rack', 'type': 'select', 'operator': 'eq'},

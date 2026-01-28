@@ -21,10 +21,12 @@ import logging
 import re
 import sys
 import subprocess
+import csv
+from io import StringIO
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, flash, Response
 from werkzeug.utils import secure_filename
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
@@ -137,6 +139,124 @@ def invalidate_fabric_cache(fabric_name: str):
     for key in keys_to_delete:
         cache.delete(key)
     app.logger.info(f"Invalidated cache for fabric: {fabric_name}")
+
+
+def _normalize_serial(value: str) -> str:
+    if value is None:
+        return ''
+    return str(value).strip().upper()
+
+
+def _load_cmdb_records_for_fabric(fabric_data: Dict[str, Any], fabric_name: str) -> list:
+    """Load CMDB records from normalized file or CSV for a fabric."""
+    datasets = fabric_data.get('datasets', [])
+    cmdb_records = []
+    for dataset in datasets:
+        if dataset.get('type') != 'cmdb':
+            continue
+        normalized_path = dataset.get('normalized_path')
+        if normalized_path and Path(normalized_path).exists():
+            try:
+                content = Path(normalized_path).read_text(encoding='utf-8')
+                parsed = json.loads(content)
+                if isinstance(parsed, list):
+                    cmdb_records.extend(parsed)
+                    continue
+            except Exception as exc:
+                app.logger.warning("Failed to read normalized CMDB for %s: %s", fabric_name, exc)
+        path_value = dataset.get('path')
+        if not path_value:
+            continue
+        try:
+            content = read_file_safely(Path(path_value))
+            cmdb_records.extend(parsers.parse_cmdb_csv(content))
+        except Exception as exc:
+            app.logger.warning("Failed to read CMDB CSV for %s: %s", fabric_name, exc)
+    return cmdb_records
+
+
+def _correlate_cmdb_records(records: list, analyzer: engine.ACIAnalyzer, fabric_name: str) -> list:
+    """Attach correlation fields to CMDB records using SerialNumber."""
+    fex_by_serial = { _normalize_serial(f.get('ser')): f for f in analyzer._fexes if f.get('ser') }
+    leaf_by_serial = { _normalize_serial(l.get('serial') or l.get('ser')): l for l in analyzer._leafs if (l.get('serial') or l.get('ser')) }
+
+    correlated = []
+    for record in records:
+        serial = _normalize_serial(record.get('SerialNumber') or record.get('serial_number') or record.get('serial'))
+        fex = fex_by_serial.get(serial)
+        leaf = leaf_by_serial.get(serial) if not fex else None
+        matched = bool(fex or leaf)
+        matched_type = 'FEX' if fex else 'Leaf' if leaf else ''
+        aci_model = fex.get('model') if fex else leaf.get('model') if leaf else ''
+        matched_dn = fex.get('dn') if fex else leaf.get('dn') if leaf else ''
+
+        correlated.append({
+            **record,
+            'SerialNumber': serial or record.get('SerialNumber') or record.get('serial_number') or '',
+            'Matched': matched,
+            'AciModel': aci_model or '',
+            'MatchedObjectType': matched_type,
+            'MatchedDn': matched_dn or '',
+            'Fabric': fabric_name,
+            # Backwards compatible keys
+            'serial_number': serial or record.get('serial_number') or '',
+            'name': record.get('Name') or record.get('name') or '',
+            'model_name': record.get('ModelName') or record.get('model_name') or record.get('model') or '',
+            'aci_model': aci_model or '',
+            'matched': matched,
+            'matched_label': 'Matched' if matched else 'Unmatched',
+            'flagged': not matched,
+            'device_type': record.get('DeviceType') or record.get('device_type') or '',
+            'device_id': record.get('DeviceID') or record.get('device_id') or '',
+            'site': record.get('Site') or record.get('site') or '',
+            'building': record.get('Building') or record.get('building') or '',
+            'hall': record.get('Hall') or record.get('hall') or '',
+            'rack': record.get('Rack') or record.get('rack') or '',
+            'unit_location': record.get('UnitLocation') or record.get('unit_location') or ''
+        })
+    return correlated
+
+
+def _filter_cmdb_rows(rows: list, params: Dict[str, Any]) -> list:
+    """Filter CMDB rows using query params."""
+    def norm(value: str) -> str:
+        return str(value or '').strip().lower()
+
+    matched = norm(params.get('matched', params.get('matched_label', 'all')))
+    site = norm(params.get('site', 'all'))
+    hall = norm(params.get('hall', 'all'))
+    rack = norm(params.get('rack', 'all'))
+    device_type = norm(params.get('devicetype', 'all'))
+    search = norm(params.get('search', ''))
+
+    def matches(row):
+        if matched != 'all':
+            if matched == 'matched' and not row.get('Matched'):
+                return False
+            if matched == 'unmatched' and row.get('Matched'):
+                return False
+        if site != 'all' and norm(row.get('Site') or row.get('site')) != site:
+            return False
+        if hall != 'all' and norm(row.get('Hall') or row.get('hall')) != hall:
+            return False
+        if rack != 'all' and norm(row.get('Rack') or row.get('rack')) != rack:
+            return False
+        if device_type != 'all' and norm(row.get('DeviceType') or row.get('device_type')) != device_type:
+            return False
+        if search:
+            hay = ' '.join([
+                norm(row.get('SerialNumber')),
+                norm(row.get('Name')),
+                norm(row.get('ModelName')),
+                norm(row.get('Site')),
+                norm(row.get('Rack')),
+                norm(row.get('DeviceType'))
+            ])
+            if search not in hay:
+                return False
+        return True
+
+    return [row for row in rows if matches(row)]
 
 
 def ensure_mock_samples():
@@ -576,6 +696,12 @@ def analyze():
                 current_fabric,
                 len(cmdb_rows)
             )
+            if has_cmdb_dataset and not cmdb_rows:
+                app.logger.info("CMDB cache empty for %s, reloading from disk", current_fabric)
+                analyzer = engine.ACIAnalyzer(fabric_data)
+                analyzer._load_data()
+                raw_cmdb = _load_cmdb_records_for_fabric(fabric_data, current_fabric)
+                cmdb_rows = _correlate_cmdb_records(raw_cmdb, analyzer, current_fabric)
             return render_template('analyze_enhanced.html',
                                   mode=mode,
                                   current_fabric=current_fabric,
@@ -602,58 +728,21 @@ def analyze():
             validation_results = analyzer.get_data_completeness()
 
             # CMDB records for dedicated CMDB view
-            fex_by_serial = {f.get('ser'): f for f in analyzer._fexes if f.get('ser')}
-            leaf_by_serial = {l.get('serial'): l for l in analyzer._leafs if l.get('serial')}
             has_cmdb_dataset = any(d.get('type') == 'cmdb' for d in datasets)
-            cmdb_rows = []
+            raw_cmdb = _load_cmdb_records_for_fabric(fabric_data, current_fabric)
+            cmdb_rows = _correlate_cmdb_records(raw_cmdb, analyzer, current_fabric)
             duplicate_serials = 0
             serial_seen = set()
-            for record in analyzer._cmdb_records:
-                serial = record.get('serial_number') or record.get('serial') or record.get('SerialNumber')
+            for record in cmdb_rows:
+                serial = record.get('SerialNumber') or record.get('serial_number')
                 if serial in serial_seen:
                     duplicate_serials += 1
                 else:
                     serial_seen.add(serial)
-                fex = fex_by_serial.get(serial)
-                leaf = leaf_by_serial.get(serial)
-                device_type = 'unknown'
-                device_id = None
-                aci_model = None
-                aci_device_name = None
-                aci_role = None
-                if fex:
-                    device_type = 'fex'
-                    device_id = fex.get('id')
-                    aci_model = fex.get('model')
-                    aci_device_name = fex.get('name')
-                    aci_role = 'fex'
-                elif leaf:
-                    device_type = 'leaf'
-                    device_id = leaf.get('id')
-                    aci_model = leaf.get('model')
-                    aci_device_name = leaf.get('name')
-                    aci_role = leaf.get('role', 'leaf')
-                cmdb_rows.append({
-                    'serial_number': serial or 'Unknown',
-                    'name': record.get('name') or record.get('Name') or 'Unknown',
-                    'model_name': record.get('model_name') or record.get('model') or record.get('ModelName') or 'Unknown',
-                    'aci_model': aci_model or 'Unknown',
-                    'matched': bool(fex or leaf),
-                    'flagged': not bool(fex or leaf),
-                    'device_type': device_type,
-                    'device_id': device_id or 'Unknown',
-                    'aci_device_name': aci_device_name or 'Unknown',
-                    'aci_role': aci_role or 'Unknown',
-                    'rack': record.get('rack') or record.get('Rack') or 'Unknown',
-                    'building': record.get('building') or record.get('Building') or 'Unknown',
-                    'hall': record.get('hall') or record.get('Hall') or 'Unknown',
-                    'site': record.get('site') or record.get('Site') or 'Unknown',
-                    'unit_location': record.get('unit_location') or record.get('unitlocation') or record.get('UnitLocation') or 'Unknown'
-                })
             cmdb_stats = {
                 'total': len(cmdb_rows),
-                'matched': sum(1 for row in cmdb_rows if row.get('matched')),
-                'unmatched': sum(1 for row in cmdb_rows if not row.get('matched')),
+                'matched': sum(1 for row in cmdb_rows if row.get('Matched')),
+                'unmatched': sum(1 for row in cmdb_rows if not row.get('Matched')),
                 'duplicate_serials': duplicate_serials
             }
             app.logger.info(
@@ -971,6 +1060,93 @@ def analyze():
                           vrfs=vrfs,
                           types=types,
                           type_counts=type_counts)
+
+
+@app.route('/api/cmdb', methods=['GET'])
+def get_cmdb_records():
+    """Return CMDB records for the current fabric, with optional filters."""
+    current_fabric = session.get('current_fabric')
+    if not current_fabric:
+        return jsonify({'error': 'No fabric selected'}), 400
+
+    fabric_data = fm.get_fabric_data(current_fabric)
+    analyzer = engine.ACIAnalyzer(fabric_data)
+    analyzer._load_data()
+
+    raw_cmdb = _load_cmdb_records_for_fabric(fabric_data, current_fabric)
+    cmdb_rows = _correlate_cmdb_records(raw_cmdb, analyzer, current_fabric)
+    filtered = _filter_cmdb_rows(cmdb_rows, request.args)
+
+    app.logger.info(
+        "CMDB API rows for %s: parsed=%s filtered=%s",
+        current_fabric,
+        len(cmdb_rows),
+        len(filtered)
+    )
+    return jsonify({'rows': filtered, 'total': len(cmdb_rows), 'filtered': len(filtered)})
+
+
+@app.route('/api/cmdb/export', methods=['GET'])
+def export_cmdb():
+    """Export CMDB records to CSV with filters applied."""
+    current_fabric = session.get('current_fabric')
+    if not current_fabric:
+        return jsonify({'error': 'No fabric selected'}), 400
+
+    fabric_data = fm.get_fabric_data(current_fabric)
+    analyzer = engine.ACIAnalyzer(fabric_data)
+    analyzer._load_data()
+
+    raw_cmdb = _load_cmdb_records_for_fabric(fabric_data, current_fabric)
+    cmdb_rows = _correlate_cmdb_records(raw_cmdb, analyzer, current_fabric)
+    filtered = _filter_cmdb_rows(cmdb_rows, request.args)
+
+    app.logger.info(
+        "CMDB export rows for %s: parsed=%s filtered=%s",
+        current_fabric,
+        len(cmdb_rows),
+        len(filtered)
+    )
+
+    headers = [
+        'SerialNumber', 'Name', 'ModelName', 'AciModel', 'Matched',
+        'DeviceType', 'DeviceID', 'Site', 'Building', 'Hall', 'Rack', 'UnitLocation'
+    ]
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    if filtered:
+        for row in filtered:
+            writer.writerow([
+                row.get('SerialNumber', ''),
+                row.get('Name', ''),
+                row.get('ModelName', ''),
+                row.get('AciModel', ''),
+                'Matched' if row.get('Matched') else 'Unmatched',
+                row.get('DeviceType', ''),
+                row.get('DeviceID', ''),
+                row.get('Site', ''),
+                row.get('Building', ''),
+                row.get('Hall', ''),
+                row.get('Rack', ''),
+                row.get('UnitLocation', '')
+            ])
+    else:
+        writer.writerow(['No rows matched filters'] + [''] * (len(headers) - 1))
+
+    csv_data = output.getvalue()
+    output.close()
+    # Excel-friendly BOM
+    csv_bytes = ('\ufeff' + csv_data).encode('utf-8')
+
+    return Response(
+        csv_bytes,
+        mimetype='text/csv',
+        headers={
+            'Content-Disposition': f'attachment; filename=cmdb_export_{current_fabric}.csv'
+        }
+    )
 
 
 @app.route('/upload', methods=['POST'])
@@ -1521,6 +1697,7 @@ def visualize():
             port_util_quality = analyzer.get_port_utilization_quality()
             vlan_dist = analyzer.analyze_vlan_distribution()
             vlan_coupling = analyzer.analyze_vlan_coupling_index()
+            vlan_detail = analyzer.analyze_vlan_coupling_detail()
             epg_complex = analyzer.analyze_epg_complexity()
             migration_flags = analyzer.analyze_migration_flags()
             migration_units = analyzer.analyze_migration_units()
@@ -1565,6 +1742,60 @@ def visualize():
             worst_vlan = None
             if vlan_coupling.get('vlans'):
                 worst_vlan = max(vlan_coupling['vlans'], key=lambda v: v.get('coupling_score', 0))
+
+            overlap_set = set()
+            for overlap in vlan_dist.get('overlaps', []):
+                overlap_vlan = overlap.get('vlan') or overlap.get('vlan_id')
+                if overlap_vlan is not None:
+                    overlap_set.add(int(overlap_vlan))
+
+            detailed_rows = []
+            for row in vlan_coupling.get('vlans', []):
+                vlan_id = row.get('vlan_id')
+                detail = vlan_detail.get(vlan_id, {})
+                epgs = detail.get('epgs', [])
+                bindings = [b for epg in epgs for b in epg.get('bindings', [])]
+                has_leaf = any(b.get('binding_type') == 'leaf' for b in bindings)
+                has_fex = any(b.get('binding_type') == 'fex' for b in bindings)
+                leaf_ids = {str(b.get('leafId')) for b in bindings if b.get('leafId') is not None}
+                fex_serials = {b.get('fexSerial') for b in bindings if b.get('fexSerial')}
+                racks = {b.get('rack') for b in bindings if b.get('rack')}
+                reasons = [r.strip() for r in str(row.get('why', '')).split(';') if r.strip()]
+                search_blob = ' '.join([
+                    str(vlan_id or ''),
+                    ' '.join(row.get('tenants') or []),
+                    ' '.join(row.get('bds') or []),
+                    ' '.join(row.get('vrfs') or []),
+                    ' '.join([f"{e.get('tenant','')}/{e.get('app','')}/{e.get('epg','')}" for e in epgs]),
+                    ' '.join([str(b.get('leafId') or '') for b in bindings]),
+                    ' '.join([str(b.get('fexId') or '') for b in bindings]),
+                    ' '.join([str(b.get('fexSerial') or '') for b in bindings]),
+                    ' '.join([str(b.get('rack') or '') for b in bindings]),
+                ]).lower()
+
+                coupling_score = row.get('coupling_score') or 0
+                coupling_level = row.get('coupling_level') or 'low'
+                coupling_severity = 'critical' if coupling_score >= 60 else coupling_level
+
+                detailed_rows.append({
+                    **row,
+                    'overlap': vlan_id in overlap_set if vlan_id is not None else False,
+                    'binding_count': row.get('attachment_spread', {}).get('total_bindings', len(bindings)),
+                    'leaf_count': len(row.get('attachment_spread', {}).get('leafs', []) or leaf_ids),
+                    'fex_count': len(row.get('attachment_spread', {}).get('fex_identifiers', []) or fex_serials),
+                    'rack_count': len(row.get('attachment_spread', {}).get('racks', []) or racks),
+                    'has_leaf_bindings': has_leaf,
+                    'has_fex_bindings': has_fex,
+                    'mixed_bindings': has_leaf and has_fex,
+                    'multi_leaf': len(leaf_ids) > 1,
+                    'multi_rack': len(racks) > 1,
+                    'coupling_severity': coupling_severity,
+                    'reasons': reasons[:3],
+                    'epgs': epgs,
+                    'search_blob': search_blob
+                })
+
+            vlan_coupling['vlans_detailed'] = detailed_rows
 
             # Add comprehensive statistics
             viz_data['statistics'] = {

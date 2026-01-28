@@ -947,6 +947,129 @@ class ACIAnalyzer:
             }
         }
 
+    def analyze_vlan_coupling_detail(self) -> Dict[int, Dict[str, Any]]:
+        """Build detailed VLAN -> EPG -> binding mapping for visualization."""
+        self._load_data()
+
+        bd_by_name = {bd.get('name'): bd for bd in self._bds if bd.get('name')}
+        fex_by_id = {str(f.get('id')): f for f in self._fexes if f.get('id') is not None}
+        leaf_by_id = {str(l.get('id')): l for l in self._leafs if l.get('id') is not None}
+        cmdb_by_serial = {r.get('serial_number'): r for r in self._cmdb_records if r.get('serial_number')}
+
+        vlan_map = defaultdict(lambda: {'epgs': {}})
+
+        for path in self._path_attachments:
+            encap = path.get('encap', '')
+            vlan_match = re.search(r'vlan-(\d+)', encap)
+            if not vlan_match:
+                continue
+            vlan_id = int(vlan_match.group(1))
+
+            epg_dn = self._extract_epg_from_path_dn(path.get('dn', ''))
+            if not epg_dn:
+                continue
+
+            tenant = self._extract_tenant_from_dn(epg_dn) or ''
+            app = self._extract_app_profile_from_dn(epg_dn) or ''
+            epg_name = epg_dn.split('/epg-')[-1] if '/epg-' in epg_dn else epg_dn
+            bd_name = self._epg_bd_map.get(epg_dn)
+            vrf_name = ''
+            if bd_name and bd_name in bd_by_name:
+                vrf_name = self._get_vrf_name_for_bd(bd_by_name[bd_name]) or ''
+
+            tdn = path.get('tDn', '') or ''
+            nodes = self._extract_nodes_from_tdn(tdn) or []
+
+            interface = self._extract_interface_id_from_dn(tdn) or ''
+            if not interface:
+                match = re.search(r'pathep-\[(.*?)\]', tdn)
+                interface = match.group(1) if match else ''
+
+            fex_id = None
+            if 'extpaths-' in tdn:
+                match = re.search(r'extpaths-(\d+)', tdn)
+                if match:
+                    fex_id = match.group(1)
+            elif 'fex-' in tdn:
+                match = re.search(r'fex-(\d+)', tdn)
+                if match:
+                    fex_id = match.group(1)
+
+            binding_type = 'fex' if fex_id else 'leaf'
+            fex_obj = fex_by_id.get(str(fex_id)) if fex_id else None
+            fex_serial = fex_obj.get('ser') if fex_obj else None
+            leaf_hint = None
+            if fex_obj:
+                leaf_hint = self._extract_leaf_from_fex_dn(fex_obj.get('dn', ''))
+            if not leaf_hint and nodes:
+                leaf_hint = nodes[0]
+
+            leaf_ids = nodes or ([leaf_hint] if leaf_hint else [None])
+
+            for leaf_id in leaf_ids:
+                leaf_obj = leaf_by_id.get(str(leaf_id)) if leaf_id is not None else None
+                leaf_name = leaf_obj.get('name') if leaf_obj else None
+                leaf_role = leaf_obj.get('role') if leaf_obj else None
+                leaf_serial = None
+                if leaf_obj:
+                    leaf_serial = leaf_obj.get('serial') or leaf_obj.get('ser')
+
+                cmdb_record = None
+                if fex_serial and fex_serial in cmdb_by_serial:
+                    cmdb_record = cmdb_by_serial.get(fex_serial)
+                elif leaf_serial and leaf_serial in cmdb_by_serial:
+                    cmdb_record = cmdb_by_serial.get(leaf_serial)
+
+                binding_key = '|'.join([p for p in [
+                    binding_type,
+                    f'leaf-{leaf_id}' if leaf_id is not None else None,
+                    f'fex-{fex_id}' if fex_id else None,
+                    f'serial-{fex_serial}' if fex_serial else None,
+                    f'path-{tdn}' if tdn else None,
+                    f'interface-{interface}' if interface else None
+                ] if p])
+
+                epg_key = '|'.join([tenant, app, epg_name])
+                epg_entry = vlan_map[vlan_id]['epgs'].setdefault(epg_key, {
+                    'tenant': tenant,
+                    'app': app,
+                    'epg': epg_name,
+                    'bd': bd_name or '',
+                    'vrf': vrf_name or '',
+                    'bindings': [],
+                    '_binding_keys': set()
+                })
+
+                if binding_key in epg_entry['_binding_keys']:
+                    continue
+                epg_entry['_binding_keys'].add(binding_key)
+
+                epg_entry['bindings'].append({
+                    'binding_type': binding_type,
+                    'leafId': leaf_id,
+                    'leafName': leaf_name,
+                    'leafRole': leaf_role,
+                    'fexId': fex_id,
+                    'fexSerial': fex_serial,
+                    'rack': cmdb_record.get('rack') if cmdb_record else None,
+                    'site': cmdb_record.get('site') if cmdb_record else None,
+                    'building': cmdb_record.get('building') if cmdb_record else None,
+                    'hall': cmdb_record.get('hall') if cmdb_record else None,
+                    'interface': interface or None,
+                    'path': tdn or None,
+                    'encap': encap or None
+                })
+
+        output = {}
+        for vlan_id, data in vlan_map.items():
+            epgs = []
+            for epg_entry in data['epgs'].values():
+                epg_entry.pop('_binding_keys', None)
+                epgs.append(epg_entry)
+            output[vlan_id] = {'epgs': epgs}
+
+        return output
+
     def analyze_epg_complexity(self) -> List[Dict[str, Any]]:
         """
         Calculate EPG complexity scores based on:

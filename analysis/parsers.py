@@ -121,26 +121,76 @@ def parse_cmdb_csv(content: str) -> List[Dict[str, Any]]:
     """Parse CMDB CSV file with error handling and normalized field names."""
     try:
         reader = csv.DictReader(StringIO(content))
+        if not reader.fieldnames:
+            raise ValueError("CMDB CSV missing header row")
+
+        header_aliases = {
+            'serialnumber': ['serialnumber', 'serial', 'serialno', 'serialnum', 'serial_number', 'serial number'],
+            'rack': ['rack', 'rackid'],
+            'building': ['building', 'bldg'],
+            'hall': ['hall'],
+            'site': ['site', 'dc', 'datacenter'],
+            'unitlocation': ['unitlocation', 'unit location', 'position', 'u', 'u_location'],
+            'devicetype': ['devicetype', 'device type', 'type'],
+            'deviceid': ['deviceid', 'device id', 'assetid', 'asset id'],
+            'modelname': ['modelname', 'model', 'hwmodel'],
+            'name': ['name', 'hostname', 'device', 'devicename']
+        }
+
+        def normalize_header(name: str) -> str:
+            return re.sub(r'[\s_\-]+', '', name.strip().lower())
+
+        normalized_headers = {normalize_header(h): h for h in reader.fieldnames if h}
+        header_map = {}
+        for canonical, aliases in header_aliases.items():
+            for alias in aliases:
+                key = normalize_header(alias)
+                if key in normalized_headers:
+                    header_map[canonical] = normalized_headers[key]
+                    break
+
         records = []
 
         for row_num, row in enumerate(reader, start=2):  # Start at 2 (after header)
             try:
-                serial = _normalize_cmdb_value(row.get('SerialNumber', row.get('Serial', '')))
-                if not serial:
-                    serial = _normalize_cmdb_value(row.get('serial', row.get('serial_number', '')))
+                serial = _normalize_cmdb_value(row.get(header_map.get('serialnumber', ''), ''))
                 if serial:
-                    model_name = _normalize_cmdb_value(row.get('ModelName', row.get('Model', row.get('model', ''))))
+                    serial = serial.upper()
+                if serial:
+                    model_name = _normalize_cmdb_value(row.get(header_map.get('modelname', ''), ''))
+                    name = _normalize_cmdb_value(row.get(header_map.get('name', ''), ''))
+                    rack = _normalize_cmdb_value(row.get(header_map.get('rack', ''), ''))
+                    building = _normalize_cmdb_value(row.get(header_map.get('building', ''), ''))
+                    hall = _normalize_cmdb_value(row.get(header_map.get('hall', ''), ''))
+                    site = _normalize_cmdb_value(row.get(header_map.get('site', ''), ''))
+                    unit_location = _normalize_cmdb_value(row.get(header_map.get('unitlocation', ''), ''))
+                    device_type = _normalize_cmdb_value(row.get(header_map.get('devicetype', ''), ''))
+                    device_id = _normalize_cmdb_value(row.get(header_map.get('deviceid', ''), ''))
+
                     records.append({
+                        'SerialNumber': serial,
+                        'Name': name,
+                        'ModelName': model_name,
+                        'DeviceType': device_type,
+                        'DeviceID': device_id,
+                        'Site': site,
+                        'Building': building,
+                        'Hall': hall,
+                        'Rack': rack,
+                        'UnitLocation': unit_location,
+                        # Backwards compatible keys
                         'serial_number': serial,
-                        'name': _normalize_cmdb_value(row.get('Name', row.get('name', ''))),
+                        'name': name,
                         'model_name': model_name,
                         'model': model_name,
-                        'rack': _normalize_cmdb_value(row.get('Rack', row.get('rack', ''))),
-                        'unit_location': _normalize_cmdb_value(row.get('UnitLocation', row.get('unitlocation', ''))),
-                        'unitlocation': _normalize_cmdb_value(row.get('UnitLocation', row.get('unitlocation', ''))),
-                        'building': _normalize_cmdb_value(row.get('Building', row.get('building', ''))),
-                        'hall': _normalize_cmdb_value(row.get('Hall', row.get('hall', ''))),
-                        'site': _normalize_cmdb_value(row.get('Site', row.get('site', ''))),
+                        'device_type': device_type,
+                        'device_id': device_id,
+                        'site': site,
+                        'building': building,
+                        'hall': hall,
+                        'rack': rack,
+                        'unit_location': unit_location,
+                        'unitlocation': unit_location
                     })
             except Exception as e:
                 # Log warning but continue processing

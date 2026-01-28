@@ -755,7 +755,7 @@ function createVLANCouplingChart() {
     const ctx = document.getElementById('vlanCouplingChart');
     if (!ctx) return;
 
-    const vlanRows = vizData.vlan_coupling?.vlans || [];
+    const vlanRows = vizData.vlan_coupling?.vlans_detailed || vizData.vlan_coupling?.vlans || [];
     if (!vlanRows.length) {
         showNoData('vlanCouplingChart', 'No VLAN coupling data available');
         return;
@@ -763,7 +763,12 @@ function createVLANCouplingChart() {
 
     const counts = { low: 0, medium: 0, high: 0, critical: 0 };
     vlanRows.forEach(vlan => {
-        const level = (vlan.coupling_level || 'low').toLowerCase();
+        let level = (vlan.coupling_severity || vlan.coupling_level || 'low').toLowerCase();
+        if (!vlan.coupling_severity && vlan.coupling_score !== undefined && vlan.coupling_score !== null) {
+            if (Number(vlan.coupling_score) >= 60) {
+                level = 'critical';
+            }
+        }
         if (counts[level] !== undefined) {
             counts[level] += 1;
         } else {

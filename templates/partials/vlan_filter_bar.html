@@ -1,0 +1,48 @@
+<div class="vlan-filter-bar" id="vlan-filter-bar">
+    <div class="vlan-filter-row">
+        <div class="vlan-filter-group">
+            <span class="vlan-filter-label">Coupling Level</span>
+            <div class="vlan-segmented" role="radiogroup" aria-label="Coupling Level">
+                {% for level in ['all', 'low', 'medium', 'high', 'critical'] %}
+                <label class="vlan-segment">
+                    <input type="radio" name="coupling-level" value="{{ level }}" {% if level == 'all' %}checked{% endif %}>
+                    <span>{{ level|capitalize }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="vlan-filter-group">
+            <label class="vlan-toggle">
+                <input type="checkbox" id="vlan-flagged-toggle">
+                <span class="vlan-toggle-track"></span>
+                <span class="vlan-toggle-label">Flagged only</span>
+            </label>
+        </div>
+        <div class="vlan-filter-group">
+            <span class="vlan-filter-label">Score</span>
+            <div class="vlan-score-range">
+                <input type="number" id="vlan-score-min" placeholder="Min" min="0" max="100">
+                <span>–</span>
+                <input type="number" id="vlan-score-max" placeholder="Max" min="0" max="100">
+            </div>
+        </div>
+        <div class="vlan-filter-group vlan-filter-search">
+            <input type="text" id="vlan-search" placeholder="Search VLAN, tenant, EPG, BD, VRF, leaf/FEX..." aria-label="Search VLANs">
+        </div>
+        <div class="vlan-filter-group">
+            <button type="button" id="vlan-reset" class="vlan-reset">Reset</button>
+        </div>
+    </div>
+    <div class="vlan-filter-row vlan-chip-row">
+        <span class="vlan-filter-label">Quick filters</span>
+        <div class="vlan-chip-group" id="vlan-quick-filters">
+            {% for chip in [
+                'Overlap', 'Multi-tenant', 'Multi-BD', 'Cross-tenant BD', 'High bindings',
+                'Many leaves', 'Leaf-only', 'FEX-only', 'Mixed Leaf+FEX', 'Multi-leaf', 'Multi-rack'
+            ] %}
+            <button type="button" class="vlan-chip" data-chip="{{ chip|lower|replace(' ', '_') }}">{{ chip }}</button>
+            {% endfor %}
+        </div>
+        <div class="vlan-active-chips" id="vlan-active-chips"></div>
+    </div>
+</div>
