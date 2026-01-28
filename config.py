@@ -39,9 +39,9 @@ class Config:
     # File upload restrictions
     ALLOWED_EXTENSIONS = {'json', 'xml', 'csv', 'txt', 'cfg', 'conf'}
     ALLOWED_CONTENT_TYPES = {
-        'json': ['application/json', 'text/plain'],
-        'xml': ['application/xml', 'text/xml', 'text/plain'],
-        'csv': ['text/csv', 'text/plain'],
+        'json': ['application/json', 'text/plain', 'application/octet-stream'],
+        'xml': ['application/xml', 'text/xml', 'text/plain', 'application/octet-stream'],
+        'csv': ['text/csv', 'text/plain', 'application/octet-stream'],
         'txt': ['text/plain'],
         'cfg': ['text/plain'],
         'conf': ['text/plain']

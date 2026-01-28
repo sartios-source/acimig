@@ -55,6 +55,8 @@ def parse_aci_json(content: str) -> Dict[str, Any]:
                     _extract_children(child_data.get('children', []), objects_list)
 
     objects = []
+    if isinstance(data, list):
+        data = {'imdata': data}
     if 'imdata' in data:
         for item in data['imdata']:
             for obj_type, obj_data in item.items():
