@@ -1008,6 +1008,7 @@ def upload():
                     app.logger.info(
                         f"Deferred parsing for large ACI {file_ext}: {file_size} bytes"
                     )
+                    invalidate_fabric_cache(current_fabric)
                     return jsonify({
                         'success': True,
                         'filename': filename,
