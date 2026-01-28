@@ -1408,6 +1408,39 @@ def visualize():
             leaf_fex = analyzer.analyze_leaf_fex_mapping()
             device_mapping = analyzer.analyze_device_epg_vlan_mapping()
 
+            def _trim_device_mapping(mapping, max_devices=500, max_leafs=200, max_fex_per_leaf=20, max_epgs_per_device=50):
+                stats = mapping.get('statistics', {})
+                total_devices = stats.get('total_devices', 0)
+                if total_devices <= max_devices:
+                    return mapping
+                trimmed = dict(mapping)
+                device_map = mapping.get('device_map', {})
+                trimmed_devices = {}
+                for device_id in list(device_map.keys())[:max_devices]:
+                    device_data = dict(device_map[device_id])
+                    if isinstance(device_data.get('epgs'), list):
+                        device_data['epgs'] = device_data['epgs'][:max_epgs_per_device]
+                    trimmed_devices[device_id] = device_data
+                trimmed['device_map'] = trimmed_devices
+                hierarchy = mapping.get('hierarchy', [])
+                trimmed_hierarchy = []
+                for leaf in hierarchy[:max_leafs]:
+                    leaf_copy = dict(leaf)
+                    if isinstance(leaf_copy.get('fex_devices'), list):
+                        leaf_copy['fex_devices'] = leaf_copy['fex_devices'][:max_fex_per_leaf]
+                        for fex in leaf_copy['fex_devices']:
+                            if isinstance(fex.get('epgs'), list):
+                                fex['epgs'] = fex['epgs'][:max_epgs_per_device]
+                    trimmed_hierarchy.append(leaf_copy)
+                trimmed['hierarchy'] = trimmed_hierarchy
+                trimmed['statistics'] = dict(stats)
+                trimmed['statistics']['truncated'] = True
+                trimmed['statistics']['truncated_reason'] = 'device_mapping_limit'
+                trimmed['statistics']['total_devices'] = min(total_devices, max_devices)
+                return trimmed
+
+            device_mapping = _trim_device_mapping(device_mapping)
+
             # Add comprehensive statistics
             viz_data['statistics'] = {
                 'total_leafs': leaf_fex.get('statistics', {}).get('total_leafs', 0),
@@ -1452,9 +1485,13 @@ def plan():
 
     plan_data = {}
     if current_fabric:
-        fabric_data = fm.get_fabric_data(current_fabric)
-        planner = planning.ACIPlanner(fabric_data, mode)
-        plan_data = planner.generate_plan()
+        cache_key = get_fabric_cache_key(current_fabric, 'planning')
+        plan_data = cache.get(cache_key)
+        if plan_data is None:
+            fabric_data = fm.get_fabric_data(current_fabric)
+            planner = planning.ACIPlanner(fabric_data, mode)
+            plan_data = planner.generate_plan()
+            cache.set(cache_key, plan_data, timeout=300)
 
     # Get all fabrics for what-if scenarios
     all_fabrics = fm.list_fabrics()
@@ -2041,4 +2078,4 @@ if __name__ == '__main__':
     print(f"Access the application at: http://0.0.0.0:{selected_port}")
     print("=" * 70)
 
-    app.run(debug=True, host='0.0.0.0', port=selected_port)
+    app.run(debug=True, host='0.0.0.0', port=selected_port, threaded=True)
