@@ -54,6 +54,12 @@ function initializeUploadZone() {
 
 function setupEventListeners() {
     // Additional listeners can be added here
+    const cmdbInput = document.getElementById('cmdb-input');
+    if (cmdbInput) {
+        cmdbInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+    }
 }
 
 function handleFiles(files) {

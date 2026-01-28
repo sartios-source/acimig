@@ -118,10 +118,15 @@ def parse_cmdb_csv(content: str) -> List[Dict[str, Any]]:
         for row_num, row in enumerate(reader, start=2):  # Start at 2 (after header)
             try:
                 serial = row.get('SerialNumber', row.get('Serial', '')).strip()
+                if not serial:
+                    serial = row.get('serial', row.get('serial_number', '')).strip()
                 if serial:
                     records.append({
                         'serial_number': serial,
+                        'name': row.get('Name', row.get('name', '')).strip(),
+                        'model': row.get('Model', row.get('model', '')).strip(),
                         'rack': row.get('Rack', ''),
+                        'unitlocation': row.get('UnitLocation', row.get('unitlocation', '')),
                         'building': row.get('Building', ''),
                         'hall': row.get('Hall', ''),
                         'site': row.get('Site', ''),
@@ -134,7 +139,7 @@ def parse_cmdb_csv(content: str) -> List[Dict[str, Any]]:
         if not records:
             raise ValueError(
                 "No valid records found in CMDB CSV. Expected columns: "
-                "SerialNumber (or Serial), Rack, Building, Hall, Site"
+                "Name, Serial (or SerialNumber), Hall, Rack, UnitLocation"
             )
 
         return records

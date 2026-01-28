@@ -873,24 +873,50 @@ class ACIAnalyzer:
                 'message': 'No CMDB data available'
             }
 
-        # Build serial number sets
+        # Build serial number sets + ACI lookup
         aci_serials = set()
+        aci_by_serial = {}
         for fex in self._fexes:
-            if fex.get('ser'):
-                aci_serials.add(fex.get('ser'))
+            serial = fex.get('ser')
+            if serial:
+                aci_serials.add(serial)
+                aci_by_serial[serial] = {
+                    'type': 'fex',
+                    'id': fex.get('id'),
+                    'name': fex.get('name') or f"FEX-{fex.get('id')}",
+                    'model': fex.get('model')
+                }
         for leaf in self._leafs:
-            if leaf.get('serial'):
-                aci_serials.add(leaf.get('serial'))
+            serial = leaf.get('serial')
+            if serial:
+                aci_serials.add(serial)
+                aci_by_serial[serial] = {
+                    'type': 'leaf',
+                    'id': leaf.get('id'),
+                    'name': leaf.get('name') or f"leaf-{leaf.get('id')}",
+                    'model': leaf.get('model')
+                }
 
         cmdb_serials = set(r.get('serial_number') for r in self._cmdb_records if r.get('serial_number'))
 
-        # Find matches
+        # Find matches (ACI model is source of truth if present)
         correlated = []
         for record in self._cmdb_records:
             serial = record.get('serial_number', '')
             if serial in aci_serials:
+                aci_info = aci_by_serial.get(serial, {})
+                cmdb_model = record.get('model')
+                aci_model = aci_info.get('model')
+                model = aci_model or cmdb_model
                 correlated.append({
                     'serial': serial,
+                    'device_type': aci_info.get('type'),
+                    'device_id': aci_info.get('id'),
+                    'device_name': aci_info.get('name'),
+                    'model': model,
+                    'aci_model': aci_model,
+                    'cmdb_model': cmdb_model,
+                    'model_source': 'aci' if aci_model else 'cmdb',
                     'rack': record.get('rack'),
                     'site': record.get('site'),
                     'status': 'matched'
