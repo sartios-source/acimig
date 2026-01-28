@@ -61,7 +61,7 @@ function handleFiles(files) {
 
     // Validate and add files to queue
     for (const file of files) {
-        const validation = validateFile(file);
+        const validation = validateUploadFile(file);
         if (validation.valid) {
             addFileToQueue(file);
         } else {
@@ -76,7 +76,7 @@ function handleFiles(files) {
     startAllUploads();
 }
 
-function validateFile(file) {
+function validateUploadFile(file) {
     const allowedExtensions = ['json', 'xml', 'csv', 'txt', 'cfg', 'conf'];
     const maxSize = 1024 * 1024 * 1024; // 1GB
 
