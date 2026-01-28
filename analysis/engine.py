@@ -228,10 +228,33 @@ class ACIAnalyzer:
                 if bd_dn and vrf_name:
                     self._bd_vrf_map[bd_dn] = vrf_name
 
+        self._ensure_leafs_for_fex()
+
         logger.info(
             f"Categorized objects: {len(self._fexes)} FEX, {len(self._leafs)} leafs, "
             f"{len(self._epgs)} EPGs, {len(self._bds)} BDs, {len(self._contracts)} contracts"
         )
+
+    def _ensure_leafs_for_fex(self):
+        """Ensure leaf entries exist for any detected FEX devices."""
+        for fex in self._fexes:
+            fex_dn = fex.get('dn', '')
+            leaf_id = self._extract_leaf_from_fex_dn(fex_dn)
+            if not leaf_id or leaf_id in self._leaf_by_id:
+                continue
+            pod_id = None
+            match = re.search(r'pod-(\d+)', fex_dn)
+            if match:
+                pod_id = match.group(1)
+            leaf_dn = f"topology/pod-{pod_id}/node-{leaf_id}" if pod_id else f"topology/node-{leaf_id}"
+            placeholder = {
+                'id': leaf_id,
+                'name': f"leaf-{leaf_id}",
+                'role': 'leaf',
+                'dn': leaf_dn
+            }
+            self._leafs.append(placeholder)
+            self._leaf_by_id[leaf_id] = placeholder
 
     def validate(self) -> List[Dict[str, Any]]:
         """Validate loaded data and return validation results."""

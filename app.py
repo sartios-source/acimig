@@ -555,6 +555,8 @@ def analyze():
             # Add FEX devices
             for fex in analyzer._fexes:
                 fex_id = fex.get('id', '')
+                fex_dn = fex.get('dn', '')
+                leaf_id = analyzer._extract_leaf_from_fex_dn(fex_dn) or ''
                 unified_data.append({
                     'type': 'FEX',
                     'name': fex.get('name', f"FEX-{fex_id}") if fex_id else fex.get('name', ''),
@@ -570,7 +572,7 @@ def analyze():
                     'role': '',
                     'app_profile': '',
                     'scope': '',
-                    'node': '',
+                    'node': leaf_id,
                     'speed': ''
                 })
 
