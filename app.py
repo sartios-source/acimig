@@ -533,6 +533,7 @@ def analyze():
     types = ['FEX', 'Leaf', 'EPG', 'BD', 'VRF', 'Contract', 'Subnet', 'Interface']
     type_counts = {}
     validation_results = None
+    cmdb_rows = []
     port_status_data = {
         'rows': [],
         'summary': {
@@ -559,12 +560,14 @@ def analyze():
             type_counts = cached.get('type_counts', {})
             validation_results = cached.get('validation_results')
             port_status_data = cached.get('port_status_data', port_status_data)
+            cmdb_rows = cached.get('cmdb_rows', [])
             return render_template('analyze_enhanced.html',
                                   mode=mode,
                                   current_fabric=current_fabric,
                                   datasets=datasets,
                                   validation_results=validation_results,
                                   unified_data=unified_data,
+                                  cmdb_rows=cmdb_rows,
                                   port_status_data=port_status_data,
                                   tenants=tenants,
                                   vrfs=vrfs,
@@ -580,6 +583,41 @@ def analyze():
 
             # Data completeness and validation
             validation_results = analyzer.get_data_completeness()
+
+            # CMDB records for dedicated CMDB view
+            fex_by_serial = {f.get('ser'): f for f in analyzer._fexes if f.get('ser')}
+            leaf_by_serial = {l.get('serial'): l for l in analyzer._leafs if l.get('serial')}
+            cmdb_rows = []
+            for record in analyzer._cmdb_records:
+                serial = record.get('serial_number')
+                fex = fex_by_serial.get(serial)
+                leaf = leaf_by_serial.get(serial)
+                device_type = 'unknown'
+                device_id = None
+                aci_model = None
+                if fex:
+                    device_type = 'fex'
+                    device_id = fex.get('id')
+                    aci_model = fex.get('model')
+                elif leaf:
+                    device_type = 'leaf'
+                    device_id = leaf.get('id')
+                    aci_model = leaf.get('model')
+                cmdb_rows.append({
+                    'serial_number': serial or 'Unknown',
+                    'name': record.get('name') or 'Unknown',
+                    'model_name': record.get('model') or 'Unknown',
+                    'aci_model': aci_model or 'Unknown',
+                    'matched': bool(fex or leaf),
+                    'flagged': not bool(fex or leaf),
+                    'device_type': device_type,
+                    'device_id': device_id or 'Unknown',
+                    'rack': record.get('rack') or 'Unknown',
+                    'building': record.get('building') or 'Unknown',
+                    'hall': record.get('hall') or 'Unknown',
+                    'site': record.get('site') or 'Unknown',
+                    'unit_location': record.get('unitlocation') or 'Unknown'
+                })
 
             # BD lookup by name for VRF resolution
             bd_by_name = {bd.get('name', ''): bd for bd in analyzer._bds if bd.get('name')}
@@ -862,7 +900,8 @@ def analyze():
                 'vrfs': vrfs,
                 'type_counts': type_counts,
                 'validation_results': validation_results,
-                'port_status_data': port_status_data
+                'port_status_data': port_status_data,
+                'cmdb_rows': cmdb_rows
             })
 
         except Exception as e:
@@ -875,11 +914,12 @@ def analyze():
                           datasets=datasets,
                           validation_results=validation_results,
                           unified_data=unified_data,
+                          cmdb_rows=cmdb_rows,
                           port_status_data=port_status_data,
                           tenants=tenants,
-                         vrfs=vrfs,
-                         types=types,
-                         type_counts=type_counts)
+                          vrfs=vrfs,
+                          types=types,
+                          type_counts=type_counts)
 
 
 @app.route('/upload', methods=['POST'])

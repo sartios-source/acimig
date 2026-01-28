@@ -311,8 +311,7 @@ docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics ACI Migrator:2.1
 2. Use Data Explorer tables (source of truth):
    - **VLAN Coupling Explorer**: Coupling score + blast radius per VLAN
    - **Migration Units**: Actionable work items with difficulty buckets
-   - **EPG Complexity Explorer**: All EPGs with bindings, spread, and risk
-   - **Port Utilization**: Utilization only when interface data exists (Unknown otherwise)
+   - **Topology Context**: Fabric layout reference
 3. Use filters + CSV export for repeatable analysis
 
 #### 5. Generate Migration Plan

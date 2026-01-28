@@ -21,6 +21,7 @@ try {
 document.addEventListener('DOMContentLoaded', function() {
     initializeDashboards();
     setupTabNavigation();
+    setDefaultTab();
 });
 
 function initializeDashboards() {
@@ -29,15 +30,10 @@ function initializeDashboards() {
         return;
     }
 
-    // Initialize all dashboard panels
+    // Initialize only the remaining visualization dashboards
     const initializers = [
-        ['overview', initializeOverviewDashboard],
         ['topology', initializeTopologyDashboard],
-        ['utilization', initializeUtilizationDashboard],
-        ['vlans', initializeVLANDashboard],
-        ['complexity', initializeComplexityDashboard],
-        ['migration', initializeMigrationDashboard],
-        ['hierarchy', initializeHierarchyDashboard]
+        ['vlans', initializeVLANDashboard]
     ];
     initializers.forEach(([name, fn]) => {
         try {
@@ -63,6 +59,22 @@ function setupTabNavigation() {
             switchTab(tabName);
         });
     });
+}
+
+function setDefaultTab() {
+    const vlanTab = document.querySelector('.dashboard-tab[data-tab="vlans"]');
+    if (vlanTab) {
+        switchTab('vlans');
+        return;
+    }
+
+    const firstTab = document.querySelector('.dashboard-tab');
+    if (firstTab) {
+        const tabName = firstTab.getAttribute('data-tab');
+        if (tabName) {
+            switchTab(tabName);
+        }
+    }
 }
 
 function switchTab(tabName) {

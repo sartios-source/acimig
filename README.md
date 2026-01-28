@@ -49,14 +49,12 @@ Generate comprehensive migration recommendations based on your current ACI confi
 - Migration readiness as actionable Migration Units with difficulty buckets
 
 ### Visualization & Migration Units
-Table-first visualization with reusable Data Explorer tables across all data-heavy tabs. Charts are secondary summaries.
+Table-first visualization with reusable Data Explorer tables. Charts are secondary summaries, and detailed object lists live in Analyze.
 
 **Visualization Dashboards:**
 - VLAN Coupling Explorer (primary migration difficulty signal)
 - Migration Units (actionable work items with difficulty buckets)
-- EPG Complexity Explorer (all EPGs, filterable)
-- Port Utilization (Unknown/N/A when data is missing)
-- Topology and hierarchy context (secondary)
+- Topology context (secondary)
 
 ### Reports & Documentation
 Export comprehensive analysis reports in multiple formats including HTML (interactive), Markdown (documentation), and CSV (data analysis).
