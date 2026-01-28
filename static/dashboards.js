@@ -110,7 +110,9 @@ function createUtilizationDistributionChart() {
     if (!ctx) return;
 
     const portUtil = vizData.port_utilization || [];
-    if (portUtil.length === 0) {
+    const knownUtil = portUtil.filter(item => item.utilization_pct !== null && item.utilization_pct !== undefined);
+    const unknownCount = portUtil.length - knownUtil.length;
+    if (knownUtil.length === 0) {
         showNoData('utilizationDistributionChart', 'No port utilization data available');
         return;
     }
@@ -124,7 +126,7 @@ function createUtilizationDistributionChart() {
         '80-100%': 0
     };
 
-    portUtil.forEach(item => {
+    knownUtil.forEach(item => {
         const util = item.utilization_pct;
         if (util < 20) ranges['0-20%']++;
         else if (util < 40) ranges['20-40%']++;
@@ -132,6 +134,10 @@ function createUtilizationDistributionChart() {
         else if (util < 80) ranges['60-80%']++;
         else ranges['80-100%']++;
     });
+
+    if (unknownCount > 0) {
+        ranges['Unknown'] = unknownCount;
+    }
 
     charts.utilizationDistribution = new Chart(ctx, {
         type: 'doughnut',
@@ -144,7 +150,8 @@ function createUtilizationDistributionChart() {
                     '#FF9F40',  // Orange - low
                     '#FFCD56',  // Yellow - medium
                     '#4BC0C0',  // Teal - good
-                    '#36A2EB'   // Blue - excellent
+                    '#36A2EB',  // Blue - excellent
+                    '#94A3B8'   // Gray - unknown
                 ]
             }]
         },
@@ -177,16 +184,18 @@ function createHealthOverviewChart() {
 
     const stats = vizData.statistics || {};
     const portUtil = vizData.port_utilization || [];
-    if (portUtil.length === 0 && !vizData.vpc_symmetry && !vizData.vlan_distribution) {
+    const knownUtil = portUtil.filter(p => p.utilization_pct !== null && p.utilization_pct !== undefined);
+    if (knownUtil.length === 0 && !vizData.vpc_symmetry && !vizData.vlan_distribution) {
         showNoData('healthOverviewChart', 'No health metrics available');
         return;
     }
 
     // Calculate health metrics
-    const goodUtil = portUtil.filter(p => p.utilization_pct >= 40 && p.utilization_pct <= 80).length;
-    const poorUtil = portUtil.filter(p => p.utilization_pct < 40).length;
+    const goodUtil = knownUtil.filter(p => p.utilization_pct >= 40 && p.utilization_pct <= 80).length;
+    const poorUtil = knownUtil.filter(p => p.utilization_pct < 40).length;
     const vpcSymmetric = vizData.vpc_symmetry?.statistics?.symmetry_rate || 100;
     const vlanOverlaps = vizData.vlan_distribution?.overlaps?.length || 0;
+    const utilScore = knownUtil.length ? ((goodUtil / knownUtil.length) * 100) : null;
 
     charts.healthOverview = new Chart(ctx, {
         type: 'bar',
@@ -195,10 +204,12 @@ function createHealthOverviewChart() {
             datasets: [{
                 label: 'Health Score',
                 data: [
-                    (goodUtil / portUtil.length) * 100 || 0,
+                    utilScore,
                     vpcSymmetric,
                     Math.max(0, 100 - (vlanOverlaps * 5)),
-                    ((goodUtil / portUtil.length) * 100 + vpcSymmetric + Math.max(0, 100 - (vlanOverlaps * 5))) / 3 || 0
+                    utilScore !== null
+                        ? ((utilScore + vpcSymmetric + Math.max(0, 100 - (vlanOverlaps * 5))) / 3)
+                        : null
                 ],
                 backgroundColor: ['#4BC0C0', '#36A2EB', '#FFCD56', '#9966FF']
             }]
@@ -574,16 +585,26 @@ function createPortUtilizationChart() {
     const ctx = document.getElementById('portUtilizationChart');
     if (!ctx) return;
 
-    const portUtil = (vizData.port_utilization || []).slice(0, 30);  // Top 30
+    const allUtil = vizData.port_utilization || [];
+    const knownUtil = allUtil.filter(p => p.utilization_pct !== null && p.utilization_pct !== undefined);
+    const needsDataCount = allUtil.length - knownUtil.length;
+    const portUtil = knownUtil.slice(0, 30);  // Top 30 known
     if (portUtil.length === 0) {
         showNoData('portUtilizationChart', 'No port utilization data available');
         return;
     }
 
+    const needsDataEl = document.getElementById('utilization-needs-data');
+    if (needsDataEl) {
+        needsDataEl.textContent = needsDataCount
+            ? `${needsDataCount} FEX devices need utilization data before consolidation decisions.`
+            : '';
+    }
+
     charts.portUtilization = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: portUtil.map(p => `FEX-${p.fex_id}`),
+            labels: portUtil.map(p => p.fex_identifier || `FEX-${p.fex_id}`),
             datasets: [{
                 label: 'Utilization %',
                 data: portUtil.map(p => p.utilization_pct),
@@ -636,7 +657,9 @@ function createConsolidationScoreChart() {
     const ctx = document.getElementById('consolidationScoreChart');
     if (!ctx) return;
 
-    const portUtil = (vizData.port_utilization || []).slice(0, 20);
+    const allUtil = vizData.port_utilization || [];
+    const knownUtil = allUtil.filter(p => p.utilization_pct !== null && p.utilization_pct !== undefined);
+    const portUtil = knownUtil.slice(0, 20);
     if (portUtil.length === 0) {
         showNoData('consolidationScoreChart', 'No consolidation data available');
         return;
@@ -650,7 +673,7 @@ function createConsolidationScoreChart() {
                 data: portUtil.map(p => ({
                     x: p.utilization_pct,
                     y: p.consolidation_score,
-                    label: `FEX-${p.fex_id}`
+                    label: p.fex_identifier || `FEX-${p.fex_id}`
                 })),
                 backgroundColor: 'rgba(74, 144, 226, 0.5)',
                 borderColor: '#4A90E2',
@@ -692,7 +715,8 @@ function populateConsolidationTable() {
     if (!tbody) return;
 
     const portUtil = (vizData.port_utilization || [])
-        .filter(p => p.consolidation_score >= 60)
+        .filter(p => p.utilization_pct !== null && p.utilization_pct !== undefined)
+        .filter(p => (p.consolidation_score || 0) >= 60)
         .slice(0, 10);
 
     if (portUtil.length === 0) {
@@ -702,7 +726,7 @@ function populateConsolidationTable() {
 
     tbody.innerHTML = portUtil.map(p => `
         <tr>
-            <td>FEX-${p.fex_id}</td>
+            <td>${p.fex_identifier || `FEX-${p.fex_id}`}</td>
             <td>${p.utilization_pct}%</td>
             <td><span class="score-badge score-${p.consolidation_score >= 80 ? 'high' : 'medium'}">${p.consolidation_score}</span></td>
             <td class="recommendation-cell">${p.recommendation}</td>
@@ -712,9 +736,50 @@ function populateConsolidationTable() {
 
 // ===== VLAN Dashboard =====
 function initializeVLANDashboard() {
-    createVLANDistributionChart();
-    populateVLANOverlaps();
-    createVLANHeatmap();
+    createVLANCouplingChart();
+}
+
+function createVLANCouplingChart() {
+    const ctx = document.getElementById('vlanCouplingChart');
+    if (!ctx) return;
+
+    const vlanRows = vizData.vlan_coupling?.vlans || [];
+    if (!vlanRows.length) {
+        showNoData('vlanCouplingChart', 'No VLAN coupling data available');
+        return;
+    }
+
+    const counts = { low: 0, medium: 0, high: 0, critical: 0 };
+    vlanRows.forEach(vlan => {
+        const level = (vlan.coupling_level || 'low').toLowerCase();
+        if (counts[level] !== undefined) {
+            counts[level] += 1;
+        } else {
+            counts.low += 1;
+        }
+    });
+
+    charts.vlanCoupling = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Low', 'Medium', 'High', 'Critical'],
+            datasets: [{
+                label: 'VLANs',
+                data: [counts.low, counts.medium, counts.high, counts.critical],
+                backgroundColor: ['#7ED321', '#FFCD56', '#FF9F40', '#FF6384']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
 }
 
 function createVLANDistributionChart() {
@@ -952,14 +1017,18 @@ function initializeMigrationDashboard() {
 
 function populateMigrationSummary() {
     const flags = vizData.migration_flags || [];
+    const readyEl = document.getElementById('ready-count');
+    const warningEl = document.getElementById('warning-count');
+    const issueEl = document.getElementById('issue-count');
+    if (!readyEl || !warningEl || !issueEl) return;
 
     const ready = flags.filter(f => f.severity === 'low').length;
     const warnings = flags.filter(f => f.severity === 'medium').length;
     const issues = flags.filter(f => f.severity === 'high').length;
 
-    document.getElementById('ready-count').textContent = ready;
-    document.getElementById('warning-count').textContent = warnings;
-    document.getElementById('issue-count').textContent = issues;
+    readyEl.textContent = ready;
+    warningEl.textContent = warnings;
+    issueEl.textContent = issues;
 }
 
 function createMigrationFlagsChart() {

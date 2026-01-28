@@ -48,7 +48,11 @@ class ACIAnalyzer:
         self._path_attachments = []
         self._subnets = []
         self._interfaces = []
+        self._l1_interfaces = []
         self._physical_domains = []
+        self._epg_contract_consumers = []
+        self._epg_contract_providers = []
+        self._epg_domain_attachments = []
         self._epg_bd_relations = []
         self._bd_vrf_relations = []
 
@@ -59,6 +63,7 @@ class ACIAnalyzer:
         self._bd_by_dn = {}
         self._epg_bd_map = {}
         self._bd_vrf_map = {}
+        self._aci_class_counts = {}
 
     def _load_data(self):
         """Load and parse all datasets (ACI and CMDB)."""
@@ -68,6 +73,7 @@ class ACIAnalyzer:
         self._aci_objects = []
         self._cmdb_records = []
         self._aci_object_index = set()
+        self._aci_class_counts = defaultdict(int)
 
         from . import parsers
 
@@ -167,6 +173,8 @@ class ACIAnalyzer:
         for obj in self._aci_objects:
             obj_type = obj.get('type')
             attrs = obj.get('attributes', {})
+            if obj_type:
+                self._aci_class_counts[obj_type] += 1
 
             if obj_type == 'eqptFex':
                 self._fexes.append(attrs)
@@ -211,8 +219,20 @@ class ACIAnalyzer:
             elif obj_type == 'ethpmPhysIf':
                 self._interfaces.append(attrs)
 
+            elif obj_type == 'l1PhysIf':
+                self._l1_interfaces.append(attrs)
+
             elif obj_type == 'physDomP':
                 self._physical_domains.append(attrs)
+
+            elif obj_type == 'fvRsCons':
+                self._epg_contract_consumers.append(attrs)
+
+            elif obj_type == 'fvRsProv':
+                self._epg_contract_providers.append(attrs)
+
+            elif obj_type == 'fvRsDomAtt':
+                self._epg_domain_attachments.append(attrs)
 
             elif obj_type == 'fvRsBd':
                 self._epg_bd_relations.append(attrs)
@@ -324,6 +344,47 @@ class ACIAnalyzer:
 
         return results
 
+    def get_port_utilization_quality(self) -> Dict[str, Any]:
+        """Return data quality signals for port utilization analysis."""
+        self._load_data()
+
+        interface_counts = {
+            'ethpmPhysIf': self._aci_class_counts.get('ethpmPhysIf', 0),
+            'l1PhysIf': self._aci_class_counts.get('l1PhysIf', 0)
+        }
+
+        ports_total = len(self._interfaces)
+        ports_with_state = sum(1 for iface in self._interfaces if iface.get('operSt'))
+
+        fex_id_set = {str(f.get('id')) for f in self._fexes if f.get('id') is not None}
+        matched = 0
+        for iface in self._interfaces:
+            iface_id = iface.get('id', '')
+            match = re.match(r'^eth(\d+)/', iface_id)
+            if match and match.group(1) in fex_id_set:
+                matched += 1
+        ports_unmatched = max(ports_total - matched, 0)
+
+        reasons = []
+        if not self._fexes:
+            reasons.append('No FEX inventory loaded (eqptFex missing).')
+        if interface_counts['ethpmPhysIf'] == 0 and interface_counts['l1PhysIf'] == 0:
+            reasons.append('No interface operational data loaded (ethpmPhysIf/l1PhysIf missing).')
+        if ports_total > 0 and matched == 0:
+            reasons.append('Interface data present, but no interfaces matched to FEX IDs.')
+
+        utilization_data_present = bool(self._fexes) and ports_total > 0 and matched > 0
+
+        return {
+            'utilization_data_present': utilization_data_present,
+            'interface_objects_loaded': interface_counts,
+            'ports_total': ports_total,
+            'ports_with_state': ports_with_state,
+            'ports_matched_to_fex': matched,
+            'ports_unmatched': ports_unmatched,
+            'reasons': reasons
+        }
+
     def analyze_port_utilization(self) -> List[Dict[str, Any]]:
         """
         Analyze port utilization across all FEX devices.
@@ -335,6 +396,7 @@ class ACIAnalyzer:
             return []
 
         results = []
+        quality = self.get_port_utilization_quality()
 
         for fex in self._fexes:
             fex_id = fex.get('id', '')
@@ -344,6 +406,7 @@ class ACIAnalyzer:
 
             # Extract leaf ID from DN (topology/pod-X/node-Y/sys/extch-Z)
             leaf_id = self._extract_leaf_from_fex_dn(fex_dn)
+            fex_identifier = self._build_fex_identifier(str(fex_id), leaf_id, fex_serial)
 
             # Determine total ports based on model
             total_ports = self._get_fex_port_count(fex_model)
@@ -354,36 +417,54 @@ class ACIAnalyzer:
                 if f'eth{fex_id}/' in iface.get('id', '')
             ]
 
+            utilization_known = True
+            utilization_reason = None
+
             # Count connected (up) ports
-            connected_ports = sum(
-                1 for iface in fex_interfaces
-                if iface.get('operSt') == 'up'
-            )
+            connected_ports = None
+            if not quality.get('utilization_data_present'):
+                utilization_known = False
+                utilization_reason = 'Insufficient interface data to compute utilization'
+            elif total_ports <= 0:
+                utilization_known = False
+                utilization_reason = 'Unknown total port count for FEX model'
+            elif len(fex_interfaces) == 0:
+                utilization_known = False
+                utilization_reason = 'No interfaces matched to this FEX'
+            else:
+                connected_ports = sum(
+                    1 for iface in fex_interfaces
+                    if iface.get('operSt') == 'up'
+                )
 
-            # Calculate utilization
-            utilization_pct = (connected_ports / total_ports * 100) if total_ports > 0 else 0
+            utilization_pct = None
+            if utilization_known and connected_ports is not None and total_ports > 0:
+                utilization_pct = round((connected_ports / total_ports * 100), 2)
 
-            # Calculate consolidation score (0-100)
-            # Higher score = better candidate for consolidation
             consolidation_score = self._calculate_consolidation_score(
                 utilization_pct, fex.get('operSt'), len(fex_interfaces)
             )
+            recommendation = self._get_consolidation_recommendation(consolidation_score, utilization_pct)
 
             results.append({
                 'fex_id': fex_id,
+                'fex_identifier': fex_identifier,
                 'serial': fex_serial,
                 'model': fex_model,
                 'leaf_id': leaf_id,
                 'total_ports': total_ports,
                 'connected_ports': connected_ports,
-                'utilization_pct': round(utilization_pct, 2),
+                'utilization_pct': utilization_pct,
+                'utilization_known': utilization_known,
+                'utilization_reason': utilization_reason,
                 'status': fex.get('operSt', 'unknown'),
                 'consolidation_score': consolidation_score,
-                'recommendation': self._get_consolidation_recommendation(consolidation_score, utilization_pct)
+                'recommendation': recommendation,
+                'flagged': consolidation_score is not None and consolidation_score >= 60
             })
 
         # Sort by consolidation score (highest first)
-        results.sort(key=lambda x: x['consolidation_score'], reverse=True)
+        results.sort(key=lambda x: x['consolidation_score'] or 0, reverse=True)
 
         return results
 
@@ -407,8 +488,10 @@ class ACIAnalyzer:
             for fex in self._fexes:
                 fex_dn = fex.get('dn', '')
                 if f'node-{leaf_id}' in fex_dn:
+                    identifier = self._build_fex_identifier(str(fex.get('id')), leaf_id, fex.get('ser'))
                     attached_fex.append({
                         'fex_id': fex.get('id'),
+                        'identifier': identifier,
                         'serial': fex.get('ser'),
                         'model': fex.get('model'),
                         'status': fex.get('operSt', 'unknown')
@@ -621,6 +704,238 @@ class ACIAnalyzer:
             }
         }
 
+    def analyze_vlan_coupling_index(self) -> Dict[str, Any]:
+        """
+        Build a VLAN coupling index focused on migration coupling and blast radius.
+        """
+        self._load_data()
+
+        # Tunable scoring constants (favor coupling + blast radius)
+        bd_score = 10
+        vrf_score = 15
+        tenant_score = 20
+        service_graph_score = 15
+        binding_score_10 = 10
+        binding_score_50 = 20
+        pdom_score = 15
+
+        def score_epg(count: int) -> int:
+            if count <= 1:
+                return 0
+            if count == 2:
+                return 5
+            if 3 <= count <= 5:
+                return 10
+            return 20
+
+        def extract_epg_dn_from_relation(dn: str) -> str:
+            match = re.search(r'(uni/tn-[^/]+/ap-[^/]+/epg-[^/]+)', dn or '')
+            return match.group(1) if match else ''
+
+        def extract_contract_name(attrs: Dict[str, Any]) -> str:
+            name = attrs.get('tnVzBrCPName') or ''
+            if name:
+                return name
+            tdn = attrs.get('tDn', '') or attrs.get('dn', '')
+            if 'brc-' in tdn:
+                return tdn.split('brc-')[-1].split('/')[0].strip()
+            return ''
+
+        bd_by_name = {bd.get('name'): bd for bd in self._bds if bd.get('name')}
+        fex_by_id = {str(f.get('id')): f for f in self._fexes if f.get('id') is not None}
+        leaf_by_id = {str(l.get('id')): l for l in self._leafs if l.get('id') is not None}
+        cmdb_by_serial = {r.get('serial_number'): r for r in self._cmdb_records if r.get('serial_number')}
+
+        epg_contracts = defaultdict(set)
+        for rel in (self._epg_contract_consumers + self._epg_contract_providers):
+            epg_dn = extract_epg_dn_from_relation(rel.get('dn', ''))
+            contract = extract_contract_name(rel)
+            if epg_dn and contract:
+                epg_contracts[epg_dn].add(contract)
+
+        epg_domains = defaultdict(set)
+        for rel in self._epg_domain_attachments:
+            epg_dn = extract_epg_dn_from_relation(rel.get('dn', ''))
+            domain_dn = rel.get('tDn', '')
+            if epg_dn and domain_dn:
+                epg_domains[epg_dn].add(domain_dn)
+
+        vlan_index = defaultdict(lambda: {
+            'epgs': set(),
+            'bds': set(),
+            'vrfs': set(),
+            'tenants': set(),
+            'contracts': set(),
+            'graphs': set(),
+            'leafs': set(),
+            'fexes': set(),
+            'racks': set(),
+            'pdoms': set(),
+            'total_bindings': 0
+        })
+
+        # Walk path attachments to populate coupling map
+        for path in self._path_attachments:
+            encap = path.get('encap', '')
+            vlan_match = re.search(r'vlan-(\d+)', encap)
+            if not vlan_match:
+                continue
+            vlan_id = int(vlan_match.group(1))
+            epg_dn = self._extract_epg_from_path_dn(path.get('dn', ''))
+            tdn = path.get('tDn', '')
+
+            vlan_entry = vlan_index[vlan_id]
+            vlan_entry['total_bindings'] += 1
+            if epg_dn:
+                vlan_entry['epgs'].add(epg_dn)
+
+                tenant = self._extract_tenant_from_dn(epg_dn)
+                if tenant:
+                    vlan_entry['tenants'].add(tenant)
+
+                bd_name = self._epg_bd_map.get(epg_dn)
+                if bd_name:
+                    vlan_entry['bds'].add(bd_name)
+                    bd_obj = bd_by_name.get(bd_name)
+                    if bd_obj:
+                        vrf_name = self._get_vrf_name_for_bd(bd_obj)
+                        if vrf_name:
+                            vlan_entry['vrfs'].add(vrf_name)
+
+                if epg_dn in epg_contracts:
+                    vlan_entry['contracts'].update(epg_contracts[epg_dn])
+
+                if epg_dn in epg_domains:
+                    vlan_entry['pdoms'].update(epg_domains[epg_dn])
+
+            # Attachment spread
+            leaf_ids = self._extract_nodes_from_tdn(tdn)
+            for leaf_id in leaf_ids:
+                vlan_entry['leafs'].add(str(leaf_id))
+                leaf_obj = leaf_by_id.get(str(leaf_id))
+                if leaf_obj:
+                    serial = leaf_obj.get('serial') or leaf_obj.get('ser')
+                    if serial and serial in cmdb_by_serial:
+                        rack = cmdb_by_serial[serial].get('rack')
+                        if rack:
+                            vlan_entry['racks'].add(rack)
+
+            fex_id = None
+            if 'extpaths-' in tdn:
+                match = re.search(r'extpaths-(\d+)', tdn)
+                if match:
+                    fex_id = match.group(1)
+            elif 'fex-' in tdn:
+                match = re.search(r'fex-(\d+)', tdn)
+                if match:
+                    fex_id = match.group(1)
+
+            if fex_id:
+                fex_obj = fex_by_id.get(str(fex_id))
+                leaf_hint = self._extract_leaf_from_fex_dn(fex_obj.get('dn', '')) if fex_obj else None
+                serial = fex_obj.get('ser') if fex_obj else None
+                fex_identifier = ':'.join([p for p in [
+                    f'leaf-{leaf_hint}' if leaf_hint else None,
+                    f'fex-{fex_id}' if fex_id else None,
+                    f'serial-{serial}' if serial else None
+                ] if p])
+                if fex_identifier:
+                    vlan_entry['fexes'].add(fex_identifier)
+                if serial and serial in cmdb_by_serial:
+                    rack = cmdb_by_serial[serial].get('rack')
+                    if rack:
+                        vlan_entry['racks'].add(rack)
+
+        contract_data_present = bool(self._epg_contract_consumers or self._epg_contract_providers)
+        pdom_data_present = bool(self._epg_domain_attachments)
+
+        rows = []
+        for vlan_id, data in sorted(vlan_index.items()):
+            epg_count = len(data['epgs'])
+            leaf_count = len(data['leafs'])
+            fex_count = len(data['fexes'])
+            rack_count = len(data['racks'])
+            tenant_count = len(data['tenants'])
+            bd_count = len(data['bds'])
+            vrf_count = len(data['vrfs'])
+            contract_count = len(data['contracts']) if contract_data_present else None
+            pdom_count = len(data['pdoms']) if pdom_data_present else None
+
+            epg_score = score_epg(epg_count)
+            bd_penalty = bd_score if bd_count > 1 else 0
+            vrf_penalty = vrf_score if vrf_count > 1 else 0
+            tenant_penalty = tenant_score if tenant_count > 1 else 0
+            service_graph_penalty = service_graph_score if data.get('graphs') else 0
+            bindings_penalty = binding_score_50 if data['total_bindings'] > 50 else binding_score_10 if data['total_bindings'] > 10 else 0
+            pdom_penalty = pdom_score if (pdom_count or 0) > 1 else 0
+
+            coupling_score = min(
+                epg_score + bd_penalty + vrf_penalty + tenant_penalty +
+                service_graph_penalty + bindings_penalty + pdom_penalty, 100
+            )
+            if coupling_score >= 35:
+                coupling_level = 'high'
+            elif coupling_score >= 15:
+                coupling_level = 'medium'
+            else:
+                coupling_level = 'low'
+
+            why = []
+            if epg_count > 1:
+                why.append(f'VLAN shared by {epg_count} EPGs')
+            if tenant_count > 1:
+                why.append(f'Used across {tenant_count} tenants')
+            if bd_count > 1:
+                why.append(f'Spans {bd_count} bridge domains')
+            if vrf_count > 1:
+                why.append(f'Spans {vrf_count} VRFs')
+            if data['total_bindings'] > 10:
+                why.append(f'{data["total_bindings"]} bindings')
+            if leaf_count > 1 or fex_count > 1:
+                why.append(f'Blast radius spans {leaf_count} leafs and {fex_count} FEX identifiers')
+            if rack_count > 1:
+                why.append(f'Racks impacted: {rack_count}')
+            if not why:
+                why.append('Limited coupling detected')
+
+            rows.append({
+                'vlan_id': vlan_id,
+                'epg_count': epg_count,
+                'epgs': sorted(list(data['epgs'])),
+                'bd_count': bd_count,
+                'bds': sorted(list(data['bds'])),
+                'vrf_count': vrf_count,
+                'vrfs': sorted(list(data['vrfs'])),
+                'tenant_count': tenant_count,
+                'tenants': sorted(list(data['tenants'])),
+                'contract_count': contract_count,
+                'contracts': sorted(list(data['contracts'])),
+                'service_graph_present': None,
+                'graphs': [],
+                'attachment_spread': {
+                    'leafs': sorted(list(data['leafs'])),
+                    'fex_identifiers': sorted(list(data['fexes'])),
+                    'racks': sorted(list(data['racks'])),
+                    'total_bindings': data['total_bindings']
+                },
+                'pdom_count': pdom_count,
+                'pdoms': sorted(list(data['pdoms'])),
+                'blast_radius': leaf_count + fex_count + rack_count,
+                'coupling_score': coupling_score,
+                'coupling_level': coupling_level,
+                'why': '; '.join(why),
+                'flagged': coupling_level in {'high'}
+            })
+
+        return {
+            'vlans': rows,
+            'statistics': {
+                'total_vlans': len(rows),
+                'high_coupling': sum(1 for r in rows if r['coupling_level'] == 'high'),
+                'avg_coupling_score': round(sum(r['coupling_score'] for r in rows) / len(rows), 2) if rows else None
+            }
+        }
+
     def analyze_epg_complexity(self) -> List[Dict[str, Any]]:
         """
         Calculate EPG complexity scores based on:
@@ -632,22 +947,74 @@ class ACIAnalyzer:
         self._load_data()
 
         results = []
+        cmdb_by_serial = {r.get('serial_number'): r for r in self._cmdb_records if r.get('serial_number')}
+        vlan_coupling = self.analyze_vlan_coupling_index()
+        vlan_coupling_map = {v['vlan_id']: v for v in vlan_coupling.get('vlans', [])}
+        epg_contracts = defaultdict(set)
+        for rel in (self._epg_contract_consumers + self._epg_contract_providers):
+            epg_dn = self._extract_epg_dn_from_relation_dn(rel.get('dn', ''))
+            contract = rel.get('tnVzBrCPName') or ''
+            if not contract:
+                tdn = rel.get('tDn', '')
+                if 'brc-' in tdn:
+                    contract = tdn.split('brc-')[-1].split('/')[0].strip()
+            if epg_dn and contract:
+                epg_contracts[epg_dn].add(contract)
 
         for epg in self._epgs:
             epg_name = epg.get('name', '')
             epg_dn = epg.get('dn', '')
             tenant = self._extract_tenant_from_dn(epg_dn)
+            app_profile = self._extract_app_profile_from_dn(epg_dn)
+            bd_name = self._epg_bd_map.get(epg_dn)
+            vrf_name = ''
+            if bd_name:
+                bd_obj = next((bd for bd in self._bds if bd.get('name') == bd_name), None)
+                if bd_obj:
+                    vrf_name = self._get_vrf_name_for_bd(bd_obj)
 
             # Count path attachments for this EPG
             paths = [p for p in self._path_attachments if epg_dn in p.get('dn', '')]
 
             # Extract unique VLANs
             vlans = set()
+            leafs = set()
+            fex_identifiers = set()
+            racks = set()
             for path in paths:
                 encap = path.get('encap', '')
                 vlan_match = re.search(r'vlan-(\d+)', encap)
                 if vlan_match:
                     vlans.add(int(vlan_match.group(1)))
+
+                tdn = path.get('tDn', '')
+                for node_id in self._extract_nodes_from_tdn(tdn):
+                    leafs.add(node_id)
+                    leaf_obj = self._leaf_by_id.get(str(node_id))
+                    leaf_serial = leaf_obj.get('serial') if leaf_obj else None
+                    if leaf_serial and leaf_serial in cmdb_by_serial:
+                        rack = cmdb_by_serial[leaf_serial].get('rack')
+                        if rack:
+                            racks.add(rack)
+
+                fex_id = None
+                if 'extpaths-' in tdn:
+                    match = re.search(r'extpaths-(\d+)', tdn)
+                    if match:
+                        fex_id = match.group(1)
+                elif 'fex-' in tdn:
+                    match = re.search(r'fex-(\d+)', tdn)
+                    if match:
+                        fex_id = match.group(1)
+                if fex_id:
+                    fex_obj = self._fex_by_id.get(str(fex_id), {})
+                    fex_serial = fex_obj.get('ser')
+                    leaf_hint = self._extract_leaf_from_fex_dn(fex_obj.get('dn', '')) if fex_obj else None
+                    fex_identifiers.add(self._build_fex_identifier(str(fex_id), leaf_hint, fex_serial))
+                    if fex_serial and fex_serial in cmdb_by_serial:
+                        rack = cmdb_by_serial[fex_serial].get('rack')
+                        if rack:
+                            racks.add(rack)
 
             # Extract unique leafs/nodes
             nodes = set()
@@ -662,15 +1029,56 @@ class ACIAnalyzer:
                 node_count=len(nodes)
             )
 
+            reasons = []
+            if len(paths) > 0:
+                reasons.append(f'{len(paths)} path attachments')
+            if len(vlans) > 1:
+                reasons.append(f'{len(vlans)} VLANs')
+            if len(nodes) > 1:
+                reasons.append(f'{len(nodes)} nodes')
+            if not reasons:
+                reasons.append('No path attachments detected')
+
+            contract_list = sorted(list(epg_contracts.get(epg_dn, set())))
+            vlan_coupling_refs = []
+            cross_tenant = False
+            for vlan in vlans:
+                info = vlan_coupling_map.get(vlan)
+                if not info:
+                    continue
+                if info.get('coupling_level') in {'medium', 'high', 'critical'}:
+                    vlan_coupling_refs.append({
+                        'vlan_id': vlan,
+                        'coupling_level': info.get('coupling_level'),
+                        'coupling_score': info.get('coupling_score'),
+                        'reason': info.get('why')
+                    })
+                if info.get('tenant_count', 1) > 1:
+                    cross_tenant = True
+
             results.append({
                 'epg_name': epg_name,
+                'epg_dn': epg_dn,
+                'app_profile': app_profile,
                 'tenant': tenant,
-                'bd': epg.get('bd', ''),
+                'bd': bd_name or epg.get('bd', ''),
+                'vrf': vrf_name or None,
                 'path_count': len(paths),
                 'vlan_count': len(vlans),
+                'vlans': sorted(list(vlans)),
                 'node_count': len(nodes),
+                'leaf_binding_count': len(leafs),
+                'fex_binding_count': len(fex_identifiers),
+                'rack_spread': len(racks) if racks else None,
+                'contracts_count': len(contract_list) if contract_list else None,
+                'contracts': contract_list,
+                'service_graph_present': None,
+                'cross_tenant_coupling_present': cross_tenant,
                 'complexity_score': complexity_score,
-                'complexity_level': self._get_complexity_level(complexity_score)
+                'complexity_level': self._get_complexity_level(complexity_score),
+                'why': '; '.join(reasons),
+                'flagged': self._get_complexity_level(complexity_score) == 'high',
+                'vlan_coupling_refs': vlan_coupling_refs
             })
 
         # Sort by complexity score (highest first)
@@ -822,6 +1230,18 @@ class ACIAnalyzer:
                 'recommendation': 'Review VLAN allocation strategy for migration'
             })
 
+        # Check for high VLAN coupling (blast radius)
+        vlan_coupling = self.analyze_vlan_coupling_index()
+        high_coupling = [v for v in vlan_coupling.get('vlans', []) if v.get('coupling_level') in {'high', 'critical'}]
+        if high_coupling:
+            flags.append({
+                'severity': 'high',
+                'category': 'vlan_coupling',
+                'count': len(high_coupling),
+                'message': f'{len(high_coupling)} VLANs with high coupling blast radius',
+                'recommendation': 'Prioritize VLAN decoupling before migration'
+            })
+
         return flags
 
     def analyze_contract_scope(self) -> List[Dict[str, Any]]:
@@ -857,6 +1277,280 @@ class ACIAnalyzer:
     def analyze_vlan_spread(self) -> Dict[str, Any]:
         """Alias for analyze_vlan_distribution."""
         return self.analyze_vlan_distribution()
+
+    def analyze_migration_units(self) -> Dict[str, Any]:
+        """
+        Build actionable migration units grouped by leaf/FEX with coupling-driven difficulty.
+        """
+        self._load_data()
+
+        fabric_name = self.fabric_data.get('name') or self.fabric_data.get('fabric_name') or 'unknown'
+        cmdb_by_serial = {r.get('serial_number'): r for r in self._cmdb_records if r.get('serial_number')}
+        fex_by_id = {str(f.get('id')): f for f in self._fexes if f.get('id') is not None}
+        leaf_by_id = {str(l.get('id')): l for l in self._leafs if l.get('id') is not None}
+
+        vlan_coupling = self.analyze_vlan_coupling_index()
+        vlan_coupling_map = {v['vlan_id']: v for v in vlan_coupling.get('vlans', [])}
+
+        port_util = self.analyze_port_utilization()
+        util_by_fex = {p.get('fex_identifier'): p for p in port_util if p.get('fex_identifier')}
+
+        vpc_symmetry = self.analyze_vpc_symmetry()
+        asymmetric_nodes = set()
+        for item in vpc_symmetry.get('asymmetric_bindings', []):
+            asymmetric_nodes.add(str(item.get('node1')))
+            asymmetric_nodes.add(str(item.get('node2')))
+
+        units = {}
+
+        for path in self._path_attachments:
+            encap = path.get('encap', '')
+            vlan_match = re.search(r'vlan-(\d+)', encap)
+            if not vlan_match:
+                continue
+            vlan_id = int(vlan_match.group(1))
+            epg_dn = self._extract_epg_from_path_dn(path.get('dn', ''))
+            tenant = self._extract_tenant_from_dn(epg_dn) if epg_dn else 'unknown'
+            bd_name = self._epg_bd_map.get(epg_dn)
+            vrf_name = ''
+            if bd_name and bd_name in {bd.get('name') for bd in self._bds}:
+                bd_obj = next((bd for bd in self._bds if bd.get('name') == bd_name), None)
+                if bd_obj:
+                    vrf_name = self._get_vrf_name_for_bd(bd_obj)
+
+            tdn = path.get('tDn', '')
+            nodes = self._extract_nodes_from_tdn(tdn)
+            if not nodes:
+                nodes = ['unknown']
+
+            fex_id = None
+            if 'extpaths-' in tdn:
+                match = re.search(r'extpaths-(\d+)', tdn)
+                if match:
+                    fex_id = match.group(1)
+            elif 'fex-' in tdn:
+                match = re.search(r'fex-(\d+)', tdn)
+                if match:
+                    fex_id = match.group(1)
+
+            vpc_pair = None
+            protpaths_match = re.search(r'protpaths-(\d+)-(\d+)', tdn)
+            if protpaths_match:
+                vpc_pair = f"vpc-{protpaths_match.group(1)}-{protpaths_match.group(2)}"
+
+            for node_id in nodes:
+                leaf_id = str(node_id)
+                unit_type = 'leaf'
+                fex_identifier = None
+                fex_serial = None
+                fex_model = None
+                fex_display = None
+
+                if fex_id:
+                    fex_obj = fex_by_id.get(str(fex_id), {})
+                    fex_serial = fex_obj.get('ser')
+                    fex_model = fex_obj.get('model')
+                    fex_identifier = self._build_fex_identifier(str(fex_id), leaf_id, fex_serial)
+                    fex_display = f"{fex_serial or 'unknown'} / {fex_model or 'unknown'} / fex-{fex_id}"
+                    unit_type = 'fex'
+
+                unit_key = f"leaf-{leaf_id}"
+                if fex_identifier:
+                    unit_key = f"{unit_key}:{fex_identifier}"
+
+                unit = units.get(unit_key)
+                if not unit:
+                    leaf_obj = leaf_by_id.get(str(leaf_id), {})
+                    leaf_serial = leaf_obj.get('serial') or leaf_obj.get('ser')
+                    cmdb_record = None
+                    if fex_serial and fex_serial in cmdb_by_serial:
+                        cmdb_record = cmdb_by_serial[fex_serial]
+                    elif leaf_serial and leaf_serial in cmdb_by_serial:
+                        cmdb_record = cmdb_by_serial[leaf_serial]
+
+                    unit = {
+                        'fabric_name': fabric_name,
+                        'site': cmdb_record.get('site') if cmdb_record else 'Unknown',
+                        'building': cmdb_record.get('building') if cmdb_record else 'Unknown',
+                        'hall': cmdb_record.get('hall') if cmdb_record else 'Unknown',
+                        'rack': cmdb_record.get('rack') if cmdb_record else 'Unknown',
+                        'unit_location': cmdb_record.get('unitlocation') if cmdb_record else 'Unknown',
+                        'leaf_id': leaf_id,
+                        'leaf_or_vpc': vpc_pair or f"leaf-{leaf_id}",
+                        'fex_identifier': fex_identifier,
+                        'fex_display': fex_display,
+                        'unit_type': unit_type,
+                        'rewire_required': None,
+                        'ports': set(),
+                        'bindings': 0,
+                        'epgs': set(),
+                        'vlans': set(),
+                        'bds': set(),
+                        'vrfs': set(),
+                        'tenants': set(),
+                        'contracts': set(),
+                        'service_graph_present': None,
+                        'vpc_symmetry': 'Unknown',
+                        'utilization_pct': None,
+                        'utilization_known': False,
+                        'ports_total': None,
+                        'ports_connected': None,
+                        'why': []
+                    }
+
+                    if fex_identifier and fex_identifier in util_by_fex:
+                        util = util_by_fex[fex_identifier]
+                        unit['utilization_pct'] = util.get('utilization_pct')
+                        unit['utilization_known'] = util.get('utilization_pct') is not None
+                        unit['ports_total'] = util.get('total_ports')
+                        unit['ports_connected'] = util.get('connected_ports')
+
+                    if leaf_id in asymmetric_nodes:
+                        unit['vpc_symmetry'] = 'Bad'
+                    elif vpc_symmetry.get('statistics', {}).get('total_epgs_checked', 0) > 0:
+                        unit['vpc_symmetry'] = 'OK'
+
+                    units[unit_key] = unit
+
+                unit['ports'].add(tdn)
+                unit['bindings'] += 1
+                if epg_dn:
+                    unit['epgs'].add(epg_dn)
+                unit['vlans'].add(vlan_id)
+                if bd_name:
+                    unit['bds'].add(bd_name)
+                if vrf_name:
+                    unit['vrfs'].add(vrf_name)
+                if tenant:
+                    unit['tenants'].add(tenant)
+
+        rows = []
+        for unit_key, unit in units.items():
+            vlan_infos = [vlan_coupling_map.get(vlan_id) for vlan_id in unit['vlans']]
+            vlan_infos = [v for v in vlan_infos if v]
+
+            worst_vlan = None
+            if vlan_infos:
+                worst_vlan = sorted(vlan_infos, key=lambda v: v.get('coupling_score', 0), reverse=True)[0]
+
+            coupled_vlan_count = sum(
+                1 for v in vlan_infos if v.get('coupling_level') in {'medium', 'high'}
+            )
+
+            top_coupled = sorted(vlan_infos, key=lambda v: v.get('coupling_score', 0), reverse=True)[:3]
+
+            cross_tenant = any(v.get('tenant_count', 1) > 1 for v in vlan_infos) or len(unit['tenants']) > 1
+            service_graph_present = any(v.get('service_graph_present') for v in vlan_infos) if vlan_infos else None
+            if all(v.get('service_graph_present') is None for v in vlan_infos):
+                service_graph_present = None
+
+            difficulty_score = 0
+            reasons = []
+            if worst_vlan:
+                worst_score = worst_vlan.get('coupling_score') or 0
+                top_sum = sum(v.get('coupling_score') or 0 for v in top_coupled)
+                difficulty_score += worst_score + (top_sum / 2)
+                reasons.append(f"Worst VLAN {worst_vlan.get('vlan_id')} ({worst_vlan.get('coupling_level')})")
+
+            if cross_tenant:
+                difficulty_score += 15
+                reasons.append('Cross-tenant coupling present')
+
+            if service_graph_present:
+                difficulty_score += 15
+                reasons.append('Service graph present')
+
+            if unit['vpc_symmetry'] == 'Bad':
+                difficulty_score += 10
+                reasons.append('VPC asymmetry detected')
+
+            if unit['bindings'] > 50:
+                difficulty_score += 10
+                reasons.append('High attachment spread (>50 bindings)')
+            elif unit['bindings'] > 10:
+                difficulty_score += 5
+                reasons.append('Moderate attachment spread (>10 bindings)')
+
+            blocked = unit['unit_type'] == 'fex' and not unit['utilization_known']
+            if blocked:
+                difficulty_bucket = 'Blocked'
+                difficulty_score = None
+                reasons.append('Utilization data missing')
+            elif difficulty_score >= 25:
+                difficulty_bucket = 'Hard'
+            elif difficulty_score >= 10:
+                difficulty_bucket = 'Medium'
+            else:
+                difficulty_bucket = 'Easy'
+
+            recommendation = 'Migrate as-is'
+            if difficulty_bucket == 'Hard':
+                recommendation = 'Decouple VLANs and reduce blast radius before migration'
+            elif difficulty_bucket == 'Medium':
+                recommendation = 'Bundle migration with dependency-aware sequencing'
+            elif difficulty_bucket == 'Blocked':
+                recommendation = 'Collect utilization/interface data before migration'
+
+            row = {
+                'unit_id': unit_key,
+                'fabric_name': unit['fabric_name'],
+                'site': unit['site'],
+                'building': unit['building'],
+                'hall': unit['hall'],
+                'rack': unit['rack'],
+                'leaf_or_vpc': unit['leaf_or_vpc'],
+                'leaf_id': unit['leaf_id'],
+                'fex_identifier': unit.get('fex_identifier') or 'N/A',
+                'fex_display': unit.get('fex_display') or 'N/A',
+                'ports_used': len(unit['ports']),
+                'bindings': unit['bindings'],
+                'utilization_pct': unit['utilization_pct'],
+                'utilization_known': unit['utilization_known'],
+                'ports_total': unit['ports_total'],
+                'ports_connected': unit['ports_connected'],
+                'ports': sorted(list(unit['ports'])),
+                'impacted_epg_count': len(unit['epgs']),
+                'impacted_epgs': sorted(list(unit['epgs'])),
+                'impacted_vlan_count': len(unit['vlans']),
+                'impacted_vlans': sorted(list(unit['vlans'])),
+                'impacted_bd_count': len(unit['bds']),
+                'impacted_bds': sorted(list(unit['bds'])),
+                'impacted_vrf_count': len(unit['vrfs']),
+                'impacted_vrfs': sorted(list(unit['vrfs'])),
+                'impacted_tenant_count': len(unit['tenants']),
+                'impacted_tenants': sorted(list(unit['tenants'])),
+                'rewire_required': unit['rewire_required'],
+                'worst_vlan_id': worst_vlan.get('vlan_id') if worst_vlan else None,
+                'worst_vlan_level': worst_vlan.get('coupling_level') if worst_vlan else None,
+                'worst_vlan_score': worst_vlan.get('coupling_score') if worst_vlan else None,
+                'worst_vlan_display': f"{worst_vlan.get('vlan_id')} ({worst_vlan.get('coupling_level')})" if worst_vlan else None,
+                'coupled_vlan_count': coupled_vlan_count,
+                'top_coupled_vlans': [{
+                    'vlan_id': v.get('vlan_id'),
+                    'level': v.get('coupling_level'),
+                    'score': v.get('coupling_score'),
+                    'reason': v.get('why')
+                } for v in top_coupled],
+                'service_graph_present': service_graph_present,
+                'cross_tenant_coupling_present': cross_tenant,
+                'vpc_symmetry': unit['vpc_symmetry'],
+                'score': difficulty_score,
+                'difficulty_bucket': difficulty_bucket,
+                'recommendation': recommendation,
+                'why': reasons,
+                'flagged': difficulty_bucket in {'Hard', 'Blocked'}
+            }
+            rows.append(row)
+
+        stats = {
+            'total_units': len(rows),
+            'easy': sum(1 for r in rows if r['difficulty_bucket'] == 'Easy'),
+            'medium': sum(1 for r in rows if r['difficulty_bucket'] == 'Medium'),
+            'hard': sum(1 for r in rows if r['difficulty_bucket'] == 'Hard'),
+            'blocked': sum(1 for r in rows if r['difficulty_bucket'] == 'Blocked')
+        }
+
+        return {'units': rows, 'statistics': stats}
 
     def analyze_cmdb_correlation(self) -> Dict[str, Any]:
         """
@@ -1121,6 +1815,8 @@ class ACIAnalyzer:
 
     def _get_fex_port_count(self, model: str) -> int:
         """Get port count based on FEX model."""
+        if not model:
+            return 0
         port_map = {
             'N2K-C2248TP': 48,
             'N2K-C2348UPQ': 48,
@@ -1135,10 +1831,24 @@ class ACIAnalyzer:
             if key in model:
                 return count
 
-        return 48  # Default assumption
+        return 0  # Unknown model: avoid false certainty
 
-    def _calculate_consolidation_score(self, utilization: float, status: str, interface_count: int) -> int:
+    def _build_fex_identifier(self, fex_id: str, leaf_id: Optional[str], serial: Optional[str]) -> str:
+        """Build a stable FEX identifier (avoid assuming fex_id is globally unique)."""
+        parts = []
+        if leaf_id:
+            parts.append(f'leaf-{leaf_id}')
+        if fex_id:
+            parts.append(f'fex-{fex_id}')
+        if serial:
+            parts.append(f'serial-{serial}')
+        return ':'.join(parts) if parts else f'fex-{fex_id}'
+
+    def _calculate_consolidation_score(self, utilization: Optional[float], status: str, interface_count: int) -> Optional[int]:
         """Calculate FEX consolidation score (0-100, higher = better candidate)."""
+        if utilization is None:
+            return None
+
         score = 0
 
         # Low utilization = high score
@@ -1169,16 +1879,17 @@ class ACIAnalyzer:
 
         return min(score, 100)
 
-    def _get_consolidation_recommendation(self, score: int, utilization: float) -> str:
+    def _get_consolidation_recommendation(self, score: Optional[int], utilization: Optional[float]) -> str:
         """Get consolidation recommendation based on score."""
+        if score is None or utilization is None:
+            return 'Needs utilization data'
         if score >= 80:
             return 'Strong candidate for consolidation or decommission'
-        elif score >= 60:
+        if score >= 60:
             return 'Consider consolidation with other low-utilization FEX'
-        elif score >= 40:
+        if score >= 40:
             return 'Monitor utilization trends'
-        else:
-            return 'Retain - adequate utilization'
+        return 'Retain - adequate utilization'
 
     def _calculate_epg_complexity_score(self, path_count: int, vlan_count: int, node_count: int) -> int:
         """Calculate EPG complexity score (0-100)."""

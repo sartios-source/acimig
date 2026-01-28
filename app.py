@@ -1,6 +1,19 @@
 """
 ACI Migrator v2.0 - ACI Migration Analysis Platform.
 """
+
+# DEV_NOTES (Repo Discovery - 2026-01-28)
+# - Analysis is computed primarily in analysis/engine.py via ACIAnalyzer methods
+#   (e.g., analyze_port_utilization, analyze_vlan_distribution, analyze_epg_complexity,
+#   analyze_migration_flags, analyze_leaf_fex_mapping, analyze_device_epg_vlan_mapping).
+# - /visualize route in app.py builds viz_data by calling ACIAnalyzer.get_visualization_data()
+#   plus explicit analysis methods, then renders templates/visualize.html.
+# - Visualize tabs and assets:
+#   - VLANs, EPG Complexity, Port Utilization, Migration Readiness tabs are in templates/visualize.html
+#   - Charts and tab logic are in static/dashboards.js; styles in static/styles.css
+# - JSON ingestion: analysis/parsers.py parses ACI JSON (imdata objects) and CMDB CSV,
+#   then ACIAnalyzer._load_data() categorizes objects by ACI class (fvAEPg, fvRsPathAtt,
+#   eqptFex, fabricNode, ethpmPhysIf, etc.).
 import os
 import json
 import shutil
@@ -1401,9 +1414,12 @@ def visualize():
 
             # Enrich with analysis data for dashboards
             port_util = analyzer.analyze_port_utilization()
+            port_util_quality = analyzer.get_port_utilization_quality()
             vlan_dist = analyzer.analyze_vlan_distribution()
+            vlan_coupling = analyzer.analyze_vlan_coupling_index()
             epg_complex = analyzer.analyze_epg_complexity()
             migration_flags = analyzer.analyze_migration_flags()
+            migration_units = analyzer.analyze_migration_units()
             vpc_symmetry = analyzer.analyze_vpc_symmetry()
             leaf_fex = analyzer.analyze_leaf_fex_mapping()
             device_mapping = analyzer.analyze_device_epg_vlan_mapping()
@@ -1441,27 +1457,45 @@ def visualize():
 
             device_mapping = _trim_device_mapping(device_mapping)
 
+            known_util = [p for p in port_util if p.get('utilization_pct') is not None]
+            worst_vlan = None
+            if vlan_coupling.get('vlans'):
+                worst_vlan = max(vlan_coupling['vlans'], key=lambda v: v.get('coupling_score', 0))
+
             # Add comprehensive statistics
             viz_data['statistics'] = {
                 'total_leafs': leaf_fex.get('statistics', {}).get('total_leafs', 0),
                 'total_fex': leaf_fex.get('statistics', {}).get('total_fex', 0),
                 'avg_utilization': round(
-                    sum(p['utilization_pct'] for p in port_util) / len(port_util), 2
-                ) if port_util else 0,
+                    sum(p['utilization_pct'] for p in known_util) / len(known_util), 2
+                ) if known_util else None,
                 'consolidation_candidates': sum(
-                    1 for p in port_util if p['consolidation_score'] >= 60
+                    1 for p in port_util if (p.get('consolidation_score') or 0) >= 60
                 ),
+                'utilization_needs_data': sum(1 for p in port_util if p.get('utilization_pct') is None),
                 'total_epgs': len(epg_complex),
                 'total_vlans': vlan_dist.get('statistics', {}).get('total_vlans_used', 0),
                 'vlan_overlaps': len(vlan_dist.get('overlaps', [])),
-                'migration_flags': len(migration_flags)
+                'migration_flags': len(migration_flags),
+                'vlan_coupling_high': vlan_coupling.get('statistics', {}).get('high_coupling', 0),
+                'worst_vlan_id': worst_vlan.get('vlan_id') if worst_vlan else None,
+                'worst_vlan_score': worst_vlan.get('coupling_score') if worst_vlan else None,
+                'migration_units': migration_units.get('statistics', {})
             }
 
             # Add detailed analysis data
-            viz_data['port_utilization'] = port_util[:50]  # Top 50
+            viz_data['port_utilization'] = port_util
+            viz_data['port_utilization_quality'] = port_util_quality
             viz_data['vlan_distribution'] = vlan_dist
-            viz_data['epg_complexity'] = epg_complex[:20]  # Top 20
+            viz_data['vlan_coupling'] = vlan_coupling
+            viz_data['epg_complexity'] = epg_complex[:20]  # Top 20 for charts
+            viz_data['epg_complexity_all'] = epg_complex
+            for flag in migration_flags:
+                severity = flag.get('severity')
+                flag['flagged'] = severity in {'high', 'medium'}
+                flag['why'] = flag.get('message', '')
             viz_data['migration_flags'] = migration_flags
+            viz_data['migration_units'] = migration_units
             viz_data['vpc_symmetry'] = vpc_symmetry
             viz_data['leaf_fex_mapping'] = leaf_fex
             viz_data['device_mapping'] = device_mapping

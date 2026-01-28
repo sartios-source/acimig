@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/data_explorer.html" import data_explorer %}
 
 {% block title %}Visualize - ACI Migrator{% endblock %}
 {% block page_title %}Fabric Visualization{% endblock %}
@@ -142,7 +143,10 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600 mb-1">Avg Utilization</p>
-                    <p class="text-3xl font-bold text-gray-900">{{ viz_data.get('statistics', {}).get('avg_utilization', 0) }}%</p>
+                    {% set avg_util = viz_data.get('statistics', {}).get('avg_utilization') %}
+                    <p class="text-3xl font-bold text-gray-900">
+                        {% if avg_util is not none %}{{ avg_util }}%{% else %}N/A{% endif %}
+                    </p>
                 </div>
                 <div class="h-14 w-14 rounded-xl bg-purple-100 flex items-center justify-center">
                     <svg class="h-8 w-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -322,8 +326,8 @@
                         <td class="px-6 py-4 text-sm">
                             <div class="flex flex-wrap gap-1">
                                 {% for fex in mapping.attached_fex %}
-                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full bg-green-100 text-green-800" title="{{ fex.model }} - {{ fex.status }}">
-                                    FEX-{{ fex.fex_id }}
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full bg-green-100 text-green-800" title="{{ fex.identifier or ('FEX-' ~ fex.fex_id) }} | {{ fex.model }} - {{ fex.status }}">
+                                    {{ fex.identifier or ('FEX-' ~ fex.fex_id) }}
                                 </span>
                                 {% endfor %}
                                 {% if mapping.fex_count == 0 %}
@@ -592,11 +596,65 @@
 
 <!-- Port Utilization Dashboard -->
 <div id="utilization-dashboard" class="dashboard-panel">
+    {% set util_columns = [
+        {'key': 'fex_identifier', 'label': 'FEX Identifier', 'type': 'text'},
+        {'key': 'fex_id', 'label': 'FEX ID', 'type': 'text'},
+        {'key': 'leaf_id', 'label': 'Leaf ID', 'type': 'text'},
+        {'key': 'serial', 'label': 'Serial', 'type': 'text'},
+        {'key': 'model', 'label': 'Model', 'type': 'text'},
+        {'key': 'utilization_pct', 'label': 'Utilization %', 'type': 'number'},
+        {'key': 'utilization_known', 'label': 'Utilization Known', 'type': 'text'},
+        {'key': 'utilization_reason', 'label': 'Utilization Reason', 'type': 'text'},
+        {'key': 'total_ports', 'label': 'Total Ports', 'type': 'number'},
+        {'key': 'connected_ports', 'label': 'Connected Ports', 'type': 'number'},
+        {'key': 'consolidation_score', 'label': 'Consolidation Score', 'type': 'number'},
+        {'key': 'recommendation', 'label': 'Recommendation', 'type': 'text'}
+    ] %}
+    {{ data_explorer(
+        'utilization-explorer',
+        'Port Utilization Explorer',
+        'All FEX devices with utilization signal quality and consolidation guidance.',
+        util_columns,
+        viz_data.get('port_utilization', []),
+        {'defaultSort': 'consolidation_score', 'titleField': 'fex_identifier', 'subtitleField': 'leaf_id', 'flagField': 'flagged'}
+    ) }}
+
+    {% set util_quality = viz_data.get('port_utilization_quality', {}) %}
+    {% if util_quality %}
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-6 mb-8">
+        <div class="flex items-start">
+            <div class="mr-3">
+                <svg class="h-6 w-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-lg font-semibold text-yellow-800 mb-2">Port Utilization Data Quality</h3>
+                <p class="text-sm text-yellow-700 mb-3">Utilization is only computed when interface operational data is available and matched to FEX IDs.</p>
+                {% if util_quality.get('reasons') %}
+                <ul class="text-sm text-yellow-700 list-disc pl-5 mb-3">
+                    {% for reason in util_quality.get('reasons', []) %}
+                    <li>{{ reason }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm text-yellow-800">
+                    <div>Interfaces loaded: {{ util_quality.get('interface_objects_loaded', {}).get('ethpmPhysIf', 0) }}</div>
+                    <div>Ports total: {{ util_quality.get('ports_total', 0) }}</div>
+                    <div>Ports matched to FEX: {{ util_quality.get('ports_matched_to_fex', 0) }}</div>
+                    <div>Needs data: {{ viz_data.get('statistics', {}).get('utilization_needs_data', 0) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 mb-8">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">FEX Port Utilization</h3>
         <div class="relative" style="height: 400px;">
             <canvas id="portUtilizationChart"></canvas>
         </div>
+        <p id="utilization-needs-data" class="text-sm text-gray-500 mt-3"></p>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -629,29 +687,109 @@
 
 <!-- VLAN Dashboard -->
 <div id="vlans-dashboard" class="dashboard-panel">
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">VLAN Usage Distribution</h3>
-            <div class="relative" style="height: 300px;">
-                <canvas id="vlanDistributionChart"></canvas>
-            </div>
+            <p class="text-sm font-medium text-gray-600 mb-1">Total VLANs</p>
+            <p class="text-3xl font-bold text-gray-900">{{ viz_data.get('vlan_coupling', {}).get('statistics', {}).get('total_vlans', 0) }}</p>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">VLAN Overlaps</h3>
-            <div id="vlan-overlaps" class="space-y-2">
-                <!-- Populated by JavaScript -->
-            </div>
+            <p class="text-sm font-medium text-gray-600 mb-1">Overlap VLANs</p>
+            <p class="text-3xl font-bold text-gray-900">{{ viz_data.get('vlan_distribution', {}).get('statistics', {}).get('overlap_count', 0) }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+            <p class="text-sm font-medium text-gray-600 mb-1">High Coupling VLANs</p>
+            <p class="text-3xl font-bold text-gray-900">{{ viz_data.get('vlan_coupling', {}).get('statistics', {}).get('high_coupling', 0) }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+            <p class="text-sm font-medium text-gray-600 mb-1">Worst VLAN</p>
+            <p class="text-3xl font-bold text-gray-900">
+                {% if viz_data.get('statistics', {}).get('worst_vlan_id') %}
+                    VLAN {{ viz_data.get('statistics', {}).get('worst_vlan_id') }} ({{ viz_data.get('statistics', {}).get('worst_vlan_score') }})
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">VLAN Range Heatmap</h3>
-        <div id="vlan-heatmap"></div>
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 mb-8">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3">VLAN Coupling Overview</h3>
+        <p class="text-sm text-gray-600 mb-4">Coupling level distribution across all VLANs.</p>
+        <div class="relative" style="height: 260px;">
+            <canvas id="vlanCouplingChart"></canvas>
+        </div>
     </div>
+
+    {% set vlan_columns = [
+        {'key': 'vlan_id', 'label': 'VLAN', 'type': 'number', 'filter': 'exact'},
+        {'key': 'coupling_level', 'label': 'Coupling Level', 'type': 'text', 'filter': 'exact'},
+        {'key': 'coupling_score', 'label': 'Score', 'type': 'number'},
+        {'key': 'epg_count', 'label': 'EPGs', 'type': 'number'},
+        {'key': 'tenant_count', 'label': 'Tenants', 'type': 'number'},
+        {'key': 'bd_count', 'label': 'BDs', 'type': 'number'},
+        {'key': 'vrf_count', 'label': 'VRFs', 'type': 'number'},
+        {'key': 'attachment_spread.total_bindings', 'label': 'Bindings', 'type': 'number'},
+        {'key': 'attachment_spread.leafs', 'label': 'Leaves', 'type': 'text'},
+        {'key': 'attachment_spread.fex_identifiers', 'label': 'FEXs', 'type': 'text'},
+        {'key': 'attachment_spread.racks', 'label': 'Racks', 'type': 'text'},
+        {'key': 'service_graph_present', 'label': 'Service Graph', 'type': 'text'},
+        {'key': 'why', 'label': 'Reason', 'type': 'text'}
+    ] %}
+    {{ data_explorer(
+        'vlan-explorer',
+        'VLAN Coupling Explorer',
+        'Primary migration pain point: coupling and blast radius per VLAN.',
+        vlan_columns,
+        viz_data.get('vlan_coupling', {}).get('vlans', []),
+        {'defaultSort': 'coupling_score', 'titleField': 'vlan_id', 'subtitleField': 'coupling_level', 'flagField': 'flagged'}
+    ) }}
 </div>
 
 <!-- EPG Complexity Dashboard -->
 <div id="complexity-dashboard" class="dashboard-panel">
+    {% set epg_columns = [
+        {'key': 'tenant', 'label': 'Tenant', 'type': 'text', 'filter': 'exact'},
+        {'key': 'app_profile', 'label': 'App', 'type': 'text', 'filter': 'exact'},
+        {'key': 'epg_name', 'label': 'EPG', 'type': 'text'},
+        {'key': 'vlans', 'label': 'VLANs', 'type': 'text'},
+        {'key': 'bd', 'label': 'BD', 'type': 'text'},
+        {'key': 'vrf', 'label': 'VRF', 'type': 'text'},
+        {'key': 'complexity_score', 'label': 'Complexity Score', 'type': 'number'},
+        {'key': 'complexity_level', 'label': 'Risk', 'type': 'text', 'filter': 'exact'},
+        {'key': 'path_count', 'label': 'Bindings', 'type': 'number'},
+        {'key': 'leaf_binding_count', 'label': 'Leaf Bindings', 'type': 'number'},
+        {'key': 'fex_binding_count', 'label': 'FEX Bindings', 'type': 'number'},
+        {'key': 'node_count', 'label': 'Node Spread', 'type': 'number'},
+        {'key': 'rack_spread', 'label': 'Rack Spread', 'type': 'number'},
+        {'key': 'contracts_count', 'label': 'Contracts', 'type': 'number'},
+        {'key': 'service_graph_present', 'label': 'Service Graph', 'type': 'text'},
+        {'key': 'cross_tenant_coupling_present', 'label': 'Cross-tenant', 'type': 'text'},
+        {'key': 'why', 'label': 'Why', 'type': 'text'}
+    ] %}
+    {{ data_explorer(
+        'epg-explorer',
+        'EPG Complexity Explorer',
+        'This table lists every EPG and the factors driving its complexity.',
+        epg_columns,
+        viz_data.get('epg_complexity_all', []),
+        {
+            'defaultSort': 'complexity_score',
+            'titleField': 'epg_name',
+            'subtitleField': 'tenant',
+            'flagField': 'flagged',
+            'filtersPanel': true,
+            'filters': [
+                {'field': 'tenant', 'label': 'Tenant', 'type': 'select', 'operator': 'eq'},
+                {'field': 'app_profile', 'label': 'App', 'type': 'select', 'operator': 'eq'},
+                {'field': 'complexity_level', 'label': 'Risk', 'type': 'select', 'operator': 'eq'},
+                {'field': 'service_graph_present', 'label': 'Service Graph Only', 'type': 'checkbox', 'operator': 'truthy'},
+                {'field': 'cross_tenant_coupling_present', 'label': 'Cross-tenant Only', 'type': 'checkbox', 'operator': 'truthy'},
+                {'field': 'fex_binding_count', 'label': 'FEX-bound Only', 'type': 'checkbox', 'operator': 'gt', 'value': 0},
+                {'field': 'leaf_binding_count', 'label': 'Leaf-bound Only', 'type': 'checkbox', 'operator': 'gt', 'value': 0}
+            ]
+        }
+    ) }}
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">EPG Complexity Distribution</h3>
@@ -668,54 +806,80 @@
     </div>
 
     <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Top 20 Most Complex EPGs</h3>
-        <div class="relative" style="height: 400px;">
-            <canvas id="topComplexEpgsChart"></canvas>
-        </div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">EPG Complexity Notes</h3>
+        <p class="text-sm text-gray-600">Use the table above to filter and export all EPGs. Charts are secondary for quick trend checks.</p>
     </div>
 </div>
 
 <!-- Migration Readiness Dashboard -->
 <div id="migration-dashboard" class="dashboard-panel">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    {% set unit_stats = viz_data.get('migration_units', {}).get('statistics', {}) %}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white rounded-xl shadow-lg p-6 border border-green-200 bg-green-50">
-            <h3 class="text-lg font-semibold text-green-800 mb-2">✓ Ready</h3>
-            <p class="text-4xl font-bold text-green-900" id="ready-count">0</p>
-            <p class="text-sm text-green-700">Items</p>
+            <h3 class="text-lg font-semibold text-green-800 mb-2">Easy Units</h3>
+            <p class="text-4xl font-bold text-green-900">{{ unit_stats.get('easy', 0) }}</p>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-6 border border-yellow-200 bg-yellow-50">
-            <h3 class="text-lg font-semibold text-yellow-800 mb-2">⚠ Warnings</h3>
-            <p class="text-4xl font-bold text-yellow-900" id="warning-count">0</p>
-            <p class="text-sm text-yellow-700">Items</p>
+            <h3 class="text-lg font-semibold text-yellow-800 mb-2">Medium Units</h3>
+            <p class="text-4xl font-bold text-yellow-900">{{ unit_stats.get('medium', 0) }}</p>
         </div>
         <div class="bg-white rounded-xl shadow-lg p-6 border border-red-200 bg-red-50">
-            <h3 class="text-lg font-semibold text-red-800 mb-2">✗ Issues</h3>
-            <p class="text-4xl font-bold text-red-900" id="issue-count">0</p>
-            <p class="text-sm text-red-700">Items</p>
+            <h3 class="text-lg font-semibold text-red-800 mb-2">Hard Units</h3>
+            <p class="text-4xl font-bold text-red-900">{{ unit_stats.get('hard', 0) }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200 bg-gray-50">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">Blocked Units</h3>
+            <p class="text-4xl font-bold text-gray-900">{{ unit_stats.get('blocked', 0) }}</p>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Migration Flags by Category</h3>
-            <div class="relative" style="height: 300px;">
-                <canvas id="migrationFlagsChart"></canvas>
-            </div>
-        </div>
-        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">VPC Symmetry Analysis</h3>
-            <div class="relative" style="height: 300px;">
-                <canvas id="vpcSymmetryChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Detailed Findings</h3>
-        <div id="migration-flags-list" class="space-y-3">
-            <!-- Populated by JavaScript -->
-        </div>
-    </div>
+    {% set unit_columns = [
+        {'key': 'site', 'label': 'Site', 'type': 'text', 'filter': 'exact'},
+        {'key': 'building', 'label': 'Building', 'type': 'text', 'filter': 'exact'},
+        {'key': 'hall', 'label': 'Hall', 'type': 'text', 'filter': 'exact'},
+        {'key': 'rack', 'label': 'Rack', 'type': 'text', 'filter': 'exact'},
+        {'key': 'leaf_or_vpc', 'label': 'Leaf / VPC', 'type': 'text'},
+        {'key': 'fex_display', 'label': 'FEX', 'type': 'text'},
+        {'key': 'ports_used', 'label': 'Ports Used', 'type': 'number'},
+        {'key': 'ports_total', 'label': 'Ports Total', 'type': 'number'},
+        {'key': 'utilization_pct', 'label': 'Utilization %', 'type': 'number'},
+        {'key': 'impacted_epg_count', 'label': 'EPGs', 'type': 'number'},
+        {'key': 'impacted_vlan_count', 'label': 'VLANs', 'type': 'number'},
+        {'key': 'worst_vlan_display', 'label': 'Worst VLAN', 'type': 'text'},
+        {'key': 'coupled_vlan_count', 'label': 'Coupled VLANs', 'type': 'number'},
+        {'key': 'impacted_tenant_count', 'label': 'Tenants', 'type': 'number'},
+        {'key': 'service_graph_present', 'label': 'Service Graph', 'type': 'text'},
+        {'key': 'vpc_symmetry', 'label': 'VPC Symmetry', 'type': 'text'},
+        {'key': 'score', 'label': 'Score', 'type': 'number'},
+        {'key': 'difficulty_bucket', 'label': 'Difficulty', 'type': 'text', 'filter': 'exact'},
+        {'key': 'recommendation', 'label': 'Recommendation', 'type': 'text'}
+    ] %}
+    {{ data_explorer(
+        'migration-explorer',
+        'Migration Units',
+        'Migration readiness is reported as actionable units. Filter by difficulty and coupling impact.',
+        unit_columns,
+        viz_data.get('migration_units', {}).get('units', []),
+        {
+            'defaultSort': 'score',
+            'titleField': 'leaf_or_vpc',
+            'subtitleField': 'difficulty_bucket',
+            'flagField': 'flagged',
+            'filtersPanel': true,
+            'filters': [
+                {'field': 'difficulty_bucket', 'label': 'Difficulty', 'type': 'select', 'operator': 'eq'},
+                {'field': 'site', 'label': 'Site', 'type': 'select', 'operator': 'eq'},
+                {'field': 'hall', 'label': 'Hall', 'type': 'select', 'operator': 'eq'},
+                {'field': 'rack', 'label': 'Rack', 'type': 'select', 'operator': 'eq'},
+                {'field': 'leaf_or_vpc', 'label': 'Leaf/VPC', 'type': 'select', 'operator': 'eq'},
+                {'field': 'fex_display', 'label': 'FEX', 'type': 'select', 'operator': 'eq'},
+                {'field': 'coupled_vlan_count', 'label': 'High Coupling VLANs Only', 'type': 'checkbox', 'operator': 'gt', 'value': 0},
+                {'field': 'service_graph_present', 'label': 'Service Graph Only', 'type': 'checkbox', 'operator': 'truthy'},
+                {'field': 'cross_tenant_coupling_present', 'label': 'Cross-tenant Only', 'type': 'checkbox', 'operator': 'truthy'},
+                {'field': 'utilization_known', 'label': 'Utilization Known', 'type': 'select', 'operator': 'eq'}
+            ]
+        }
+    ) }}
 </div>
 
 {% endif %}
@@ -765,6 +929,7 @@ canvas {
 <!-- D3.js for Topology Visualization -->
 <script src="https://d3js.org/d3.v7.min.js"></script>
 
+<script src="{{ url_for('static', filename='data_explorer.js') }}"></script>
 <script src="{{ url_for('static', filename='dashboards.js') }}"></script>
 
 <script>

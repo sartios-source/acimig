@@ -1,0 +1,82 @@
+{% macro data_explorer(explorer_id, title, description, columns, data, options=None) %}
+{% set opts = options or {} %}
+<section class="data-explorer" id="{{ explorer_id }}">
+    {% if opts.get('filtersPanel') %}
+    <div class="de-layout">
+        <aside class="de-filters-panel">
+            <h4>Filters</h4>
+            <div class="de-filters-body"></div>
+        </aside>
+        <div class="de-main">
+    {% endif %}
+    <div class="de-header">
+        <div class="de-header-text">
+            <h3 class="de-title">{{ title }}</h3>
+            {% if description %}
+            <p class="de-description">{{ description }}</p>
+            {% endif %}
+        </div>
+        <div class="de-controls">
+            <input type="text" class="de-search" placeholder="Search all columns..." aria-label="Search table">
+            <select class="de-page-size" aria-label="Page size">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+            <button type="button" class="de-columns-toggle">Columns</button>
+            <button type="button" class="de-export">Export CSV</button>
+        </div>
+        <div class="de-columns-panel" hidden>
+            <div class="de-columns-list"></div>
+        </div>
+    </div>
+
+    <div class="de-flags" hidden>
+        <label class="de-flag-toggle">
+            <input type="checkbox" class="de-flag-only">
+            Show flagged only
+        </label>
+    </div>
+
+    <div class="de-table-wrapper">
+        <table class="de-table">
+            <thead></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="de-pagination">
+        <div class="de-page-info"></div>
+        <div class="de-page-controls">
+            <button type="button" class="de-prev">Prev</button>
+            <button type="button" class="de-next">Next</button>
+        </div>
+    </div>
+    {% if opts.get('filtersPanel') %}
+        </div>
+    </div>
+    {% endif %}
+</section>
+
+<div class="de-drawer" id="{{ explorer_id }}-drawer" aria-hidden="true">
+    <div class="de-drawer-overlay"></div>
+    <div class="de-drawer-panel">
+        <div class="de-drawer-header">
+            <div>
+                <h4 class="de-drawer-title">Details</h4>
+                <p class="de-drawer-subtitle"></p>
+            </div>
+            <button type="button" class="de-drawer-close">Close</button>
+        </div>
+        <div class="de-drawer-body">
+            <div class="de-drawer-why"></div>
+            <div class="de-drawer-details"></div>
+        </div>
+    </div>
+</div>
+
+<script type="application/json" id="{{ explorer_id }}-data">{{ data|tojson }}</script>
+<script type="application/json" id="{{ explorer_id }}-columns">{{ columns|tojson }}</script>
+<script type="application/json" id="{{ explorer_id }}-options">{{ opts|tojson }}</script>
+{% endmacro %}
