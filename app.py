@@ -537,6 +537,26 @@ def analyze():
     if current_fabric:
         fabric_data = fm.get_fabric_data(current_fabric)
         datasets = fabric_data.get('datasets', [])
+        cache_key = get_fabric_cache_key(current_fabric, 'analysis_view')
+        cached = cache.get(cache_key)
+        if cached:
+            unified_data = cached.get('unified_data', [])
+            tenants = cached.get('tenants', [])
+            vrfs = cached.get('vrfs', [])
+            type_counts = cached.get('type_counts', {})
+            validation_results = cached.get('validation_results')
+            port_status_data = cached.get('port_status_data', port_status_data)
+            return render_template('analyze_enhanced.html',
+                                  mode=mode,
+                                  current_fabric=current_fabric,
+                                  datasets=datasets,
+                                  validation_results=validation_results,
+                                  unified_data=unified_data,
+                                  port_status_data=port_status_data,
+                                  tenants=tenants,
+                                  vrfs=vrfs,
+                                  types=types,
+                                  type_counts=type_counts)
 
         # Run comprehensive data completeness validation
         try:
@@ -822,6 +842,15 @@ def analyze():
                 port_status_data['missing'].append('ethpmPhysIf')
             if len(analyzer._path_attachments) == 0:
                 port_status_data['missing'].append('fvRsPathAtt')
+
+            cache.set(cache_key, {
+                'unified_data': unified_data,
+                'tenants': tenants,
+                'vrfs': vrfs,
+                'type_counts': type_counts,
+                'validation_results': validation_results,
+                'port_status_data': port_status_data
+            })
 
         except Exception as e:
             app.logger.error(f"Error during analysis: {str(e)}", exc_info=True)
