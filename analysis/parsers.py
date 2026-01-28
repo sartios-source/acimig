@@ -40,6 +40,20 @@ def parse_aci_json(content: str) -> Dict[str, Any]:
             f"Invalid JSON format at line {e.lineno}, column {e.colno}: {e.msg}"
         )
 
+    def _extract_children(children, objects_list):
+        for child in children or []:
+            if not isinstance(child, dict):
+                continue
+            for child_type, child_data in child.items():
+                child_attrs = child_data.get('attributes', {}) if isinstance(child_data, dict) else {}
+                objects_list.append({
+                    'type': child_type,
+                    'attributes': child_attrs,
+                    'dn': child_attrs.get('dn', ''),
+                })
+                if isinstance(child_data, dict) and child_data.get('children'):
+                    _extract_children(child_data.get('children', []), objects_list)
+
     objects = []
     if 'imdata' in data:
         for item in data['imdata']:
@@ -50,6 +64,8 @@ def parse_aci_json(content: str) -> Dict[str, Any]:
                     'attributes': attributes,
                     'dn': attributes.get('dn', ''),
                 })
+                if isinstance(obj_data, dict) and obj_data.get('children'):
+                    _extract_children(obj_data.get('children', []), objects)
 
     if not objects:
         raise ValueError("No valid ACI objects found in JSON file. Expected 'imdata' array.")
