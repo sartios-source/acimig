@@ -127,6 +127,7 @@ def get_fabric_cache_key(fabric_name: str, suffix: str = '') -> str:
 def invalidate_fabric_cache(fabric_name: str):
     """Invalidate all cache entries for a fabric."""
     keys_to_delete = [
+        get_fabric_cache_key(fabric_name, 'analysis_view'),
         get_fabric_cache_key(fabric_name, 'visualization'),
         get_fabric_cache_key(fabric_name, 'planning'),
         get_fabric_cache_key(fabric_name, 'reporting'),
