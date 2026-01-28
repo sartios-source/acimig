@@ -4,23 +4,22 @@
 
 A comprehensive, web-based application for analyzing Cisco ACI fabrics and generating migration plans. Streamline your network infrastructure modernization with automated analysis, intelligent recommendations, and detailed reporting.
 
-[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](#)
+[![Version](https://img.shields.io/badge/version-2.1-blue.svg)](#)
 [![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/flask-3.0%2B-black.svg)](https://flask.palletsprojects.com/)
 [![License](https://img.shields.io/badge/license-Internal-red.svg)](#)
 
 ---
 
-## What's New in v2.0
+## What's New in v2.1
 
-**Latest Release** focuses on a single ACI migration analysis workflow:
+**Latest Release** focuses on table-first migration readiness and coupling-driven analysis:
 
-- PDF and Excel exports for executive and technical audiences
-- MCP import workflow for remote ACI data collection
-- Unified analysis and reporting flow (single mode)
-- Refined migration planning with timelines and resource estimates
-- Documentation and screenshots aligned to v2.0
-- Barclays-aligned visual theme for UI consistency
+- VLAN Coupling Explorer as the primary migration risk signal
+- Migration Units with Easy/Medium/Hard/Blocked buckets
+- Reusable Data Explorer across Visualize dashboards
+- Utilization shown as Unknown when data is missing
+- CMDB correlation keyed by SerialNumber fields
 
 See [NEW_FEATURES.md](NEW_FEATURES.md) for complete details.
 
@@ -233,7 +232,7 @@ python offline_collector.py --apic-host apic.example.com --apic-username admin -
 aciv2/
 ├── app.py                 # Main Flask application
 ├── config.py              # Configuration management
-├── VERSION                # Version file (2.0)
+├── VERSION                # Version file (2.1)
 ├── requirements.txt       # Python dependencies
 ├── .env.example          # Environment template
 │
@@ -600,7 +599,7 @@ mypy app.py
 
 ## Changelog
 
-### Version 2.0.0 (2026-01-26)
+### Version 2.1.0 (2026-01-28)
 - Consolidated into a single ACI migration analysis workflow
 - Removed mode-specific UI and EVPN configuration generation
 - Updated reporting/export labels and templates
@@ -639,4 +638,4 @@ Built with:
 
 ---
 
-**ACI Migrator v2.0** - Professional ACI Migration Analyzer
+**ACI Migrator v2.1** - Professional ACI Migration Analyzer

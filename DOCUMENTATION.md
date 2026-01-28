@@ -207,7 +207,7 @@ python app.py
 Expected output:
 ```
 ======================================================================
-ACI Migrator v2.0 - Professional ACI Migration Tool
+ACI Migrator v2.1 - Professional ACI Migration Tool
 ======================================================================
 Data directory: C:\Users\...\aciv2\data
 Fabrics directory: C:\Users\...\aciv2\fabrics
@@ -239,8 +239,8 @@ CMD ["python", "app.py"]
 
 ```bash
 # Build and run
-docker build -t ACI Migrator:2.0 .
-docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics ACI Migrator:2.0
+docker build -t ACI Migrator:2.1 .
+docker run -p 5000:5000 -v $(pwd)/fabrics:/app/fabrics ACI Migrator:2.1
 ```
 
 ---
@@ -392,7 +392,7 @@ curl http://localhost:5000/api/migration-assessment/fabric_name
 
 ### Authentication
 
-Currently, ACI Migrator v2.0 does not require authentication. For production deployment, implement authentication middleware or use reverse proxy with authentication.
+Currently, ACI Migrator v2.1 does not require authentication. For production deployment, implement authentication middleware or use reverse proxy with authentication.
 
 ### Endpoints
 
@@ -888,6 +888,6 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ---
 
-**ACI Migrator v2.0** - Professional ACI Migration Analyzer
+**ACI Migrator v2.1** - Professional ACI Migration Analyzer
 
 Copyright 2025 - All Rights Reserved

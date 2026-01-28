@@ -1,5 +1,5 @@
 ﻿"""
-Screenshot capture script for ACI Migrator v2.0 documentation
+Screenshot capture script for ACI Migrator v2.1 documentation
 Captures all required UI screenshots for README.md
 """
 
@@ -70,7 +70,7 @@ def prepare_demo_data(page, base_url):
 
 def capture_screenshots():
     """Capture all required screenshots"""
-    print("Starting screenshot capture for ACI Migrator v2.0...")
+    print("Starting screenshot capture for ACI Migrator v2.1...")
 
     base_url = resolve_base_url()
     print(f"Using base URL: {base_url}")
@@ -235,7 +235,7 @@ def capture_screenshots():
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("ACI Migrator v2.0 Screenshot Capture Tool")
+    print("ACI Migrator v2.1 Screenshot Capture Tool")
     print("=" * 70)
     print("\nIMPORTANT: Make sure the Flask application is running.")
     print("Expected URL: http://127.0.0.1:<port>")

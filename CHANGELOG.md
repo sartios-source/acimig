@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1] - 2026-01-28
+
+### Added
+- VLAN Coupling Explorer as primary migration difficulty signal
+- Migration Units with Easy/Medium/Hard/Blocked buckets
+- Reusable Data Explorer across Visualize tabs
+
+### Changed
+- Visualize dashboards are table-first; charts are secondary
+- Port utilization now reports Unknown/N/A when data is missing
+- CMDB join keyed by SerialNumber with expanded location fields
+
 ## [2.0] - 2026-01-26
 
 ### Changed

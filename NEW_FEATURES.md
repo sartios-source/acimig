@@ -1,37 +1,37 @@
-﻿# New Features - ACI Migrator v2.0
+# New Features - ACI Migrator v2.1
 
-**Release Date**: 2026-01-26
-**Version**: 2.0
-**Previous Version**: 1.02
+**Release Date**: 2026-01-28
+**Version**: 2.1
+**Previous Version**: 2.0
 
 ---
 
 ## Overview
 
-ACI Migrator v2.0 consolidates the application into a single ACI migration analysis workflow. The release emphasizes reporting, MCP import, and consistent documentation for the updated experience.
+ACI Migrator v2.1 shifts Visualize to a table-first experience, introduces VLAN coupling as the primary migration difficulty signal, and replaces readiness charts with actionable Migration Units.
 
 ---
 
 ## Highlights
 
-- PDF and Excel exports for executive and technical audiences
-- MCP server import for remote ACI data collection
-- Unified analysis and reporting flow (single mode)
-- Refined migration planning with timelines and resource estimates
-- Documentation and screenshots refreshed for v2.0
+- VLAN Coupling Explorer (coupling + blast radius)
+- Migration Units with Easy/Medium/Hard/Blocked buckets
+- Data Explorer component across Visualize tabs
+- Utilization shown as Unknown/N/A when signal is missing
+- CMDB join on SerialNumber with expanded location fields
 
 ---
 
 ## Notable Changes
 
-- Removed EVPN mode and EVPN configuration generation
-- Simplified UI messaging to focus on migration analysis
-- Report exports now label mode as "Migration" consistently
+- Visualize dashboards rebuilt around tables (charts are secondary)
+- Port utilization uses data-quality checks to avoid false 0% values
+- VLAN coupling score now drives migration difficulty and readiness
 
 ---
 
 ## Upgrade Notes
 
-1. Remove any references to EVPN-specific workflows in internal runbooks.
-2. Regenerate documentation screenshots using the v2.0 UI.
-3. Validate report outputs to confirm updated labels.
+1. Regenerate documentation screenshots using the v2.1 UI.
+2. Ensure CMDB CSV uses SerialNumber and ModelName columns.
+3. Re-validate migration planning outputs against coupling-driven readiness.
