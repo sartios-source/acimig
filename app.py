@@ -2014,16 +2014,16 @@ def _get_hub_data(current_fabric: str):
     port_util = analyzer.analyze_port_utilization()
 
     cmdb_by_serial = { _normalize_serial(r.get('SerialNumber') or r.get('serial_number')): r for r in cmdb_rows }
+    leaf_name_by_id = {str(l.get('id')): (l.get('name') or '') for l in analyzer._leafs}
     fex_util_rows = []
     for row in port_util:
         serial = _normalize_serial(row.get('serial'))
         cmdb_record = cmdb_by_serial.get(serial)
+        leaf_id = row.get('leaf_id')
         fex_util_rows.append({
             **row,
             'rack': cmdb_record.get('Rack') if cmdb_record else 'Unknown',
-            'site': cmdb_record.get('Site') if cmdb_record else 'Unknown',
-            'building': cmdb_record.get('Building') if cmdb_record else 'Unknown',
-            'hall': cmdb_record.get('Hall') if cmdb_record else 'Unknown',
+            'leaf_name': leaf_name_by_id.get(str(leaf_id), ''),
         })
 
     rack_map = {}
@@ -2035,10 +2035,7 @@ def _get_hub_data(current_fabric: str):
             'total_ports': 0,
             'connected_ports': 0,
             'utilization_known': True,
-            'unknown_ports': 0,
-            'site': row.get('site') or 'Unknown',
-            'building': row.get('building') or 'Unknown',
-            'hall': row.get('hall') or 'Unknown'
+            'unknown_ports': 0
         })
         entry['fex_count'] += 1
         total_ports = row.get('total_ports') or 0
@@ -2050,13 +2047,31 @@ def _get_hub_data(current_fabric: str):
         else:
             entry['connected_ports'] += connected
 
+    rack_fex_map = {}
+    for row in fex_util_rows:
+        rack = row.get('rack') or 'Unknown'
+        rack_fex_map.setdefault(rack, []).append(row)
+
+    def _pick_target_fex(fex_list):
+        if not fex_list:
+            return None
+        def _score(item):
+            total_ports = item.get('total_ports') or 0
+            connected = item.get('connected_ports')
+            connected_val = connected if connected is not None else -1
+            return (total_ports, connected_val, str(item.get('serial') or ''))
+        return sorted(fex_list, key=_score, reverse=True)[0]
+
     rack_rows = []
     consolidation_candidates = 0
-    racks_with_3plus = 0
+    racks_with_2plus = 0
+    target_by_rack = {}
     for rack, entry in rack_map.items():
-        if entry['fex_count'] >= 3:
-            racks_with_3plus += 1
-        if entry['utilization_known'] and entry['connected_ports'] <= 48 and entry['fex_count'] >= 3:
+        target_fex = _pick_target_fex(rack_fex_map.get(rack, []))
+        target_by_rack[rack] = target_fex
+        if entry['fex_count'] >= 2:
+            racks_with_2plus += 1
+        if entry['utilization_known'] and entry['connected_ports'] <= 48 and entry['fex_count'] >= 2:
             can_consolidate = 'Yes'
             consolidation_candidates += 1
             recommendation = 'Consolidate into 2248 (<=48 ports)'
@@ -2067,11 +2082,25 @@ def _get_hub_data(current_fabric: str):
             can_consolidate = 'Needs Data'
             recommendation = 'Needs port usage data'
 
+        target_label = ''
+        if can_consolidate == 'Yes' and target_fex:
+            target_label = f"FEX {target_fex.get('fex_id')} ({target_fex.get('serial') or 'N/A'})"
+
         rack_rows.append({
             **entry,
             'can_consolidate': can_consolidate,
-            'recommendation': recommendation
+            'recommendation': recommendation,
+            'target_fex': target_label
         })
+
+    for row in fex_util_rows:
+        rack = row.get('rack') or 'Unknown'
+        target = target_by_rack.get(rack)
+        row['target_for_rack'] = bool(
+            target
+            and str(target.get('fex_id')) == str(row.get('fex_id'))
+            and (target.get('serial') or '') == (row.get('serial') or '')
+        )
 
     fex_inventory = []
     for fex in analyzer._fexes:
@@ -2133,7 +2162,7 @@ def _get_hub_data(current_fabric: str):
             'rows': rack_rows,
             'statistics': {
                 'total_racks': len(rack_rows),
-                'racks_with_3plus_fex': racks_with_3plus,
+                'racks_with_2plus_fex': racks_with_2plus,
                 'consolidation_candidates': consolidation_candidates
             }
         },

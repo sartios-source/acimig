@@ -5,12 +5,14 @@
 {% if not current_fabric %}
 {{ super() }}
 {% else %}
-{% include "partials/data_readiness.html" %}
-<div class="mb-6">
-    <h1 class="text-3xl font-bold text-gray-900">FEX Consolidation</h1>
-    <p class="mt-2 text-sm text-gray-600">Racks with 3+ FEX and port usage <= 48 can consolidate.</p>
+<div class="feature-shell">
+    {% include "partials/data_readiness.html" %}
+    <div class="feature-hero">
+        <h1>FEX Consolidation</h1>
+        <p>Racks with 2+ FEX and port usage <= 48 can consolidate.</p>
+    </div>
+    {% include "partials/fex_consolidation.html" %}
 </div>
-{% include "partials/fex_consolidation.html" %}
 {% endif %}
 {% endblock %}
 {% block scripts %}

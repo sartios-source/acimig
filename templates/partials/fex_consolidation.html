@@ -5,8 +5,8 @@
             <h3>{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('total_racks', 0) }}</h3>
         </div>
         <div class="fex-kpi-card">
-            <p>Racks w/ 3+ FEX</p>
-            <h3>{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('racks_with_3plus_fex', 0) }}</h3>
+            <p>Racks w/ 2+ FEX</p>
+            <h3>{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('racks_with_2plus_fex', 0) }}</h3>
         </div>
         <div class="fex-kpi-card fex-kpi-ok">
             <p>Consolidation Candidates</p>
@@ -16,7 +16,7 @@
 
     <div class="fex-info-panel">
         <h4>Consolidation logic</h4>
-        <p>Consolidate if a rack has 3+ FEX and total used ports <= 48 (2248 capacity). If port usage is unknown, it is marked as Needs Data.</p>
+        <p>Consolidate if a rack has 2+ FEX and total used ports <= 48 (2248 capacity). Target FEX is selected by highest known port capacity and usage. If port usage is unknown, it is marked as Needs Data.</p>
     </div>
 
     <div class="fex-filter-bar" id="fex-filter-bar">
@@ -49,13 +49,11 @@
             <thead>
                 <tr>
                     <th>Rack</th>
-                    <th>Site</th>
-                    <th>Building</th>
-                    <th>Hall</th>
                     <th>FEX Count</th>
                     <th>Ports Used</th>
                     <th>Ports Total</th>
                     <th>Status</th>
+                    <th>Target FEX</th>
                     <th>Recommendation</th>
                 </tr>
             </thead>
@@ -75,6 +73,7 @@
                     <th>Ports Used</th>
                     <th>Ports Total</th>
                     <th>Utilization %</th>
+                    <th>Role</th>
                 </tr>
             </thead>
             <tbody id="fex-device-body"></tbody>

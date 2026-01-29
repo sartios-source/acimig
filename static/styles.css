@@ -24,6 +24,37 @@ body {
     background: radial-gradient(circle at top, #f8fbff 0%, var(--bg-color) 55%, #e4edf6 100%);
 }
 
+/* Feature shell */
+.feature-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.feature-hero {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(238, 244, 250, 0.95));
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 20px;
+    padding: 20px 24px;
+    box-shadow: var(--shadow-soft);
+}
+.feature-hero h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+.feature-hero p {
+    margin-top: 6px;
+    color: var(--muted-text);
+    font-size: 0.95rem;
+}
+.feature-panel {
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: var(--shadow-soft);
+}
+
 .top-nav {
     background: rgba(255, 255, 255, 0.9);
     border-bottom: 1px solid rgba(148, 163, 184, 0.3);

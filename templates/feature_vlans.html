@@ -5,10 +5,11 @@
 {% if not current_fabric %}
 {{ super() }}
 {% else %}
+<div class="feature-shell">
 {% include "partials/data_readiness.html" %}
-<div class="mb-6">
-    <h1 class="text-3xl font-bold text-gray-900">VLAN Coupling</h1>
-    <p class="mt-2 text-sm text-gray-600">Identify VLANs that drive migration risk and review their EPG/leaf/FEX bindings.</p>
+<div class="feature-hero">
+    <h1>VLAN Coupling</h1>
+    <p>Identify VLANs that drive migration risk and review their EPG/leaf/FEX bindings.</p>
 </div>
 <div class="vlan-kpi-grid">
     <div class="vlan-kpi-card">
@@ -27,6 +28,7 @@
 {% include "partials/vlan_filter_bar.html" %}
 {% include "partials/vlan_table.html" %}
 <script id="vlan-rows-data" type="application/json">{{ hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) | tojson }}</script>
+</div>
 {% endif %}
 {% endblock %}
 {% block scripts %}

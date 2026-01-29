@@ -33,7 +33,7 @@
         const filteredRacks = racks.filter(row => {
             if (status !== 'all' && statusKey(row) !== status) return false;
             if (search) {
-                const hay = [row.rack, row.site, row.building, row.hall].map(normLower).join(' ');
+                const hay = [row.rack].map(normLower).join(' ');
                 if (!hay.includes(search)) return false;
             }
             return true;
@@ -55,7 +55,7 @@
         if (!rows.length) {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
-            td.colSpan = 9;
+            td.colSpan = 7;
             td.className = 'fex-empty';
             td.textContent = 'No matching racks';
             tr.appendChild(td);
@@ -66,13 +66,11 @@
             const tr = document.createElement('tr');
             const cells = [
                 row.rack || '',
-                row.site || '',
-                row.building || '',
-                row.hall || '',
                 row.fex_count || 0,
                 row.connected_ports === null || row.connected_ports === undefined ? 'Unknown' : row.connected_ports,
                 row.total_ports || 0,
                 row.can_consolidate || '',
+                row.target_fex || '',
                 row.recommendation || ''
             ];
             cells.forEach(value => {
@@ -89,7 +87,7 @@
         if (!rows.length) {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
-            td.colSpan = 8;
+            td.colSpan = 9;
             td.className = 'fex-empty';
             td.textContent = 'No matching FEX devices';
             tr.appendChild(td);
@@ -98,15 +96,17 @@
         }
         rows.forEach(row => {
             const tr = document.createElement('tr');
+            const role = row.target_for_rack ? 'Target' : 'Member';
             const cells = [
                 row.fex_id || '',
                 row.serial || '',
                 row.model || '',
-                row.leaf_id || '',
+                row.leaf_name || row.leaf_id || '',
                 row.rack || '',
                 row.connected_ports === null || row.connected_ports === undefined ? 'Unknown' : row.connected_ports,
                 row.total_ports || 0,
-                row.utilization_pct === null || row.utilization_pct === undefined ? 'Unknown' : row.utilization_pct
+                row.utilization_pct === null || row.utilization_pct === undefined ? 'Unknown' : row.utilization_pct,
+                row.rack ? role : ''
             ];
             cells.forEach(value => {
                 const td = document.createElement('td');

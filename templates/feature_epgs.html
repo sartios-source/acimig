@@ -6,10 +6,11 @@
 {% if not current_fabric %}
 {{ super() }}
 {% else %}
+<div class="feature-shell">
 {% include "partials/data_readiness.html" %}
-<div class="mb-6">
-    <h1 class="text-3xl font-bold text-gray-900">EPG Complexity</h1>
-    <p class="mt-2 text-sm text-gray-600">EPG attachment complexity and dependency risk.</p>
+<div class="feature-hero">
+    <h1>EPG Complexity</h1>
+    <p>EPG attachment complexity and dependency risk.</p>
 </div>
 {% set epg_columns = [
     {'key': 'tenant', 'label': 'Tenant', 'type': 'text', 'filter': 'exact'},
@@ -33,6 +34,7 @@
     hub_data.get('epg_complexity', []),
     {'defaultSort': 'complexity_score', 'titleField': 'epg_name', 'subtitleField': 'complexity_level'}
 ) }}
+</div>
 {% endif %}
 {% endblock %}
 {% block scripts %}
