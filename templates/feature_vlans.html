@@ -23,6 +23,8 @@
     'title': 'VLAN Coupling Explorer',
     'subtitle': 'Coupling score, blast radius, and attachment spread across the fabric.',
     'rows': vlan_rows,
+    'remote': true,
+    'remoteUrl': '/api/bi/vlans',
     'columns': [
         {'key': 'vlan_id', 'label': 'VLAN', 'numeric': True, 'frozen': True},
         {'key': 'coupling_level', 'label': 'Level'},

@@ -2444,6 +2444,47 @@ def analyze_vlans(fabric_id):
     return jsonify(results)
 
 
+@app.route('/api/bi/<dataset>')
+@handle_api_errors
+def bi_dataset(dataset):
+    """Return BI explorer rows with server-side pagination, search, and sorting."""
+    current_fabric = session.get('current_fabric')
+    if not current_fabric:
+        return jsonify({'rows': [], 'total': 0, 'page': 1, 'size': 100}), 200
+
+    hub_data, _ = _get_hub_data(current_fabric)
+    dataset_map = {
+        'vlans': hub_data.get('vlan_coupling', {}).get('vlans_detailed', []),
+        'migration': hub_data.get('migration_units', {}).get('units', []),
+        'epgs': hub_data.get('epg_complexity', []),
+        'cmdb': hub_data.get('cmdb_rows', []),
+        'fex_racks': hub_data.get('rack_consolidation', {}).get('rows', []),
+        'fex_devices': hub_data.get('fex_port_util', [])
+    }
+
+    rows = dataset_map.get(dataset, [])
+    search = str(request.args.get('search', '')).strip().lower()
+    sort_field = request.args.get('sort', '')
+    sort_dir = request.args.get('dir', 'asc')
+    page = int(request.args.get('page', 1))
+    size = int(request.args.get('size', 100))
+
+    if search:
+        def matches(row):
+            return any(search in str(v).lower() for v in row.values() if v is not None)
+        rows = [row for row in rows if matches(row)]
+
+    if sort_field:
+        rows = sorted(rows, key=lambda r: r.get(sort_field), reverse=(sort_dir == 'desc'))
+
+    total = len(rows)
+    start = max(0, (page - 1) * size)
+    end = start + size
+    paged = rows[start:end]
+
+    return jsonify({'rows': paged, 'total': total, 'page': page, 'size': size})
+
+
 @app.route('/api/analyze/physical/<fabric_id>')
 @handle_api_errors
 def analyze_physical(fabric_id):

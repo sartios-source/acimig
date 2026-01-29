@@ -91,6 +91,21 @@
         container.innerHTML = html;
     }
 
+    function fetchRemote(config, page, size, search, sortField, sortDir) {
+        const params = new URLSearchParams();
+        params.set('page', String(page));
+        params.set('size', String(size));
+        if (search) params.set('search', search);
+        if (sortField) params.set('sort', sortField);
+        if (sortDir) params.set('dir', sortDir);
+        return fetch(`${config.remoteUrl}?${params.toString()}`)
+            .then(res => res.json())
+            .catch(err => {
+                console.error('Remote BI fetch failed', err);
+                return { rows: [], total: 0, page: 1, size: size };
+            });
+    }
+
     function applyConditionalFormatting(cell) {
         const field = cell.getField();
         const value = cell.getValue();
@@ -152,21 +167,41 @@
         if (searchInput) {
             searchInput.addEventListener('input', () => {
                 const value = searchInput.value.toLowerCase();
-                if (!value) {
-                    table.clearFilter();
+                if (config.remote) {
+                    fetchRemote(config, 1, table.getPageSize(), value, table.getSorters()[0]?.field, table.getSorters()[0]?.dir)
+                        .then(payload => {
+                            table.setData(payload.rows);
+                            table.setMaxPage(Math.ceil(payload.total / table.getPageSize()) || 1);
+                            buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
+                            updateChartAndPivot(table, section, config);
+                        });
                 } else {
-                    table.setFilter(row => {
-                        return Object.values(row).some(val => String(val ?? '').toLowerCase().includes(value));
-                    });
+                    if (!value) {
+                        table.clearFilter();
+                    } else {
+                        table.setFilter(row => {
+                            return Object.values(row).some(val => String(val ?? '').toLowerCase().includes(value));
+                        });
+                    }
+                    updateChartAndPivot(table, section, config);
                 }
-                updateChartAndPivot(table, section, config);
             });
         }
 
         const pageSelect = section.querySelector(`[data-page-size="${id}"]`);
         if (pageSelect) {
             pageSelect.addEventListener('change', () => {
-                table.setPageSize(Number(pageSelect.value || 100));
+                const size = Number(pageSelect.value || 100);
+                table.setPageSize(size);
+                if (config.remote) {
+                    fetchRemote(config, 1, size, searchInput?.value || '', table.getSorters()[0]?.field, table.getSorters()[0]?.dir)
+                        .then(payload => {
+                            table.setData(payload.rows);
+                            table.setMaxPage(Math.ceil(payload.total / size) || 1);
+                            buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
+                            updateChartAndPivot(table, section, config);
+                        });
+                }
             });
         }
 
@@ -212,7 +247,17 @@
             });
         }
 
-        updateChartAndPivot(table, section, config);
+        if (config.remote) {
+            fetchRemote(config, 1, table.getPageSize(), searchInput?.value || '', table.getSorters()[0]?.field, table.getSorters()[0]?.dir)
+                .then(payload => {
+                    table.setData(payload.rows);
+                    table.setMaxPage(Math.ceil(payload.total / table.getPageSize()) || 1);
+                    buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
+                    updateChartAndPivot(table, section, config);
+                });
+        } else {
+            updateChartAndPivot(table, section, config);
+        }
     }
 
     function updateChartAndPivot(table, section, config) {

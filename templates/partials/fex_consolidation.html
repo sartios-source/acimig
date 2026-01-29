@@ -47,6 +47,8 @@
         'title': 'Rack Consolidation',
         'subtitle': 'Racks eligible for 2-to-1 FEX consolidation.',
         'rows': rack_rows,
+        'remote': true,
+        'remoteUrl': '/api/bi/fex_racks',
         'columns': [
             {'key': 'rack', 'label': 'Rack', 'frozen': True},
             {'key': 'fex_count', 'label': 'FEX Count', 'numeric': True},
@@ -72,6 +74,8 @@
         'title': 'FEX Port Utilization',
         'subtitle': 'Port usage and consolidation readiness by device.',
         'rows': fex_rows,
+        'remote': true,
+        'remoteUrl': '/api/bi/fex_devices',
         'columns': [
             {'key': 'fex_id', 'label': 'FEX ID', 'frozen': True},
             {'key': 'serial', 'label': 'Serial'},
