@@ -159,6 +159,22 @@
     <p class="text-sm text-gray-600 mb-4">
         Goal: pinpoint VLANs that drive off-ramp risk and map their EPG/leaf/FEX spread.
     </p>
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">VLAN <-> EPG <-> Leaf/FEX Mapping</h3>
+                <p class="text-sm text-gray-600">
+                    Click a VLAN row below to load the full mapping (EPGs, leaf/FEX bindings, rack).
+                </p>
+            </div>
+            <button type="button" id="vlan-mapping-reset" class="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200 transition-colors">
+                Clear Selection
+            </button>
+        </div>
+        <div id="vlan-mapping-panel" class="mt-4">
+            <div class="text-sm text-gray-500">No VLAN selected yet.</div>
+        </div>
+    </div>
     <div class="vlan-kpi-grid">
         <div class="vlan-kpi-card">
             <p>Total VLANs</p>
@@ -211,39 +227,13 @@
         </div>
     </div>
 
-    {% set vlan_columns = [
-        {'key': 'vlan_id', 'label': 'VLAN', 'type': 'number', 'filter': 'exact'},
-        {'key': 'coupling_level', 'label': 'Coupling Level', 'type': 'text', 'filter': 'exact'},
-        {'key': 'coupling_score', 'label': 'Score', 'type': 'number'},
-        {'key': 'epg_count', 'label': 'EPGs', 'type': 'number'},
-        {'key': 'tenant_count', 'label': 'Tenants', 'type': 'number'},
-        {'key': 'bd_count', 'label': 'BDs', 'type': 'number'},
-        {'key': 'vrf_count', 'label': 'VRFs', 'type': 'number'},
-        {'key': 'binding_count', 'label': 'Bindings', 'type': 'number'},
-        {'key': 'leaf_count', 'label': 'Leaves', 'type': 'number'},
-        {'key': 'fex_count', 'label': 'FEX', 'type': 'number'},
-        {'key': 'rack_count', 'label': 'Racks', 'type': 'number'}
-    ] %}
-    {{ data_explorer(
-        'viz-vlans',
-        'VLAN Coupling Explorer',
-        'All VLANs with coupling score and binding spread.',
-        vlan_columns,
-        viz_data.get('vlan_coupling', {}).get('vlans_detailed', []),
-        {
-            'defaultSort': 'coupling_score',
-            'titleField': 'vlan_id',
-            'subtitleField': 'coupling_level',
-            'flagField': 'flagged',
-            'filtersPanel': true,
-            'filters': [
-                {'field': 'coupling_level', 'label': 'Coupling Level', 'type': 'select', 'operator': 'eq', 'values': ['low', 'medium', 'high', 'critical']},
-                {'field': 'tenant_count', 'label': 'Multi-tenant', 'type': 'checkbox', 'operator': 'gt', 'value': 1},
-                {'field': 'bd_count', 'label': 'Multi-BD', 'type': 'checkbox', 'operator': 'gt', 'value': 1},
-                {'field': 'binding_count', 'label': 'High bindings (>50)', 'type': 'checkbox', 'operator': 'gt', 'value': 50}
-            ]
-        }
-    ) }}
+    {% include "partials/vlan_filter_bar.html" %}
+
+    {% include "partials/vlan_table.html" %}
+
+    <script id="vlan-rows-data" type="application/json">
+        {{ viz_data.get('vlan_coupling', {}).get('vlans_detailed', []) | tojson }}
+    </script>
 </div>
 
 <!-- Migration Readiness Dashboard -->
@@ -369,6 +359,7 @@ canvas {
 
 <script src="{{ url_for('static', filename='data_explorer.js') }}"></script>
 <script src="{{ url_for('static', filename='dashboards.js') }}"></script>
+<script src="{{ url_for('static', filename='vlan_explorer.js') }}"></script>
 
 <script>
 // Enhanced toggle function for hierarchy nodes

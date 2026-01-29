@@ -37,39 +37,11 @@
             <p class="text-sm text-gray-600 mb-4">
                 Goal: identify VLANs that drive migration risk (shared EPGs, cross-tenant use, and blast radius).
             </p>
-            {% set vlan_columns = [
-                {'key': 'vlan_id', 'label': 'VLAN', 'type': 'number', 'filter': 'exact'},
-                {'key': 'coupling_level', 'label': 'Coupling Level', 'type': 'text', 'filter': 'exact'},
-                {'key': 'coupling_score', 'label': 'Score', 'type': 'number'},
-                {'key': 'epg_count', 'label': 'EPGs', 'type': 'number'},
-                {'key': 'tenant_count', 'label': 'Tenants', 'type': 'number'},
-                {'key': 'bd_count', 'label': 'BDs', 'type': 'number'},
-                {'key': 'vrf_count', 'label': 'VRFs', 'type': 'number'},
-                {'key': 'binding_count', 'label': 'Bindings', 'type': 'number'},
-                {'key': 'leaf_count', 'label': 'Leaves', 'type': 'number'},
-                {'key': 'fex_count', 'label': 'FEX', 'type': 'number'},
-                {'key': 'rack_count', 'label': 'Racks', 'type': 'number'}
-            ] %}
-            {{ data_explorer(
-                'hub-vlans',
-                'VLAN Coupling Explorer',
-                'All VLANs with coupling score and binding spread.',
-                vlan_columns,
-                hub_data.get('vlan_coupling', {}).get('vlans_detailed', []),
-                {
-                    'defaultSort': 'coupling_score',
-                    'titleField': 'vlan_id',
-                    'subtitleField': 'coupling_level',
-                    'flagField': 'flagged',
-                    'filtersPanel': true,
-                    'filters': [
-                        {'field': 'coupling_level', 'label': 'Coupling Level', 'type': 'select', 'operator': 'eq', 'values': ['low', 'medium', 'high', 'critical']},
-                        {'field': 'tenant_count', 'label': 'Multi-tenant', 'type': 'checkbox', 'operator': 'gt', 'value': 1},
-                        {'field': 'bd_count', 'label': 'Multi-BD', 'type': 'checkbox', 'operator': 'gt', 'value': 1},
-                        {'field': 'binding_count', 'label': 'High bindings (>50)', 'type': 'checkbox', 'operator': 'gt', 'value': 50}
-                    ]
-                }
-            ) }}
+            {% include "partials/vlan_filter_bar.html" %}
+            {% include "partials/vlan_table.html" %}
+            <script id="vlan-rows-data" type="application/json">
+                {{ hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) | tojson }}
+            </script>
         </section>
 
         <section id="section-migration">
@@ -346,4 +318,5 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="{{ url_for('static', filename='data_explorer.js') }}"></script>
+<script src="{{ url_for('static', filename='vlan_explorer.js') }}"></script>
 {% endblock %}

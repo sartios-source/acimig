@@ -345,6 +345,7 @@
             wrapper.appendChild(label);
 
             if (filter.type === 'select') {
+                filter.value = '';
                 const select = document.createElement('select');
                 const optionAll = document.createElement('option');
                 optionAll.value = '';
@@ -364,19 +365,23 @@
                 });
                 wrapper.appendChild(select);
             } else if (filter.type === 'checkbox') {
+                const baseValue = Object.prototype.hasOwnProperty.call(filter, 'value') ? filter.value : true;
+                filter._baseValue = baseValue;
+                filter.value = null;
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.addEventListener('change', e => {
-                    if (Object.prototype.hasOwnProperty.call(filter, 'value') && filter.value !== true && filter.value !== false) {
-                        filter.value = e.target.checked ? filter.value : null;
-                    } else {
+                    if (filter.operator === 'bool') {
                         filter.value = e.target.checked;
+                    } else {
+                        filter.value = e.target.checked ? filter._baseValue : null;
                     }
                     state.page = 1;
                     render(state);
                 });
                 wrapper.appendChild(checkbox);
             } else {
+                filter.value = '';
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.placeholder = 'Filter...';
