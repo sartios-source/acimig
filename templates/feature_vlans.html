@@ -12,27 +12,42 @@
     <p>Identify VLANs that drive migration risk and review their EPG/leaf/FEX bindings.</p>
 </div>
 {% set vlan_rows = hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) %}
-<div class="vlan-kpi-grid">
-    <div class="vlan-kpi-card">
-        <p>Total VLANs</p>
-        <h3>{{ hub_data.get('vlan_coupling', {}).get('statistics', {}).get('total_vlans', 0) }}</h3>
-    </div>
-    <div class="vlan-kpi-card">
-        <p>Overlap VLANs</p>
-        <h3>{{ hub_data.get('vlan_distribution', {}).get('overlaps', []) | length }}</h3>
-    </div>
-    <div class="vlan-kpi-card">
-        <p>High Coupling</p>
-        <h3>{{ hub_data.get('vlan_coupling', {}).get('statistics', {}).get('high_coupling', 0) }}</h3>
-    </div>
+{% if not vlan_rows %}
+<div class="fex-info-panel">
+    <h4>No VLAN coupling data available</h4>
+    <p>Check that fvRsPathAtt and fvAEPg are present in the upload. Without path attachments, VLAN coupling cannot be computed.</p>
 </div>
-{% include "partials/vlan_filter_bar.html" %}
-{% include "partials/vlan_table.html" %}
-<script id="vlan-rows-data" type="application/json">{{ vlan_rows | tojson }}</script>
+{% endif %}
+{% set explorer = {
+    'id': 'vlan-explorer',
+    'title': 'VLAN Coupling Explorer',
+    'subtitle': 'Coupling score, blast radius, and attachment spread across the fabric.',
+    'rows': vlan_rows,
+    'columns': [
+        {'key': 'vlan_id', 'label': 'VLAN', 'numeric': True, 'frozen': True},
+        {'key': 'coupling_level', 'label': 'Level'},
+        {'key': 'coupling_score', 'label': 'Score', 'numeric': True},
+        {'key': 'epg_count', 'label': 'EPGs', 'numeric': True},
+        {'key': 'tenant_count', 'label': 'Tenants', 'numeric': True},
+        {'key': 'bd_count', 'label': 'BDs', 'numeric': True},
+        {'key': 'vrf_count', 'label': 'VRFs', 'numeric': True},
+        {'key': 'binding_count', 'label': 'Bindings', 'numeric': True},
+        {'key': 'leaf_count', 'label': 'Leaves', 'numeric': True},
+        {'key': 'fex_count', 'label': 'FEX', 'numeric': True},
+        {'key': 'rack_count', 'label': 'Racks', 'numeric': True},
+        {'key': 'overlap', 'label': 'Overlap'}
+    ],
+    'chart': {'field': 'coupling_level', 'type': 'bar', 'label': 'Coupling Levels'},
+    'kpis': [
+        {'label': 'Total VLANs', 'field': 'vlan_id', 'agg': 'count'},
+        {'label': 'High Coupling', 'field': 'coupling_level', 'agg': 'count', 'filter': {'field': 'coupling_level', 'equals': 'high'}},
+        {'label': 'Worst Score', 'field': 'coupling_score', 'agg': 'max'}
+    ]
+} %}
+{% include "partials/bi_explorer.html" %}
 </div>
 {% endif %}
 {% endblock %}
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="{{ url_for('static', filename='vlan_explorer.js') }}"></script>
+<script src="{{ url_for('static', filename='bi_explorer.js') }}"></script>
 {% endblock %}

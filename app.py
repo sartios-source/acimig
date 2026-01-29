@@ -2173,6 +2173,7 @@ def _get_hub_data(current_fabric: str):
         'vlan_distribution': vlan_dist,
         'migration_units': migration_units,
         'epg_complexity': epg_complexity,
+        'port_utilization_quality': analyzer.get_port_utilization_quality(),
         'fex_inventory': fex_inventory,
         'leaf_inventory': leaf_inventory,
         'contracts': contracts,

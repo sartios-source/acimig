@@ -1,0 +1,68 @@
+{% set explorer = explorer or {} %}
+{% set explorer_id = explorer.get('id', 'bi-explorer') %}
+{% set explorer_title = explorer.get('title', 'Data Explorer') %}
+{% set explorer_subtitle = explorer.get('subtitle', '') %}
+{% set explorer_rows = explorer.get('rows', []) %}
+{% set explorer_columns = explorer.get('columns', []) %}
+{% set explorer_chart = explorer.get('chart', {}) %}
+{% set explorer_pivot = explorer.get('pivot', {}) %}
+
+<section class="bi-explorer" id="{{ explorer_id }}">
+    <div class="bi-hero">
+        <div>
+            <h2>{{ explorer_title }}</h2>
+            {% if explorer_subtitle %}
+            <p>{{ explorer_subtitle }}</p>
+            {% endif %}
+        </div>
+        <div class="bi-hero-actions">
+            <button type="button" class="btn btn-outline-primary btn-sm bi-export" data-target="{{ explorer_id }}">Export CSV</button>
+        </div>
+    </div>
+
+    <div class="bi-controls">
+        <div class="bi-search">
+            <label class="form-label">Search</label>
+            <input type="text" class="form-control form-control-sm" placeholder="Search..." data-search="{{ explorer_id }}">
+        </div>
+        <div class="bi-filters" data-filters="{{ explorer_id }}"></div>
+        <div class="bi-pagination">
+            <label class="form-label">Rows</label>
+            <select class="form-select form-select-sm" data-page-size="{{ explorer_id }}">
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="250">250</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="bi-grid">
+        <div class="bi-table" data-table="{{ explorer_id }}"></div>
+        <div class="bi-panel">
+            <div class="bi-kpis" data-kpis="{{ explorer_id }}"></div>
+            <div class="bi-chart">
+                <canvas data-chart="{{ explorer_id }}"></canvas>
+            </div>
+            <div class="bi-pivot">
+                <h4>Pivot</h4>
+                <div class="bi-pivot-controls">
+                    <select class="form-select form-select-sm" data-pivot-rows="{{ explorer_id }}"></select>
+                    <select class="form-select form-select-sm" data-pivot-cols="{{ explorer_id }}"></select>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-pivot-run="{{ explorer_id }}">Run</button>
+                </div>
+                <div class="bi-pivot-table" data-pivot-table="{{ explorer_id }}"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="application/json" id="{{ explorer_id }}-rows">{{ explorer_rows | tojson }}</script>
+    <script type="application/json" id="{{ explorer_id }}-config">
+        {
+            "id": "{{ explorer_id }}",
+            "columns": {{ explorer_columns | tojson }},
+            "chart": {{ explorer_chart | tojson }},
+            "pivot": {{ explorer_pivot | tojson }}
+        }
+    </script>
+</section>

@@ -1981,6 +1981,18 @@ class ACIAnalyzer:
                     port_keys.add(f"{leaf_id}:{fex_id}:{interface_id}")
                 continue
 
+            # vPC / protpaths format: topology/pod-1/protpaths-101-102/extpaths-1101/pathep-[eth1/11]
+            match = re.search(r'protpaths-(\d+)-(\d+)/extpaths-(\d+)/pathep-\[([^\]]+)\]', tdn)
+            if match:
+                leaf_a = match.group(1)
+                leaf_b = match.group(2)
+                fex_match = match.group(3)
+                interface_id = match.group(4)
+                if str(fex_match) == str(fex_id):
+                    port_keys.add(f"{leaf_a}:{fex_id}:{interface_id}")
+                    port_keys.add(f"{leaf_b}:{fex_id}:{interface_id}")
+                continue
+
             # Alternate format without pathep section
             match = re.search(r'paths-(\d+)/extpaths-(\d+)', tdn)
             if match:

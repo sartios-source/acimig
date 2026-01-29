@@ -18,68 +18,81 @@
         <h4>Consolidation logic</h4>
         <p>Consolidate if a rack has 2+ FEX and total used ports <= 48 (2248 capacity). Target FEX is selected by highest known port capacity and usage. If port usage is unknown, it is marked as Needs Data.</p>
     </div>
-
-    <div class="fex-filter-bar" id="fex-filter-bar">
-        <div class="fex-filter-row">
-            <div class="fex-filter-group">
-                <span class="fex-filter-label">Status</span>
-                <div class="fex-segmented" role="radiogroup" aria-label="Consolidation status">
-                    {% for status in ['all', 'candidate', 'needs_data', 'not_eligible'] %}
-                    <label class="fex-segment">
-                        <input type="radio" name="fex-status" value="{{ status }}" {% if status == 'all' %}checked{% endif %}>
-                        <span>{{ status.replace('_', ' ')|capitalize }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-            <div class="fex-filter-group fex-filter-search">
-                <input type="text" id="fex-search" placeholder="Search rack, serial, leaf, FEX id..." aria-label="Search FEX consolidation">
-            </div>
-            <div class="fex-filter-group">
-                <button type="button" id="fex-reset" class="fex-reset">Reset</button>
-            </div>
-        </div>
-        <div class="fex-filter-row fex-summary-row">
-            <span id="fex-summary">Showing 0 racks</span>
-        </div>
+    {% set port_quality = hub_data.get('port_utilization_quality', {}) %}
+    {% if port_quality %}
+    <div class="fex-info-panel">
+        <h4>Port data quality</h4>
+        <p>
+            Source: {{ port_quality.get('interface_source') or 'Unknown' }}.
+            Interfaces: ethpmPhysIf {{ port_quality.get('interface_objects_loaded', {}).get('ethpmPhysIf', 0) }},
+            l1PhysIf {{ port_quality.get('interface_objects_loaded', {}).get('l1PhysIf', 0) }},
+            fvRsPathAtt {{ port_quality.get('interface_objects_loaded', {}).get('fvRsPathAtt', 0) }}.
+            Matched to FEX: {{ port_quality.get('ports_matched_to_fex', 0) }} of {{ port_quality.get('ports_total', 0) }}.
+        </p>
+        {% if port_quality.get('reasons') %}
+        <p>Notes: {{ port_quality.get('reasons') | join('; ') }}</p>
+        {% endif %}
     </div>
-
-    <div class="fex-table-wrapper">
-        <table class="fex-table">
-            <thead>
-                <tr>
-                    <th>Rack</th>
-                    <th>FEX Count</th>
-                    <th>Ports Used</th>
-                    <th>Ports Total</th>
-                    <th>Status</th>
-                    <th>Target FEX</th>
-                    <th>Recommendation</th>
-                </tr>
-            </thead>
-            <tbody id="fex-rack-body"></tbody>
-        </table>
+    {% endif %}
+    {% if not hub_data.get('fex_port_util') %}
+    <div class="fex-info-panel">
+        <h4>No FEX port data available</h4>
+        <p>Load eqptFex plus ethpmPhysIf or fvRsPathAtt to compute port usage and consolidation eligibility.</p>
     </div>
+    {% endif %}
 
-    <div class="fex-table-wrapper">
-        <table class="fex-table">
-            <thead>
-                <tr>
-                    <th>FEX ID</th>
-                    <th>Serial</th>
-                    <th>Model</th>
-                    <th>Leaf</th>
-                    <th>Rack</th>
-                    <th>Ports Used</th>
-                    <th>Ports Total</th>
-                    <th>Utilization %</th>
-                    <th>Port Data Source</th>
-                    <th>Role</th>
-                </tr>
-            </thead>
-            <tbody id="fex-device-body"></tbody>
-        </table>
-    </div>
+    {% set rack_rows = hub_data.get('rack_consolidation', {}).get('rows', []) %}
+    {% set rack_explorer = {
+        'id': 'fex-rack-explorer',
+        'title': 'Rack Consolidation',
+        'subtitle': 'Racks eligible for 2-to-1 FEX consolidation.',
+        'rows': rack_rows,
+        'columns': [
+            {'key': 'rack', 'label': 'Rack', 'frozen': True},
+            {'key': 'fex_count', 'label': 'FEX Count', 'numeric': True},
+            {'key': 'connected_ports', 'label': 'Ports Used', 'numeric': True},
+            {'key': 'total_ports', 'label': 'Ports Total', 'numeric': True},
+            {'key': 'can_consolidate', 'label': 'Status'},
+            {'key': 'target_fex', 'label': 'Target FEX'},
+            {'key': 'recommendation', 'label': 'Recommendation'}
+        ],
+        'chart': {'field': 'can_consolidate', 'type': 'bar', 'label': 'Consolidation Status'},
+        'kpis': [
+            {'label': 'Total Racks', 'field': 'rack', 'agg': 'count'},
+            {'label': 'Eligible', 'field': 'can_consolidate', 'agg': 'count', 'filter': {'field': 'can_consolidate', 'equals': 'Yes'}},
+            {'label': 'Needs Data', 'field': 'can_consolidate', 'agg': 'count', 'filter': {'field': 'can_consolidate', 'equals': 'Needs Data'}}
+        ]
+    } %}
+    {% set explorer = rack_explorer %}
+    {% include "partials/bi_explorer.html" with context %}
+
+    {% set fex_rows = hub_data.get('fex_port_util', []) %}
+    {% set fex_explorer = {
+        'id': 'fex-device-explorer',
+        'title': 'FEX Port Utilization',
+        'subtitle': 'Port usage and consolidation readiness by device.',
+        'rows': fex_rows,
+        'columns': [
+            {'key': 'fex_id', 'label': 'FEX ID', 'frozen': True},
+            {'key': 'serial', 'label': 'Serial'},
+            {'key': 'model', 'label': 'Model'},
+            {'key': 'leaf_name', 'label': 'Leaf'},
+            {'key': 'rack', 'label': 'Rack'},
+            {'key': 'connected_ports', 'label': 'Ports Used', 'numeric': True},
+            {'key': 'total_ports', 'label': 'Ports Total', 'numeric': True},
+            {'key': 'utilization_pct', 'label': 'Utilization %', 'numeric': True},
+            {'key': 'utilization_source', 'label': 'Port Data Source'},
+            {'key': 'target_for_rack', 'label': 'Target'}
+        ],
+        'chart': {'field': 'utilization_source', 'type': 'bar', 'label': 'Port Data Source'},
+        'kpis': [
+            {'label': 'Total FEX', 'field': 'fex_id', 'agg': 'count'},
+            {'label': 'Known Ports', 'field': 'connected_ports', 'agg': 'count'},
+            {'label': 'Max Ports Used', 'field': 'connected_ports', 'agg': 'max'}
+        ]
+    } %}
+    {% set explorer = fex_explorer %}
+    {% include "partials/bi_explorer.html" with context %}
 
     <div class="fex-flow-panel">
         <div class="fex-flow-header">
@@ -88,7 +101,4 @@
         </div>
         <div class="fex-flow-grid" id="fex-flow-grid"></div>
     </div>
-
-    <script id="fex-rack-data" type="application/json">{{ hub_data.get('rack_consolidation', {}).get('rows', []) | tojson }}</script>
-    <script id="fex-device-data" type="application/json">{{ hub_data.get('fex_port_util', []) | tojson }}</script>
 </div>

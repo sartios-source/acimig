@@ -6,17 +6,55 @@
 {{ super() }}
 {% else %}
 <div class="feature-shell">
-    {% include "partials/data_readiness.html" %}
-    <div class="feature-hero">
-        <h1>CMDB Correlation</h1>
-        <p>Validate rack mapping by SerialNumber and ACI serials.</p>
+{% include "partials/data_readiness.html" %}
+<div class="feature-hero">
+    <h1>CMDB Correlation</h1>
+    <p>Validate rack mapping by SerialNumber and ACI serials.</p>
+</div>
+{% set cmdb_stats = hub_data.get('cmdb_stats', {}) %}
+{% set cmdb_rows = hub_data.get('cmdb_rows', []) %}
+<div class="feature-panel">
+    <div class="mb-3">
+        <label class="form-label">Matched</label>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Matched filter">
+            <input type="radio" class="btn-check" name="cmdb-match" id="cmdb-match-all" autocomplete="off" checked data-filter-field="matched_label" data-filter-value="all">
+            <label class="btn btn-outline-secondary" for="cmdb-match-all">All</label>
+            <input type="radio" class="btn-check" name="cmdb-match" id="cmdb-match-yes" autocomplete="off" data-filter-field="matched_label" data-filter-value="Matched">
+            <label class="btn btn-outline-secondary" for="cmdb-match-yes">Matched</label>
+            <input type="radio" class="btn-check" name="cmdb-match" id="cmdb-match-no" autocomplete="off" data-filter-field="matched_label" data-filter-value="Unmatched">
+            <label class="btn btn-outline-secondary" for="cmdb-match-no">Unmatched</label>
+        </div>
     </div>
-    {% set cmdb_stats = hub_data.get('cmdb_stats', {}) %}
-    {% set cmdb_rows = hub_data.get('cmdb_rows', []) %}
-    {% include "partials/cmdb_explorer.html" %}
+    {% set explorer = {
+        'id': 'cmdb-explorer',
+        'title': 'CMDB Records',
+        'subtitle': 'Serial-based correlation status and data quality flags.',
+        'rows': cmdb_rows,
+        'columns': [
+            {'key': 'SerialNumber', 'label': 'SerialNumber', 'frozen': True},
+            {'key': 'Name', 'label': 'Name'},
+            {'key': 'ModelName', 'label': 'ModelName'},
+            {'key': 'matched_label', 'label': 'Matched'},
+            {'key': 'MatchReason', 'label': 'Match Reason'},
+            {'key': 'DuplicateSerialCount', 'label': 'Duplicates', 'numeric': True},
+            {'key': 'DeviceType', 'label': 'Device Type'},
+            {'key': 'DeviceID', 'label': 'Device ID'},
+            {'key': 'Rack', 'label': 'Rack'},
+            {'key': 'UnitLocation', 'label': 'UnitLocation'}
+        ],
+        'chart': {'field': 'matched_label', 'type': 'pie', 'label': 'Matched'},
+        'kpis': [
+            {'label': 'Total Records', 'field': 'SerialNumber', 'agg': 'count'},
+            {'label': 'Matched', 'field': 'matched_label', 'agg': 'count', 'filter': {'field': 'matched_label', 'equals': 'Matched'}},
+            {'label': 'Unmatched', 'field': 'matched_label', 'agg': 'count', 'filter': {'field': 'matched_label', 'equals': 'Unmatched'}},
+            {'label': 'Duplicate Serials', 'field': 'DuplicateSerialCount', 'agg': 'sum'}
+        ]
+    } %}
+    {% include "partials/bi_explorer.html" %}
+</div>
 </div>
 {% endif %}
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='cmdb_explorer.js') }}"></script>
+<script src="{{ url_for('static', filename='bi_explorer.js') }}"></script>
 {% endblock %}

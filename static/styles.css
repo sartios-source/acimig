@@ -55,6 +55,131 @@ body {
     box-shadow: var(--shadow-soft);
 }
 
+/* BI Explorer */
+.bi-explorer {
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 20px;
+    padding: 18px;
+    box-shadow: var(--shadow-soft);
+}
+.bi-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.bi-hero h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+.bi-hero p {
+    margin-top: 6px;
+    color: var(--muted-text);
+    font-size: 0.9rem;
+}
+.bi-controls {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(280px, 2fr) auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 16px;
+}
+.bi-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.bi-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 16px;
+}
+.bi-table {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.bi-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.bi-kpis {
+    display: grid;
+    gap: 10px;
+}
+.bi-kpi {
+    background: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+.bi-kpi p {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+}
+.bi-kpi h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-top: 6px;
+    color: #0f172a;
+}
+.bi-chart {
+    height: 220px;
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 12px;
+    padding: 10px;
+}
+.bi-pivot {
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 12px;
+    padding: 12px;
+    background: #ffffff;
+}
+.bi-pivot h4 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.bi-pivot-controls {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr 1fr auto;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.bi-pivot-table {
+    max-height: 220px;
+    overflow: auto;
+}
+.bi-cell-high {
+    background: rgba(239, 68, 68, 0.15);
+}
+.bi-cell-med {
+    background: rgba(245, 158, 11, 0.18);
+}
+.bi-cell-low {
+    background: rgba(16, 185, 129, 0.18);
+}
+.bi-cell-warn {
+    background: rgba(234, 179, 8, 0.2);
+}
+
+@media (max-width: 1100px) {
+    .bi-grid {
+        grid-template-columns: 1fr;
+    }
+    .bi-controls {
+        grid-template-columns: 1fr;
+    }
+}
+
 .top-nav {
     background: rgba(255, 255, 255, 0.9);
     border-bottom: 1px solid rgba(148, 163, 184, 0.3);

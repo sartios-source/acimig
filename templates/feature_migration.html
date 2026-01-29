@@ -1,5 +1,4 @@
 {% extends "feature_base.html" %}
-{% from "macros/data_explorer.html" import data_explorer %}
 {% set title = "Migration Units" %}
 {% set subtitle = "Actionable work items grouped by leaf/FEX and coupling difficulty." %}
 {% block content %}
@@ -12,38 +11,42 @@
     <h1>Migration Units</h1>
     <p>Actionable work items grouped by leaf/FEX and coupling difficulty.</p>
 </div>
-{% set unit_columns = [
-    {'key': 'site', 'label': 'Site', 'type': 'text', 'filter': 'exact'},
-    {'key': 'building', 'label': 'Building', 'type': 'text', 'filter': 'exact'},
-    {'key': 'hall', 'label': 'Hall', 'type': 'text', 'filter': 'exact'},
-    {'key': 'rack', 'label': 'Rack', 'type': 'text', 'filter': 'exact'},
-    {'key': 'leaf_or_vpc', 'label': 'Leaf / VPC', 'type': 'text'},
-    {'key': 'fex_display', 'label': 'FEX', 'type': 'text'},
-    {'key': 'ports_used', 'label': 'Ports Used', 'type': 'number'},
-    {'key': 'ports_total', 'label': 'Ports Total', 'type': 'number'},
-    {'key': 'utilization_pct', 'label': 'Utilization %', 'type': 'number'},
-    {'key': 'impacted_epg_count', 'label': 'EPGs', 'type': 'number'},
-    {'key': 'impacted_vlan_count', 'label': 'VLANs', 'type': 'number'},
-    {'key': 'worst_vlan_display', 'label': 'Worst VLAN', 'type': 'text'},
-    {'key': 'coupled_vlan_count', 'label': 'Coupled VLANs', 'type': 'number'},
-    {'key': 'impacted_tenant_count', 'label': 'Tenants', 'type': 'number'},
-    {'key': 'service_graph_present', 'label': 'Service Graph', 'type': 'text'},
-    {'key': 'vpc_symmetry', 'label': 'VPC Symmetry', 'type': 'text'},
-    {'key': 'score', 'label': 'Score', 'type': 'number'},
-    {'key': 'difficulty_bucket', 'label': 'Difficulty', 'type': 'text', 'filter': 'exact'},
-    {'key': 'recommendation', 'label': 'Recommendation', 'type': 'text'}
-] %}
-{{ data_explorer(
-    'feature-migration',
-    'Migration Units',
-    'Actionable work items with coupling-driven difficulty.',
-    unit_columns,
-    hub_data.get('migration_units', {}).get('units', []),
-    {'defaultSort': 'score', 'titleField': 'leaf_or_vpc', 'subtitleField': 'difficulty_bucket'}
-) }}
+{% set unit_rows = hub_data.get('migration_units', {}).get('units', []) %}
+{% set explorer = {
+    'id': 'migration-explorer',
+    'title': 'Migration Units',
+    'subtitle': 'Actionable work items with coupling-driven difficulty.',
+    'rows': unit_rows,
+    'columns': [
+        {'key': 'rack', 'label': 'Rack', 'frozen': True},
+        {'key': 'leaf_or_vpc', 'label': 'Leaf / VPC'},
+        {'key': 'fex_display', 'label': 'FEX'},
+        {'key': 'ports_used', 'label': 'Ports Used', 'numeric': True},
+        {'key': 'ports_total', 'label': 'Ports Total', 'numeric': True},
+        {'key': 'utilization_pct', 'label': 'Utilization %', 'numeric': True},
+        {'key': 'impacted_epg_count', 'label': 'EPGs', 'numeric': True},
+        {'key': 'impacted_vlan_count', 'label': 'VLANs', 'numeric': True},
+        {'key': 'worst_vlan_display', 'label': 'Worst VLAN'},
+        {'key': 'coupled_vlan_count', 'label': 'Coupled VLANs', 'numeric': True},
+        {'key': 'impacted_tenant_count', 'label': 'Tenants', 'numeric': True},
+        {'key': 'service_graph_present', 'label': 'Service Graph'},
+        {'key': 'vpc_symmetry', 'label': 'VPC Symmetry'},
+        {'key': 'score', 'label': 'Score', 'numeric': True},
+        {'key': 'difficulty_bucket', 'label': 'Difficulty'},
+        {'key': 'recommendation', 'label': 'Recommendation'}
+    ],
+    'chart': {'field': 'difficulty_bucket', 'type': 'bar', 'label': 'Difficulty Buckets'},
+    'kpis': [
+        {'label': 'Total Units', 'field': 'leaf_or_vpc', 'agg': 'count'},
+        {'label': 'Hard', 'field': 'difficulty_bucket', 'agg': 'count', 'filter': {'field': 'difficulty_bucket', 'equals': 'Hard'}},
+        {'label': 'Blocked', 'field': 'difficulty_bucket', 'agg': 'count', 'filter': {'field': 'difficulty_bucket', 'equals': 'Blocked'}},
+        {'label': 'Max Score', 'field': 'score', 'agg': 'max'}
+    ]
+} %}
+{% include "partials/bi_explorer.html" %}
 </div>
 {% endif %}
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='data_explorer.js') }}"></script>
+<script src="{{ url_for('static', filename='bi_explorer.js') }}"></script>
 {% endblock %}

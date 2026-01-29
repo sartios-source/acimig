@@ -10,6 +10,12 @@
             console.error('Failed to parse VLAN rows data', err);
             vlanRows = [];
         }
+        const serverCountEl = document.getElementById('vlan-data-count');
+        const serverCount = serverCountEl ? Number(serverCountEl.getAttribute('data-count') || 0) : 0;
+        if (!vlanRows.length && serverCount > 0) {
+            console.warn('VLAN explorer: JS rows empty but server has data; keeping fallback rows.');
+            return;
+        }
 
     const state = {
         rows: vlanRows,
