@@ -160,62 +160,7 @@
             <p class="text-sm text-gray-600 mb-4">
                 Goal: identify racks with 3+ FEX and determine if they can consolidate into a 2248 (<=48 ports).
             </p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Total Racks</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('total_racks', 0) }}</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Racks w/ 3+ FEX</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('racks_with_3plus_fex', 0) }}</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                    <p class="text-xs text-gray-500 uppercase tracking-wide">Consolidation Candidates</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('consolidation_candidates', 0) }}</p>
-                </div>
-            </div>
-
-            {% set rack_columns = [
-                {'key': 'rack', 'label': 'Rack', 'type': 'text', 'filter': 'exact'},
-                {'key': 'site', 'label': 'Site', 'type': 'text', 'filter': 'exact'},
-                {'key': 'building', 'label': 'Building', 'type': 'text', 'filter': 'exact'},
-                {'key': 'hall', 'label': 'Hall', 'type': 'text', 'filter': 'exact'},
-                {'key': 'fex_count', 'label': 'FEX Count', 'type': 'number'},
-                {'key': 'connected_ports', 'label': 'Ports Used', 'type': 'number'},
-                {'key': 'total_ports', 'label': 'Ports Total', 'type': 'number'},
-                {'key': 'can_consolidate', 'label': 'Can Consolidate', 'type': 'text'},
-                {'key': 'recommendation', 'label': 'Recommendation', 'type': 'text'}
-            ] %}
-            {{ data_explorer(
-                'hub-racks',
-                'Rack Consolidation',
-                'Rule: consolidate if 3+ FEX and total used ports <= 48 (2248 capacity).',
-                rack_columns,
-                hub_data.get('rack_consolidation', {}).get('rows', []),
-                {'defaultSort': 'fex_count', 'titleField': 'rack', 'subtitleField': 'recommendation'}
-            ) }}
-
-            {% set fex_util_columns = [
-                {'key': 'fex_id', 'label': 'FEX ID', 'type': 'number'},
-                {'key': 'fex_identifier', 'label': 'FEX Identifier', 'type': 'text'},
-                {'key': 'serial', 'label': 'Serial', 'type': 'text'},
-                {'key': 'model', 'label': 'Model', 'type': 'text'},
-                {'key': 'leaf_id', 'label': 'Leaf', 'type': 'text'},
-                {'key': 'rack', 'label': 'Rack', 'type': 'text', 'filter': 'exact'},
-                {'key': 'connected_ports', 'label': 'Ports Used', 'type': 'number'},
-                {'key': 'total_ports', 'label': 'Ports Total', 'type': 'number'},
-                {'key': 'utilization_pct', 'label': 'Utilization %', 'type': 'number'},
-                {'key': 'utilization_known', 'label': 'Utilization Known', 'type': 'text'},
-                {'key': 'recommendation', 'label': 'Recommendation', 'type': 'text'}
-            ] %}
-            {{ data_explorer(
-                'hub-fex-util',
-                'FEX Port Usage',
-                'Per-FEX port usage and utilization signals.',
-                fex_util_columns,
-                hub_data.get('fex_port_util', []),
-                {'defaultSort': 'utilization_pct', 'titleField': 'fex_identifier', 'subtitleField': 'rack'}
-            ) }}
+            {% include "partials/fex_consolidation.html" %}
         </section>
 
         <section id="section-contracts">
@@ -273,42 +218,7 @@
             <p class="text-sm text-gray-600 mb-4">
                 Goal: map inventory and location data (rack/site) to ACI serials for physical migration planning.
             </p>
-            {% set cmdb_columns = [
-                {'key': 'serial_number', 'label': 'SerialNumber', 'type': 'text', 'filter': 'exact'},
-                {'key': 'name', 'label': 'Name', 'type': 'text'},
-                {'key': 'model_name', 'label': 'ModelName', 'type': 'text'},
-                {'key': 'aci_model', 'label': 'ACI Model', 'type': 'text'},
-                {'key': 'matched_label', 'label': 'Matched', 'type': 'text', 'filter': 'exact'},
-                {'key': 'device_type', 'label': 'Device Type', 'type': 'text', 'filter': 'exact'},
-                {'key': 'device_id', 'label': 'Device ID', 'type': 'text'},
-                {'key': 'site', 'label': 'Site', 'type': 'text', 'filter': 'exact'},
-                {'key': 'building', 'label': 'Building', 'type': 'text'},
-                {'key': 'hall', 'label': 'Hall', 'type': 'text'},
-                {'key': 'rack', 'label': 'Rack', 'type': 'text'},
-                {'key': 'unit_location', 'label': 'UnitLocation', 'type': 'text'}
-            ] %}
-            {{ data_explorer(
-                'hub-cmdb',
-                'CMDB Explorer',
-                'CMDB records correlated by SerialNumber.',
-                cmdb_columns,
-                hub_data.get('cmdb_rows', []),
-                {
-                    'defaultSort': 'serial_number',
-                    'titleField': 'serial_number',
-                    'subtitleField': 'matched_label',
-                    'flagField': 'flagged',
-                    'exportEndpoint': url_for('export_cmdb'),
-                    'filtersPanel': true,
-                    'filters': [
-                        {'field': 'matched_label', 'label': 'Matched', 'type': 'select', 'operator': 'eq', 'values': ['Matched', 'Unmatched']},
-                        {'field': 'site', 'label': 'Site', 'type': 'select', 'operator': 'eq'},
-                        {'field': 'hall', 'label': 'Hall', 'type': 'select', 'operator': 'eq'},
-                        {'field': 'rack', 'label': 'Rack', 'type': 'select', 'operator': 'eq'},
-                        {'field': 'device_type', 'label': 'Device Type', 'type': 'select', 'operator': 'eq'}
-                    ]
-                }
-            ) }}
+            {% include "partials/cmdb_explorer.html" %}
         </section>
     </div>
 </div>
@@ -319,4 +229,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="{{ url_for('static', filename='data_explorer.js') }}"></script>
 <script src="{{ url_for('static', filename='vlan_explorer.js') }}"></script>
+<script src="{{ url_for('static', filename='cmdb_explorer.js') }}"></script>
+<script src="{{ url_for('static', filename='fex_consolidation.js') }}"></script>
 {% endblock %}

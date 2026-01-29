@@ -1985,6 +1985,174 @@ body {
     border-color: #1d4ed8;
 }
 
+.cmdb-kpi-grid,
+.fex-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.cmdb-kpi-card,
+.fex-kpi-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+}
+.cmdb-kpi-card p,
+.fex-kpi-card p {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+}
+.cmdb-kpi-card h3,
+.fex-kpi-card h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+.cmdb-kpi-ok h3,
+.fex-kpi-ok h3 {
+    color: #15803d;
+}
+.cmdb-kpi-warn h3 {
+    color: #be123c;
+}
+.cmdb-filter-bar,
+.fex-filter-bar {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+.cmdb-filter-row,
+.fex-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+.cmdb-filter-label,
+.fex-filter-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.cmdb-filter-group,
+.fex-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.cmdb-filter-search,
+.fex-filter-search {
+    flex: 1 1 240px;
+}
+.cmdb-filter-search input,
+.fex-filter-search input {
+    width: 100%;
+    border: 1px solid #cbd5f5;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+}
+.cmdb-select {
+    border: 1px solid #cbd5f5;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    background: #ffffff;
+}
+.cmdb-segmented,
+.fex-segmented {
+    display: inline-flex;
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 4px;
+    gap: 4px;
+}
+.cmdb-segment input,
+.fex-segment input {
+    display: none;
+}
+.cmdb-segment span,
+.fex-segment span {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+}
+.cmdb-segment input:checked + span,
+.fex-segment input:checked + span {
+    background: #1d4ed8;
+    color: #ffffff;
+}
+.cmdb-reset,
+.fex-reset {
+    border: 1px solid #cbd5f5;
+    border-radius: 10px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.cmdb-summary-row,
+.fex-summary-row {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: #475569;
+}
+.cmdb-table-wrapper,
+.fex-table-wrapper {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+}
+.cmdb-table,
+.fex-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.cmdb-table th,
+.cmdb-table td,
+.fex-table th,
+.fex-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+}
+.cmdb-table th,
+.fex-table th {
+    background: #f1f5f9;
+    font-weight: 700;
+    color: #1e293b;
+}
+.cmdb-empty,
+.fex-empty {
+    text-align: center;
+    color: #64748b;
+    padding: 16px 0;
+}
+.fex-info-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    color: #475569;
+    font-size: 0.85rem;
+}
+
 .vlan-table-controls {
     display: flex;
     align-items: center;

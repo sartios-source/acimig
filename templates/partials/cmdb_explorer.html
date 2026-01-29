@@ -1,0 +1,87 @@
+<div class="cmdb-explorer" id="cmdb-explorer">
+    <div class="cmdb-kpi-grid">
+        <div class="cmdb-kpi-card">
+            <p>Total Rows</p>
+            <h3 id="cmdb-kpi-total">{{ cmdb_stats.total or 0 }}</h3>
+        </div>
+        <div class="cmdb-kpi-card cmdb-kpi-ok">
+            <p>Matched</p>
+            <h3 id="cmdb-kpi-matched">{{ cmdb_stats.matched or 0 }}</h3>
+        </div>
+        <div class="cmdb-kpi-card cmdb-kpi-warn">
+            <p>Unmatched</p>
+            <h3 id="cmdb-kpi-unmatched">{{ cmdb_stats.unmatched or 0 }}</h3>
+        </div>
+        <div class="cmdb-kpi-card cmdb-kpi-neutral">
+            <p>Duplicate Serials</p>
+            <h3 id="cmdb-kpi-duplicates">{{ cmdb_stats.duplicate_serials or 0 }}</h3>
+        </div>
+    </div>
+
+    <div class="cmdb-filter-bar" id="cmdb-filter-bar">
+        <div class="cmdb-filter-row">
+            <div class="cmdb-filter-group">
+                <span class="cmdb-filter-label">Matched</span>
+                <div class="cmdb-segmented" role="radiogroup" aria-label="Matched filter">
+                    {% for level in ['all', 'matched', 'unmatched'] %}
+                    <label class="cmdb-segment">
+                        <input type="radio" name="cmdb-matched" value="{{ level }}" {% if level == 'all' %}checked{% endif %}>
+                        <span>{{ level|capitalize }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="cmdb-filter-group">
+                <label class="cmdb-filter-label" for="cmdb-site">Site</label>
+                <select id="cmdb-site" class="cmdb-select"></select>
+            </div>
+            <div class="cmdb-filter-group">
+                <label class="cmdb-filter-label" for="cmdb-hall">Hall</label>
+                <select id="cmdb-hall" class="cmdb-select"></select>
+            </div>
+            <div class="cmdb-filter-group">
+                <label class="cmdb-filter-label" for="cmdb-rack">Rack</label>
+                <select id="cmdb-rack" class="cmdb-select"></select>
+            </div>
+            <div class="cmdb-filter-group">
+                <label class="cmdb-filter-label" for="cmdb-device-type">Device Type</label>
+                <select id="cmdb-device-type" class="cmdb-select"></select>
+            </div>
+            <div class="cmdb-filter-group cmdb-filter-search">
+                <input type="text" id="cmdb-search" placeholder="Search serial, name, model, rack..." aria-label="Search CMDB">
+            </div>
+            <div class="cmdb-filter-group">
+                <button type="button" id="cmdb-reset" class="cmdb-reset">Reset</button>
+            </div>
+            <div class="cmdb-filter-group">
+                <button type="button" id="cmdb-export" class="cmdb-reset">Export CSV</button>
+            </div>
+        </div>
+        <div class="cmdb-filter-row cmdb-summary-row">
+            <span id="cmdb-summary">Showing 0 rows</span>
+        </div>
+    </div>
+
+    <div class="cmdb-table-wrapper">
+        <table class="cmdb-table">
+            <thead>
+                <tr>
+                    <th>SerialNumber</th>
+                    <th>Name</th>
+                    <th>ModelName</th>
+                    <th>Matched</th>
+                    <th>Device Type</th>
+                    <th>Device ID</th>
+                    <th>Site</th>
+                    <th>Building</th>
+                    <th>Hall</th>
+                    <th>Rack</th>
+                    <th>UnitLocation</th>
+                </tr>
+            </thead>
+            <tbody id="cmdb-table-body"></tbody>
+        </table>
+    </div>
+
+    <script id="cmdb-rows-data" type="application/json">{{ cmdb_rows | tojson }}</script>
+</div>

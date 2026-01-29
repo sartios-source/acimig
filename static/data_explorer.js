@@ -156,6 +156,15 @@
         return String(a).localeCompare(String(b)) * dir;
     }
 
+    function isActiveValue(value) {
+        if (value === null || value === undefined) return false;
+        if (typeof value === 'string') {
+            const trimmed = value.trim().toLowerCase();
+            return trimmed !== '' && trimmed !== 'all';
+        }
+        return true;
+    }
+
     function applyFilters(data, state) {
         return data.filter(row => {
             if (state.flagOnly && state.flagField) {
@@ -170,11 +179,11 @@
                 if (!matches) return false;
             }
             for (const [key, filterValue] of Object.entries(state.filters)) {
-                if (!filterValue) continue;
+                if (!isActiveValue(filterValue)) continue;
                 const col = state.columns.find(c => c.key === key) || {};
                 const raw = getValue(row, key);
                 const cell = normalizeValue(raw).toLowerCase();
-                const filter = filterValue.toLowerCase();
+                const filter = String(filterValue).toLowerCase();
                 if (col.filter === 'exact') {
                     if (cell !== filter) return false;
                 } else if (col.filter === 'starts') {
@@ -186,8 +195,8 @@
             if (state.customFilters) {
                 for (const filter of state.customFilters) {
                     if (!filter) continue;
+                    if (!filter.active) continue;
                     const value = filter.value;
-                    if (value === null || value === '' || value === false) continue;
                     const cell = getValue(row, filter.field);
                     if (filter.operator === 'eq') {
                         if (String(cell) !== String(value)) return false;
@@ -346,6 +355,7 @@
 
             if (filter.type === 'select') {
                 filter.value = '';
+                filter.active = false;
                 const select = document.createElement('select');
                 const optionAll = document.createElement('option');
                 optionAll.value = '';
@@ -360,6 +370,7 @@
                 });
                 select.addEventListener('change', e => {
                     filter.value = e.target.value;
+                    filter.active = isActiveValue(filter.value);
                     state.page = 1;
                     render(state);
                 });
@@ -368,6 +379,7 @@
                 const baseValue = Object.prototype.hasOwnProperty.call(filter, 'value') ? filter.value : true;
                 filter._baseValue = baseValue;
                 filter.value = null;
+                filter.active = false;
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.addEventListener('change', e => {
@@ -376,17 +388,20 @@
                     } else {
                         filter.value = e.target.checked ? filter._baseValue : null;
                     }
+                    filter.active = e.target.checked;
                     state.page = 1;
                     render(state);
                 });
                 wrapper.appendChild(checkbox);
             } else {
                 filter.value = '';
+                filter.active = false;
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.placeholder = 'Filter...';
                 input.addEventListener('input', e => {
                     filter.value = e.target.value;
+                    filter.active = isActiveValue(filter.value);
                     state.page = 1;
                     render(state);
                 });
@@ -540,14 +555,14 @@
             details.push(`Search: "${state.search}"`);
         }
         Object.entries(state.filters).forEach(([key, value]) => {
-            if (!value) return;
+            if (!isActiveValue(value)) return;
             const col = state.columns.find(c => c.key === key);
             const label = col ? col.label : key;
             details.push(`${label}: ${value}`);
         });
         if (state.customFilters) {
             state.customFilters.forEach(filter => {
-                if (!filter || filter.value === null || filter.value === '' || filter.value === false) return;
+                if (!filter || !filter.active) return;
                 details.push(`${filter.label}: ${filter.value}`);
             });
         }

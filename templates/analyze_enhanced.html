@@ -286,44 +286,7 @@
         </div>
         {% endif %}
 
-        {% set cmdb_columns = [
-            {'key': 'serial_number', 'label': 'SerialNumber', 'type': 'text', 'filter': 'exact'},
-            {'key': 'name', 'label': 'Name', 'type': 'text'},
-            {'key': 'model_name', 'label': 'ModelName', 'type': 'text'},
-            {'key': 'aci_model', 'label': 'ACI Model', 'type': 'text'},
-            {'key': 'matched_label', 'label': 'Matched', 'type': 'text', 'filter': 'exact'},
-            {'key': 'device_type', 'label': 'Device Type', 'type': 'text', 'filter': 'exact'},
-            {'key': 'device_id', 'label': 'Device ID', 'type': 'text'},
-            {'key': 'aci_device_name', 'label': 'ACI Device Name', 'type': 'text'},
-            {'key': 'aci_role', 'label': 'ACI Role', 'type': 'text'},
-            {'key': 'site', 'label': 'Site', 'type': 'text', 'filter': 'exact'},
-            {'key': 'building', 'label': 'Building', 'type': 'text'},
-            {'key': 'hall', 'label': 'Hall', 'type': 'text'},
-            {'key': 'rack', 'label': 'Rack', 'type': 'text'},
-            {'key': 'unit_location', 'label': 'UnitLocation', 'type': 'text'}
-        ] %}
-        {{ data_explorer(
-            'cmdb-explorer',
-            'CMDB Explorer',
-            'CMDB records correlated by SerialNumber. Use filters to find unmatched or location-specific records.',
-            cmdb_columns,
-            cmdb_rows,
-            {
-                'defaultSort': 'serial_number',
-                'titleField': 'serial_number',
-                'subtitleField': 'matched_label',
-                'flagField': 'flagged',
-                'exportEndpoint': url_for('export_cmdb'),
-                'filtersPanel': true,
-                'filters': [
-                    {'field': 'matched_label', 'label': 'Matched', 'type': 'select', 'operator': 'eq', 'values': ['Matched', 'Unmatched']},
-                    {'field': 'site', 'label': 'Site', 'type': 'select', 'operator': 'eq'},
-                    {'field': 'hall', 'label': 'Hall', 'type': 'select', 'operator': 'eq'},
-                    {'field': 'rack', 'label': 'Rack', 'type': 'select', 'operator': 'eq'},
-                    {'field': 'device_type', 'label': 'Device Type', 'type': 'select', 'operator': 'eq'}
-                ]
-            }
-        ) }}
+        {% include "partials/cmdb_explorer.html" %}
     </div>
 </section>
 
@@ -332,6 +295,7 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='data_explorer.js') }}"></script>
+<script src="{{ url_for('static', filename='cmdb_explorer.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const tabs = Array.from(document.querySelectorAll('.analysis-tab'));

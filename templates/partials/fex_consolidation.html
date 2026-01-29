@@ -1,0 +1,86 @@
+<div class="fex-consolidation" id="fex-consolidation">
+    <div class="fex-kpi-grid">
+        <div class="fex-kpi-card">
+            <p>Total Racks</p>
+            <h3>{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('total_racks', 0) }}</h3>
+        </div>
+        <div class="fex-kpi-card">
+            <p>Racks w/ 3+ FEX</p>
+            <h3>{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('racks_with_3plus_fex', 0) }}</h3>
+        </div>
+        <div class="fex-kpi-card fex-kpi-ok">
+            <p>Consolidation Candidates</p>
+            <h3>{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('consolidation_candidates', 0) }}</h3>
+        </div>
+    </div>
+
+    <div class="fex-info-panel">
+        <h4>Consolidation logic</h4>
+        <p>Consolidate if a rack has 3+ FEX and total used ports <= 48 (2248 capacity). If port usage is unknown, it is marked as Needs Data.</p>
+    </div>
+
+    <div class="fex-filter-bar" id="fex-filter-bar">
+        <div class="fex-filter-row">
+            <div class="fex-filter-group">
+                <span class="fex-filter-label">Status</span>
+                <div class="fex-segmented" role="radiogroup" aria-label="Consolidation status">
+                    {% for status in ['all', 'candidate', 'needs_data', 'not_eligible'] %}
+                    <label class="fex-segment">
+                        <input type="radio" name="fex-status" value="{{ status }}" {% if status == 'all' %}checked{% endif %}>
+                        <span>{{ status.replace('_', ' ')|capitalize }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="fex-filter-group fex-filter-search">
+                <input type="text" id="fex-search" placeholder="Search rack, serial, leaf, FEX id..." aria-label="Search FEX consolidation">
+            </div>
+            <div class="fex-filter-group">
+                <button type="button" id="fex-reset" class="fex-reset">Reset</button>
+            </div>
+        </div>
+        <div class="fex-filter-row fex-summary-row">
+            <span id="fex-summary">Showing 0 racks</span>
+        </div>
+    </div>
+
+    <div class="fex-table-wrapper">
+        <table class="fex-table">
+            <thead>
+                <tr>
+                    <th>Rack</th>
+                    <th>Site</th>
+                    <th>Building</th>
+                    <th>Hall</th>
+                    <th>FEX Count</th>
+                    <th>Ports Used</th>
+                    <th>Ports Total</th>
+                    <th>Status</th>
+                    <th>Recommendation</th>
+                </tr>
+            </thead>
+            <tbody id="fex-rack-body"></tbody>
+        </table>
+    </div>
+
+    <div class="fex-table-wrapper">
+        <table class="fex-table">
+            <thead>
+                <tr>
+                    <th>FEX ID</th>
+                    <th>Serial</th>
+                    <th>Model</th>
+                    <th>Leaf</th>
+                    <th>Rack</th>
+                    <th>Ports Used</th>
+                    <th>Ports Total</th>
+                    <th>Utilization %</th>
+                </tr>
+            </thead>
+            <tbody id="fex-device-body"></tbody>
+        </table>
+    </div>
+
+    <script id="fex-rack-data" type="application/json">{{ hub_data.get('rack_consolidation', {}).get('rows', []) | tojson }}</script>
+    <script id="fex-device-data" type="application/json">{{ hub_data.get('fex_port_util', []) | tojson }}</script>
+</div>
