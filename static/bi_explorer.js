@@ -92,6 +92,9 @@
     }
 
     function fetchRemote(config, page, size, search, sortField, sortDir) {
+        if (!config || !config.remoteUrl) {
+            return Promise.resolve({ rows: [], total: 0, page: 1, size: size });
+        }
         const params = new URLSearchParams();
         params.set('page', String(page));
         params.set('size', String(size));
@@ -171,7 +174,6 @@
                     fetchRemote(config, 1, table.getPageSize(), value, table.getSorters()[0]?.field, table.getSorters()[0]?.dir)
                         .then(payload => {
                             table.setData(payload.rows);
-                            table.setMaxPage(Math.ceil(payload.total / table.getPageSize()) || 1);
                             buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
                             updateChartAndPivot(table, section, config);
                         });
@@ -197,7 +199,6 @@
                     fetchRemote(config, 1, size, searchInput?.value || '', table.getSorters()[0]?.field, table.getSorters()[0]?.dir)
                         .then(payload => {
                             table.setData(payload.rows);
-                            table.setMaxPage(Math.ceil(payload.total / size) || 1);
                             buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
                             updateChartAndPivot(table, section, config);
                         });
@@ -251,7 +252,6 @@
             fetchRemote(config, 1, table.getPageSize(), searchInput?.value || '', table.getSorters()[0]?.field, table.getSorters()[0]?.dir)
                 .then(payload => {
                     table.setData(payload.rows);
-                    table.setMaxPage(Math.ceil(payload.total / table.getPageSize()) || 1);
                     buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
                     updateChartAndPivot(table, section, config);
                 });

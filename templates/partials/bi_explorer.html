@@ -62,7 +62,9 @@
             "id": "{{ explorer_id }}",
             "columns": {{ explorer_columns | tojson }},
             "chart": {{ explorer_chart | tojson }},
-            "pivot": {{ explorer_pivot | tojson }}
+            "pivot": {{ explorer_pivot | tojson }},
+            "remote": {{ 'true' if explorer.get('remote') else 'false' }},
+            "remoteUrl": {{ explorer.get('remoteUrl') | tojson }}
         }
     </script>
 </section>
