@@ -621,6 +621,51 @@ def fabric_health():
     })
 
 
+@app.route('/api/debug/fex-match')
+def debug_fex_match():
+    """Diagnostics for FEX/interface mapping."""
+    result = get_active_fabric_data()
+    if not result.get('ok'):
+        return jsonify({
+            'ok': False,
+            'error': result.get('error'),
+            'active_fabric': result.get('fabric')
+        }), 400
+
+    analyzer = result.get('analyzer')
+    interfaces = analyzer._interfaces if analyzer._interfaces else analyzer._l1_interfaces
+    fex_ids = {str(f.get('id')) for f in analyzer._fexes if f.get('id') is not None}
+    sample_ifaces = []
+    matched = 0
+    checked = 0
+    for iface in interfaces[:5000]:
+        iface_id = iface.get('id', '')
+        match = False
+        m = re.match(r'^eth(\d+)/', iface_id or '')
+        if m and m.group(1) in fex_ids:
+            match = True
+        checked += 1
+        matched += 1 if match else 0
+        if len(sample_ifaces) < 20:
+            sample_ifaces.append({
+                'id': iface_id,
+                'operSt': iface.get('operSt'),
+                'dn': iface.get('dn')
+            })
+
+    return jsonify({
+        'ok': True,
+        'active_fabric': result.get('fabric'),
+        'fex_count': len(fex_ids),
+        'interface_count': len(interfaces),
+        'checked': checked,
+        'matched': matched,
+        'match_rate': round((matched / checked * 100), 2) if checked else 0,
+        'sample_interfaces': sample_ifaces,
+        'sample_fex_ids': sorted(list(fex_ids))[:20]
+    })
+
+
 @app.route('/')
 def index():
     """Landing page with mode selection and fabric-specific statistics."""
