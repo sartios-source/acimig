@@ -45,8 +45,6 @@
 
     function applyFilters(rows, filters) {
         const matched = filters.matched;
-        const site = normLower(filters.site);
-        const hall = normLower(filters.hall);
         const rack = normLower(filters.rack);
         const deviceType = normLower(filters.deviceType);
         const search = normLower(filters.search);
@@ -57,8 +55,6 @@
                 if (matched === 'matched' && label !== 'matched') return false;
                 if (matched === 'unmatched' && label !== 'unmatched') return false;
             }
-            if (site !== 'all' && normLower(row.Site || row.site) !== site) return false;
-            if (hall !== 'all' && normLower(row.Hall || row.hall) !== hall) return false;
             if (rack !== 'all' && normLower(row.Rack || row.rack) !== rack) return false;
             if (deviceType !== 'all' && normLower(row.DeviceType || row.device_type) !== deviceType) return false;
             if (search) {
@@ -66,8 +62,6 @@
                     row.SerialNumber || row.serial_number,
                     row.Name || row.name,
                     row.ModelName || row.model_name,
-                    row.Site || row.site,
-                    row.Hall || row.hall,
                     row.Rack || row.rack,
                     row.DeviceType || row.device_type
                 ].map(normLower).join(' ');
@@ -82,7 +76,7 @@
         if (!rows.length) {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
-            td.colSpan = 13;
+            td.colSpan = 10;
             td.className = 'cmdb-empty';
             td.textContent = 'No matching rows';
             tr.appendChild(td);
@@ -99,9 +93,6 @@
                     row.DuplicateSerialCount || row.duplicate_serial_count || '',
                     row.DeviceType || row.device_type || '',
                     row.DeviceID || row.device_id || '',
-                    row.Site || row.site || '',
-                    row.Building || row.building || '',
-                    row.Hall || row.hall || '',
                     row.Rack || row.rack || '',
                     row.UnitLocation || row.unit_location || ''
                 ];
@@ -121,7 +112,7 @@
     function exportCsv(rows) {
         const header = [
             'SerialNumber', 'Name', 'ModelName', 'Matched', 'MatchReason', 'DuplicateSerialCount', 'DeviceType', 'DeviceID',
-            'Site', 'Building', 'Hall', 'Rack', 'UnitLocation'
+            'Rack', 'UnitLocation'
         ];
         const lines = [header.join(',')];
         rows.forEach(row => {
@@ -134,9 +125,6 @@
                 row.DuplicateSerialCount || row.duplicate_serial_count || '',
                 row.DeviceType || row.device_type || '',
                 row.DeviceID || row.device_id || '',
-                row.Site || row.site || '',
-                row.Building || row.building || '',
-                row.Hall || row.hall || '',
                 row.Rack || row.rack || '',
                 row.UnitLocation || row.unit_location || ''
             ];
@@ -159,8 +147,6 @@
         const tbody = document.getElementById('cmdb-table-body');
         if (!tbody) return;
 
-        const siteSelect = document.getElementById('cmdb-site');
-        const hallSelect = document.getElementById('cmdb-hall');
         const rackSelect = document.getElementById('cmdb-rack');
         const deviceSelect = document.getElementById('cmdb-device-type');
         const searchInput = document.getElementById('cmdb-search');
@@ -168,13 +154,9 @@
         const exportBtn = document.getElementById('cmdb-export');
         const summaryEl = document.getElementById('cmdb-summary');
 
-        const sites = uniq(data.map(row => norm(row.Site || row.site)));
-        const halls = uniq(data.map(row => norm(row.Hall || row.hall)));
         const racks = uniq(data.map(row => norm(row.Rack || row.rack)));
         const deviceTypes = uniq(data.map(row => norm(row.DeviceType || row.device_type)));
 
-        buildOptions(siteSelect, sites);
-        buildOptions(hallSelect, halls);
         buildOptions(rackSelect, racks);
         buildOptions(deviceSelect, deviceTypes);
 
@@ -182,8 +164,6 @@
             const matched = document.querySelector('input[name="cmdb-matched"]:checked')?.value || 'all';
             return {
                 matched: matched,
-                site: siteSelect?.value || 'all',
-                hall: hallSelect?.value || 'all',
                 rack: rackSelect?.value || 'all',
                 deviceType: deviceSelect?.value || 'all',
                 search: searchInput?.value || ''
@@ -201,7 +181,7 @@
         document.querySelectorAll('input[name="cmdb-matched"]').forEach(input => {
             input.addEventListener('change', update);
         });
-        [siteSelect, hallSelect, rackSelect, deviceSelect].forEach(select => {
+        [rackSelect, deviceSelect].forEach(select => {
             if (select) select.addEventListener('change', update);
         });
         if (searchInput) {
@@ -212,8 +192,6 @@
                 document.querySelectorAll('input[name="cmdb-matched"]').forEach(input => {
                     input.checked = input.value === 'all';
                 });
-                if (siteSelect) siteSelect.value = 'all';
-                if (hallSelect) hallSelect.value = 'all';
                 if (rackSelect) rackSelect.value = 'all';
                 if (deviceSelect) deviceSelect.value = 'all';
                 if (searchInput) searchInput.value = '';

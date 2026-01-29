@@ -11,6 +11,7 @@
     <h1>VLAN Coupling</h1>
     <p>Identify VLANs that drive migration risk and review their EPG/leaf/FEX bindings.</p>
 </div>
+{% set vlan_rows = hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) %}
 <div class="vlan-kpi-grid">
     <div class="vlan-kpi-card">
         <p>Total VLANs</p>
@@ -27,7 +28,7 @@
 </div>
 {% include "partials/vlan_filter_bar.html" %}
 {% include "partials/vlan_table.html" %}
-<script id="vlan-rows-data" type="application/json">{{ hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) | tojson }}</script>
+<script id="vlan-rows-data" type="application/json">{{ vlan_rows | tojson }}</script>
 </div>
 {% endif %}
 {% endblock %}

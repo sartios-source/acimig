@@ -35,6 +35,26 @@
                 <th data-col="fex_count" class="vlan-num">FEX</th>
             </tr>
         </thead>
-        <tbody id="vlan-table-body"></tbody>
-    </table>
+    <tbody id="vlan-table-body">
+        {% if vlan_rows %}
+            {% for row in vlan_rows %}
+            <tr class="vlan-row" data-vlan-id="{{ row.vlan_id }}">
+                <td class="vlan-expander"></td>
+                <td>{{ row.vlan_id }}</td>
+                <td>
+                    <span class="vlan-badge vlan-badge-{{ row.coupling_level or 'low' }}">{{ row.coupling_level or 'low' }}</span>
+                </td>
+                <td class="vlan-num">{{ row.coupling_score }}</td>
+                <td class="vlan-num">{{ row.epg_count }}</td>
+                <td class="vlan-num">{{ row.tenant_count }}</td>
+                <td class="vlan-num">{{ row.bd_count }}</td>
+                <td class="vlan-num">{{ row.vrf_count }}</td>
+                <td class="vlan-num">{{ row.binding_count }}</td>
+                <td class="vlan-num">{{ row.leaf_count }}</td>
+                <td class="vlan-num">{{ row.fex_count }}</td>
+            </tr>
+            {% endfor %}
+        {% endif %}
+    </tbody>
+</table>
 </div>
