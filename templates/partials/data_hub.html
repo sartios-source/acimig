@@ -1,0 +1,224 @@
+{% set explorer_template = "partials/bi_explorer_next.html" if ui_mode == 'next' else "partials/bi_explorer.html" %}
+
+<div class="feature-shell{% if ui_mode == 'next' %} next-shell{% endif %}">
+    {% include "partials/data_readiness.html" %}
+    <div class="{% if ui_mode == 'next' %}next-hero{% else %}feature-hero{% endif %}">
+        {% if ui_mode == 'next' %}
+        <div class="next-hero-kicker">Unified Visualization</div>
+        {% endif %}
+        <h1>Data Explorer</h1>
+        <p>All datapoints visualized with KPI cards, charts, and searchable tables.</p>
+    </div>
+
+    {% set vlan_rows = hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) %}
+    {% set explorer = {
+        'id': 'hub-vlans',
+        'title': 'VLAN Coupling',
+        'subtitle': 'Coupling score, blast radius, and attachment spread.',
+        'rows': vlan_rows,
+        'remote': true,
+        'remoteUrl': '/api/bi/vlans',
+        'columns': [
+            {'key': 'vlan_id', 'label': 'VLAN', 'numeric': True, 'frozen': True},
+            {'key': 'coupling_level', 'label': 'Level'},
+            {'key': 'coupling_score', 'label': 'Score', 'numeric': True},
+            {'key': 'epg_count', 'label': 'EPGs', 'numeric': True},
+            {'key': 'tenant_count', 'label': 'Tenants', 'numeric': True},
+            {'key': 'bd_count', 'label': 'BDs', 'numeric': True},
+            {'key': 'vrf_count', 'label': 'VRFs', 'numeric': True},
+            {'key': 'binding_count', 'label': 'Bindings', 'numeric': True},
+            {'key': 'leaf_count', 'label': 'Leaves', 'numeric': True},
+            {'key': 'fex_count', 'label': 'FEX', 'numeric': True},
+            {'key': 'rack_count', 'label': 'Racks', 'numeric': True},
+            {'key': 'overlap', 'label': 'Overlap'}
+        ],
+        'chart': {'field': 'coupling_level', 'type': 'bar', 'label': 'Coupling Levels'},
+        'kpis': [
+            {'label': 'Total VLANs', 'field': 'vlan_id', 'agg': 'count'},
+            {'label': 'High Coupling', 'field': 'coupling_level', 'agg': 'count', 'filter': {'field': 'coupling_level', 'equals': 'high'}},
+            {'label': 'Worst Score', 'field': 'coupling_score', 'agg': 'max'}
+        ]
+    } %}
+    {% include explorer_template %}
+
+    {% set unit_rows = hub_data.get('migration_units', {}).get('units', []) %}
+    {% set explorer = {
+        'id': 'hub-migration',
+        'title': 'Migration Units',
+        'subtitle': 'Actionable work items with coupling-driven difficulty.',
+        'rows': unit_rows,
+        'remote': true,
+        'remoteUrl': '/api/bi/migration',
+        'columns': [
+            {'key': 'rack', 'label': 'Rack', 'frozen': True},
+            {'key': 'leaf_or_vpc', 'label': 'Leaf / VPC'},
+            {'key': 'fex_display', 'label': 'FEX'},
+            {'key': 'ports_used', 'label': 'Ports Used', 'numeric': True},
+            {'key': 'ports_total', 'label': 'Ports Total', 'numeric': True},
+            {'key': 'utilization_pct', 'label': 'Utilization %', 'numeric': True},
+            {'key': 'impacted_epg_count', 'label': 'EPGs', 'numeric': True},
+            {'key': 'impacted_vlan_count', 'label': 'VLANs', 'numeric': True},
+            {'key': 'worst_vlan_display', 'label': 'Worst VLAN'},
+            {'key': 'coupled_vlan_count', 'label': 'Coupled VLANs', 'numeric': True},
+            {'key': 'impacted_tenant_count', 'label': 'Tenants', 'numeric': True},
+            {'key': 'service_graph_present', 'label': 'Service Graph'},
+            {'key': 'vpc_symmetry', 'label': 'VPC Symmetry'},
+            {'key': 'score', 'label': 'Score', 'numeric': True},
+            {'key': 'difficulty_bucket', 'label': 'Difficulty'},
+            {'key': 'recommendation', 'label': 'Recommendation'}
+        ],
+        'chart': {'field': 'difficulty_bucket', 'type': 'bar', 'label': 'Difficulty Buckets'},
+        'kpis': [
+            {'label': 'Total Units', 'field': 'leaf_or_vpc', 'agg': 'count'},
+            {'label': 'Hard', 'field': 'difficulty_bucket', 'agg': 'count', 'filter': {'field': 'difficulty_bucket', 'equals': 'Hard'}},
+            {'label': 'Blocked', 'field': 'difficulty_bucket', 'agg': 'count', 'filter': {'field': 'difficulty_bucket', 'equals': 'Blocked'}},
+            {'label': 'Max Score', 'field': 'score', 'agg': 'max'}
+        ]
+    } %}
+    {% include explorer_template %}
+
+    {% set epg_rows = hub_data.get('epg_complexity', []) %}
+    {% set explorer = {
+        'id': 'hub-epgs',
+        'title': 'EPG Complexity',
+        'subtitle': 'Attachment spread, contracts, and dependency risk.',
+        'rows': epg_rows,
+        'remote': true,
+        'remoteUrl': '/api/bi/epgs',
+        'columns': [
+            {'key': 'tenant', 'label': 'Tenant', 'frozen': True},
+            {'key': 'app_profile', 'label': 'App'},
+            {'key': 'epg_name', 'label': 'EPG'},
+            {'key': 'vlan_count', 'label': 'VLANs', 'numeric': True},
+            {'key': 'bd', 'label': 'BD'},
+            {'key': 'vrf', 'label': 'VRF'},
+            {'key': 'path_count', 'label': 'Bindings', 'numeric': True},
+            {'key': 'node_count', 'label': 'Leafs', 'numeric': True},
+            {'key': 'fex_binding_count', 'label': 'FEX', 'numeric': True},
+            {'key': 'contracts_count', 'label': 'Contracts', 'numeric': True},
+            {'key': 'complexity_score', 'label': 'Score', 'numeric': True},
+            {'key': 'complexity_level', 'label': 'Risk'}
+        ],
+        'chart': {'field': 'complexity_level', 'type': 'bar', 'label': 'Complexity Levels'},
+        'kpis': [
+            {'label': 'Total EPGs', 'field': 'epg_name', 'agg': 'count'},
+            {'label': 'High Risk', 'field': 'complexity_level', 'agg': 'count', 'filter': {'field': 'complexity_level', 'equals': 'High'}},
+            {'label': 'Max Score', 'field': 'complexity_score', 'agg': 'max'}
+        ]
+    } %}
+    {% include explorer_template %}
+
+    {% set cmdb_rows = hub_data.get('cmdb_rows', []) %}
+    {% set explorer = {
+        'id': 'hub-cmdb',
+        'title': 'CMDB Correlation',
+        'subtitle': 'Serial-based inventory alignment and gaps.',
+        'rows': cmdb_rows,
+        'remote': true,
+        'remoteUrl': '/api/bi/cmdb',
+        'columns': [
+            {'key': 'SerialNumber', 'label': 'SerialNumber', 'frozen': True},
+            {'key': 'Name', 'label': 'Name'},
+            {'key': 'ModelName', 'label': 'ModelName'},
+            {'key': 'matched_label', 'label': 'Matched'},
+            {'key': 'MatchReason', 'label': 'Match Reason'},
+            {'key': 'DuplicateSerialCount', 'label': 'Duplicates', 'numeric': True},
+            {'key': 'DeviceType', 'label': 'Device Type'},
+            {'key': 'DeviceID', 'label': 'Device ID'},
+            {'key': 'Rack', 'label': 'Rack'},
+            {'key': 'UnitLocation', 'label': 'UnitLocation'}
+        ],
+        'chart': {'field': 'matched_label', 'type': 'pie', 'label': 'Matched'},
+        'kpis': [
+            {'label': 'Total Records', 'field': 'SerialNumber', 'agg': 'count'},
+            {'label': 'Matched', 'field': 'matched_label', 'agg': 'count', 'filter': {'field': 'matched_label', 'equals': 'Matched'}},
+            {'label': 'Unmatched', 'field': 'matched_label', 'agg': 'count', 'filter': {'field': 'matched_label', 'equals': 'Unmatched'}},
+            {'label': 'Duplicate Serials', 'field': 'DuplicateSerialCount', 'agg': 'sum'}
+        ]
+    } %}
+    {% include explorer_template %}
+
+    {% set rack_groups = hub_data.get('rack_groups', {}) %}
+    {% set rack_columns = [
+        {'key': 'rack', 'label': 'Rack', 'frozen': True},
+        {'key': 'fex_count', 'label': 'FEX Count', 'numeric': True},
+        {'key': 'total_ports', 'label': 'Total Ports', 'numeric': True},
+        {'key': 'connected_ports', 'label': 'Connected Ports', 'numeric': True},
+        {'key': 'utilization_pct', 'label': 'Utilization %', 'numeric': True},
+        {'key': 'ports_per_fex', 'label': 'Ports/FEX', 'numeric': True},
+        {'key': 'connected_per_fex', 'label': 'Connected/FEX', 'numeric': True},
+        {'key': 'utilization_known', 'label': 'Utilization Known'},
+        {'key': 'unknown_ports', 'label': 'Unknown Ports', 'numeric': True},
+        {'key': 'can_consolidate', 'label': 'Consolidate'},
+        {'key': 'recommendation', 'label': 'Recommendation'}
+    ] %}
+    {% for count, rows in rack_groups|dictsort %}
+    <div class="feature-panel">
+        <div class="flex items-center justify-between mb-3">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">FEX Count: {{ count }}</h3>
+                <p class="text-sm text-gray-600">Grouped racks with {{ count }} FEX devices.</p>
+            </div>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Consolidation filter">
+                <input type="radio" class="btn-check" name="fex-rack-filter-{{ count }}" id="fex-rack-yes-{{ count }}" autocomplete="off" checked data-filter-field="can_consolidate" data-filter-value="Yes" data-filter-target="hub-fex-racks-{{ count }}">
+                <label class="btn btn-outline-secondary" for="fex-rack-yes-{{ count }}">Candidates</label>
+                <input type="radio" class="btn-check" name="fex-rack-filter-{{ count }}" id="fex-rack-all-{{ count }}" autocomplete="off" data-filter-field="can_consolidate" data-filter-value="all" data-filter-target="hub-fex-racks-{{ count }}">
+                <label class="btn btn-outline-secondary" for="fex-rack-all-{{ count }}">All</label>
+                <input type="radio" class="btn-check" name="fex-rack-filter-{{ count }}" id="fex-rack-needs-{{ count }}" autocomplete="off" data-filter-field="can_consolidate" data-filter-value="Needs Data" data-filter-target="hub-fex-racks-{{ count }}">
+                <label class="btn btn-outline-secondary" for="fex-rack-needs-{{ count }}">Needs Data</label>
+                <input type="radio" class="btn-check" name="fex-rack-filter-{{ count }}" id="fex-rack-no-{{ count }}" autocomplete="off" data-filter-field="can_consolidate" data-filter-value="No" data-filter-target="hub-fex-racks-{{ count }}">
+                <label class="btn btn-outline-secondary" for="fex-rack-no-{{ count }}">Not Eligible</label>
+            </div>
+        </div>
+        {% set explorer = {
+            'id': 'hub-fex-racks-' ~ count,
+            'title': 'Rack Consolidation Targets',
+            'subtitle': 'Grouped by rack + FEX count with supporting port data.',
+            'rows': rows,
+            'remote': false,
+            'columns': rack_columns,
+            'chart': {'field': 'can_consolidate', 'type': 'bar', 'label': 'Consolidation'},
+            'kpis': [
+                {'label': 'Total Racks', 'field': 'rack', 'agg': 'count'},
+                {'label': 'Candidates', 'field': 'can_consolidate', 'agg': 'count', 'filter': {'field': 'can_consolidate', 'equals': 'Yes'}},
+                {'label': 'Needs Data', 'field': 'can_consolidate', 'agg': 'count', 'filter': {'field': 'can_consolidate', 'equals': 'Needs Data'}}
+            ]
+        } %}
+        {% include explorer_template %}
+    </div>
+    {% endfor %}
+
+    {% set fex_rows = hub_data.get('fex_port_util', []) %}
+    {% set explorer = {
+        'id': 'hub-fex-ports',
+        'title': 'FEX Port Utilization',
+        'subtitle': 'Port usage, consolidation score, and recommendations.',
+        'rows': fex_rows,
+        'remote': true,
+        'remoteUrl': '/api/bi/fex_devices',
+        'columns': [
+            {'key': 'fex_id', 'label': 'FEX ID', 'numeric': True, 'frozen': True},
+            {'key': 'fex_identifier', 'label': 'Identifier'},
+            {'key': 'serial', 'label': 'Serial'},
+            {'key': 'model', 'label': 'Model'},
+            {'key': 'leaf_id', 'label': 'Leaf', 'numeric': True},
+            {'key': 'leaf_name', 'label': 'Leaf Name'},
+            {'key': 'rack', 'label': 'Rack'},
+            {'key': 'total_ports', 'label': 'Total Ports', 'numeric': True},
+            {'key': 'connected_ports', 'label': 'Connected Ports', 'numeric': True},
+            {'key': 'utilization_pct', 'label': 'Utilization %', 'numeric': True},
+            {'key': 'utilization_known', 'label': 'Utilization Known'},
+            {'key': 'utilization_source', 'label': 'Source'},
+            {'key': 'status', 'label': 'Status'},
+            {'key': 'consolidation_score', 'label': 'Score', 'numeric': True},
+            {'key': 'recommendation', 'label': 'Recommendation'}
+        ],
+        'chart': {'field': 'status', 'type': 'bar', 'label': 'FEX Status'},
+        'kpis': [
+            {'label': 'Total FEX', 'field': 'fex_id', 'agg': 'count'},
+            {'label': 'Up', 'field': 'status', 'agg': 'count', 'filter': {'field': 'status', 'equals': 'up'}},
+            {'label': 'Max Score', 'field': 'consolidation_score', 'agg': 'max'}
+        ]
+    } %}
+    {% include explorer_template %}
+</div>

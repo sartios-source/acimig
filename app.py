@@ -1910,6 +1910,7 @@ def _get_hub_data(current_fabric: str):
     consolidation_candidates = 0
     racks_with_2plus = 0
     target_by_rack = {}
+    rack_groups = {}
     for rack, entry in rack_map.items():
         target_fex = _pick_target_fex(rack_fex_map.get(rack, []))
         target_by_rack[rack] = target_fex
@@ -1930,12 +1931,22 @@ def _get_hub_data(current_fabric: str):
         if can_consolidate == 'Yes' and target_fex:
             target_label = f"FEX {target_fex.get('fex_id')} ({target_fex.get('serial') or 'N/A'})"
 
+        utilization_pct = None
+        if entry['total_ports']:
+            utilization_pct = round((entry['connected_ports'] / entry['total_ports']) * 100, 2)
+        ports_per_fex = round((entry['total_ports'] / entry['fex_count']), 2) if entry['fex_count'] else None
+        connected_per_fex = round((entry['connected_ports'] / entry['fex_count']), 2) if entry['fex_count'] else None
+
         rack_rows.append({
             **entry,
             'can_consolidate': can_consolidate,
             'recommendation': recommendation,
-            'target_fex': target_label
+            'target_fex': target_label,
+            'utilization_pct': utilization_pct,
+            'ports_per_fex': ports_per_fex,
+            'connected_per_fex': connected_per_fex
         })
+        rack_groups.setdefault(entry['fex_count'], []).append(rack_rows[-1])
 
     for row in fex_util_rows:
         rack = row.get('rack') or 'Unknown'
@@ -2011,6 +2022,7 @@ def _get_hub_data(current_fabric: str):
                 'consolidation_candidates': consolidation_candidates
             }
         },
+        'rack_groups': rack_groups,
         'cmdb_rows': cmdb_rows,
         'cmdb_stats': cmdb_stats,
         'has_cmdb_dataset': has_cmdb_dataset,

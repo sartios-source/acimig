@@ -2,7 +2,7 @@
 {% set explorer_id = explorer.get('id', 'bi-explorer') %}
 {% set explorer_title = explorer.get('title', 'Data Explorer') %}
 {% set explorer_subtitle = explorer.get('subtitle', '') %}
-{% set explorer_rows = [] if explorer.get('remote') else explorer.get('rows', []) %}
+{% set explorer_rows = explorer.get('rows', []) %}
 {% set explorer_columns = explorer.get('columns', []) %}
 {% set explorer_chart = explorer.get('chart', {}) %}
 {% set explorer_pivot = explorer.get('pivot', {}) %}
