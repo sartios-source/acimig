@@ -152,9 +152,11 @@ def _load_cmdb_records_for_fabric(fabric_data: Dict[str, Any], fabric_name: str)
     """Load CMDB records from normalized file or CSV for a fabric."""
     datasets = fabric_data.get('datasets', [])
     cmdb_records = []
+    cmdb_dataset_count = 0
     for dataset in datasets:
         if dataset.get('type') != 'cmdb':
             continue
+        cmdb_dataset_count += 1
         normalized_path = dataset.get('normalized_path')
         if normalized_path and Path(normalized_path).exists():
             try:
@@ -173,6 +175,7 @@ def _load_cmdb_records_for_fabric(fabric_data: Dict[str, Any], fabric_name: str)
             cmdb_records.extend(parsers.parse_cmdb_csv(content))
         except Exception as exc:
             app.logger.warning("Failed to read CMDB CSV for %s: %s", fabric_name, exc)
+    app.logger.info("Loaded CMDB records for %s: datasets=%s rows=%s", fabric_name, cmdb_dataset_count, len(cmdb_records))
     return cmdb_records
 
 

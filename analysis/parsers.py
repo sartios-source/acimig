@@ -138,7 +138,7 @@ def parse_cmdb_csv(content: str) -> List[Dict[str, Any]]:
         }
 
         def normalize_header(name: str) -> str:
-            return re.sub(r'[\s_\-]+', '', name.strip().lower())
+            return re.sub(r'[\s_\-]+', '', name.strip().lstrip('\ufeff').lower())
 
         normalized_headers = {normalize_header(h): h for h in reader.fieldnames if h}
         header_map = {}
@@ -153,19 +153,31 @@ def parse_cmdb_csv(content: str) -> List[Dict[str, Any]]:
 
         for row_num, row in enumerate(reader, start=2):  # Start at 2 (after header)
             try:
-                serial = _normalize_cmdb_value(row.get(header_map.get('serialnumber', ''), ''))
+                # Build per-row normalized lookup to tolerate messy headers
+                row_lookup = {normalize_header(k): v for k, v in row.items() if k}
+                def _get(canonical_key: str) -> str:
+                    header_key = header_map.get(canonical_key)
+                    if header_key and header_key in row:
+                        return row.get(header_key, '')
+                    for alias in header_aliases.get(canonical_key, []):
+                        alias_key = normalize_header(alias)
+                        if alias_key in row_lookup:
+                            return row_lookup.get(alias_key, '')
+                    return ''
+
+                serial = _normalize_cmdb_value(_get('serialnumber'))
                 if serial:
                     serial = serial.upper()
                 if serial:
-                    model_name = _normalize_cmdb_value(row.get(header_map.get('modelname', ''), ''))
-                    name = _normalize_cmdb_value(row.get(header_map.get('name', ''), ''))
-                    rack = _normalize_cmdb_value(row.get(header_map.get('rack', ''), ''))
-                    building = _normalize_cmdb_value(row.get(header_map.get('building', ''), ''))
-                    hall = _normalize_cmdb_value(row.get(header_map.get('hall', ''), ''))
-                    site = _normalize_cmdb_value(row.get(header_map.get('site', ''), ''))
-                    unit_location = _normalize_cmdb_value(row.get(header_map.get('unitlocation', ''), ''))
-                    device_type = _normalize_cmdb_value(row.get(header_map.get('devicetype', ''), ''))
-                    device_id = _normalize_cmdb_value(row.get(header_map.get('deviceid', ''), ''))
+                    model_name = _normalize_cmdb_value(_get('modelname'))
+                    name = _normalize_cmdb_value(_get('name'))
+                    rack = _normalize_cmdb_value(_get('rack'))
+                    building = _normalize_cmdb_value(_get('building'))
+                    hall = _normalize_cmdb_value(_get('hall'))
+                    site = _normalize_cmdb_value(_get('site'))
+                    unit_location = _normalize_cmdb_value(_get('unitlocation'))
+                    device_type = _normalize_cmdb_value(_get('devicetype'))
+                    device_id = _normalize_cmdb_value(_get('deviceid'))
 
                     records.append({
                         'SerialNumber': serial,
