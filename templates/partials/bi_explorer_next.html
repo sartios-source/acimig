@@ -7,26 +7,27 @@
 {% set explorer_chart = explorer.get('chart', {}) %}
 {% set explorer_pivot = explorer.get('pivot', {}) %}
 
-<section class="bi-explorer" id="{{ explorer_id }}">
-    <div class="bi-hero">
-        <div>
+<section class="bi-explorer bi-explorer-next" id="{{ explorer_id }}">
+    <div class="bi-next-header">
+        <div class="bi-next-title">
+            <div class="next-hero-kicker">BI Explorer</div>
             <h2>{{ explorer_title }}</h2>
             {% if explorer_subtitle %}
             <p>{{ explorer_subtitle }}</p>
             {% endif %}
         </div>
-        <div class="bi-hero-actions">
+        <div class="bi-next-actions">
             <button type="button" class="btn btn-outline-primary btn-sm bi-export" data-target="{{ explorer_id }}">Export CSV</button>
         </div>
     </div>
 
-    <div class="bi-controls">
-        <div class="bi-search">
+    <div class="bi-next-toolbar">
+        <div>
             <label class="form-label">Search</label>
             <input type="text" class="form-control form-control-sm" placeholder="Search..." data-search="{{ explorer_id }}">
         </div>
         <div class="bi-filters" data-filters="{{ explorer_id }}"></div>
-        <div class="bi-pagination">
+        <div>
             <label class="form-label">Rows</label>
             <select class="form-select form-select-sm" data-page-size="{{ explorer_id }}">
                 <option value="25">25</option>
@@ -37,10 +38,11 @@
         </div>
     </div>
 
-    <div class="bi-grid">
+    <div class="bi-next-kpis" data-kpis="{{ explorer_id }}"></div>
+
+    <div class="bi-next-grid">
         <div class="bi-table" data-table="{{ explorer_id }}"></div>
-        <div class="bi-panel">
-            <div class="bi-kpis" data-kpis="{{ explorer_id }}"></div>
+        <div class="bi-next-side">
             <div class="bi-chart">
                 <canvas data-chart="{{ explorer_id }}"></canvas>
             </div>

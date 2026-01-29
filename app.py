@@ -318,8 +318,7 @@ def ensure_mock_samples():
 @app.context_processor
 def inject_fabrics():
     """Make common values available to all templates."""
-    if 'ui_mode' not in session:
-        session['ui_mode'] = 'data'
+    session['ui_mode'] = 'next'
     return {
         'fabrics': fm.list_fabrics(),
         'app_version': APP_VERSION,
@@ -573,7 +572,7 @@ def health_check():
 def index():
     """Landing page with mode selection and fabric-specific statistics."""
     mode = 'migration'
-    ui_mode = session.get('ui_mode', 'data')
+    ui_mode = 'next'
     session['ui_mode'] = ui_mode
     current_fabric = session.get('current_fabric')
     fabric_stats = None
@@ -646,9 +645,7 @@ def index():
 def select_ui_mode():
     """Persist the preferred UI mode in the session."""
     requested_mode = request.args.get('mode', '').strip().lower()
-    if requested_mode not in {'classic', 'data', 'new'}:
-        return jsonify({'error': 'Invalid UI mode'}), 400
-    session['ui_mode'] = 'data'
+    session['ui_mode'] = 'next'
     next_path = request.args.get('next', '/')
     if not next_path.startswith('/'):
         next_path = '/'
@@ -666,8 +663,8 @@ def settings():
 def set_ui_mode():
     """Set UI mode via settings form."""
     requested_mode = request.form.get('ui_mode', '').strip().lower()
-    session['ui_mode'] = 'data'
-    flash("UI updated to data-centric navigation.", "success")
+    session['ui_mode'] = 'next'
+    flash("UI is now set to the new layout.", "success")
     return redirect(url_for('settings'))
 
 
@@ -1715,191 +1712,17 @@ def build_imdata_from_mcp(mcp_data: Dict[str, Any]) -> list:
 @handle_route_errors
 def visualize():
     """Visualization page - interactive dashboards with charts and graphs."""
-    mode = 'migration'
     current_fabric = session.get('current_fabric')
-
-    viz_data = {}
     validation_results = None
     if current_fabric:
-        # Try to get from cache first
-        cache_key = get_fabric_cache_key(current_fabric, 'visualization')
-        viz_data = cache.get(cache_key)
+        fabric_data = fm.get_fabric_data(current_fabric)
+        analyzer = engine.ACIAnalyzer(fabric_data)
+        analyzer._load_data()
+        validation_results = analyzer.get_data_completeness()
 
-        if viz_data is None:
-            # Cache miss - generate data
-            fabric_data = fm.get_fabric_data(current_fabric)
-            analyzer = engine.ACIAnalyzer(fabric_data)
-            analyzer._load_data()
-            validation_results = analyzer.get_data_completeness()
-
-            # Get base visualization data
-            viz_data = analyzer.get_visualization_data()
-
-            # Enrich with analysis data for dashboards
-            port_util = analyzer.analyze_port_utilization()
-            port_util_quality = analyzer.get_port_utilization_quality()
-            vlan_dist = analyzer.analyze_vlan_distribution()
-            vlan_coupling = analyzer.analyze_vlan_coupling_index()
-            vlan_detail = analyzer.analyze_vlan_coupling_detail()
-            epg_complex = analyzer.analyze_epg_complexity()
-            migration_flags = analyzer.analyze_migration_flags()
-            migration_units = analyzer.analyze_migration_units()
-            vpc_symmetry = analyzer.analyze_vpc_symmetry()
-            leaf_fex = analyzer.analyze_leaf_fex_mapping()
-            device_mapping = analyzer.analyze_device_epg_vlan_mapping()
-
-            def _trim_device_mapping(mapping, max_devices=500, max_leafs=200, max_fex_per_leaf=20, max_epgs_per_device=50):
-                stats = mapping.get('statistics', {})
-                total_devices = stats.get('total_devices', 0)
-                if total_devices <= max_devices:
-                    return mapping
-                trimmed = dict(mapping)
-                device_map = mapping.get('device_map', {})
-                trimmed_devices = {}
-                for device_id in list(device_map.keys())[:max_devices]:
-                    device_data = dict(device_map[device_id])
-                    if isinstance(device_data.get('epgs'), list):
-                        device_data['epgs'] = device_data['epgs'][:max_epgs_per_device]
-                    trimmed_devices[device_id] = device_data
-                trimmed['device_map'] = trimmed_devices
-                hierarchy = mapping.get('hierarchy', [])
-                trimmed_hierarchy = []
-                for leaf in hierarchy[:max_leafs]:
-                    leaf_copy = dict(leaf)
-                    if isinstance(leaf_copy.get('fex_devices'), list):
-                        leaf_copy['fex_devices'] = leaf_copy['fex_devices'][:max_fex_per_leaf]
-                        for fex in leaf_copy['fex_devices']:
-                            if isinstance(fex.get('epgs'), list):
-                                fex['epgs'] = fex['epgs'][:max_epgs_per_device]
-                    trimmed_hierarchy.append(leaf_copy)
-                trimmed['hierarchy'] = trimmed_hierarchy
-                trimmed['statistics'] = dict(stats)
-                trimmed['statistics']['truncated'] = True
-                trimmed['statistics']['truncated_reason'] = 'device_mapping_limit'
-                trimmed['statistics']['total_devices'] = min(total_devices, max_devices)
-                return trimmed
-
-            device_mapping = _trim_device_mapping(device_mapping)
-
-            known_util = [p for p in port_util if p.get('utilization_pct') is not None]
-            worst_vlan = None
-            if vlan_coupling.get('vlans'):
-                worst_vlan = max(vlan_coupling['vlans'], key=lambda v: v.get('coupling_score', 0))
-
-            overlap_set = set()
-            for overlap in vlan_dist.get('overlaps', []):
-                overlap_vlan = overlap.get('vlan') or overlap.get('vlan_id')
-                if overlap_vlan is not None:
-                    overlap_set.add(int(overlap_vlan))
-
-            detailed_rows = []
-            for row in vlan_coupling.get('vlans', []):
-                vlan_id = row.get('vlan_id')
-                detail = vlan_detail.get(vlan_id, {})
-                epgs = detail.get('epgs', [])
-                bindings = [b for epg in epgs for b in epg.get('bindings', [])]
-                has_leaf = any(b.get('binding_type') == 'leaf' for b in bindings)
-                has_fex = any(b.get('binding_type') == 'fex' for b in bindings)
-                leaf_ids = {str(b.get('leafId')) for b in bindings if b.get('leafId') is not None}
-                fex_serials = {b.get('fexSerial') for b in bindings if b.get('fexSerial')}
-                racks = {b.get('rack') for b in bindings if b.get('rack')}
-                reasons = [r.strip() for r in str(row.get('why', '')).split(';') if r.strip()]
-                search_blob = ' '.join([
-                    str(vlan_id or ''),
-                    ' '.join(row.get('tenants') or []),
-                    ' '.join(row.get('bds') or []),
-                    ' '.join(row.get('vrfs') or []),
-                    ' '.join([f"{e.get('tenant','')}/{e.get('app','')}/{e.get('epg','')}" for e in epgs]),
-                    ' '.join([str(b.get('leafId') or '') for b in bindings]),
-                    ' '.join([str(b.get('fexId') or '') for b in bindings]),
-                    ' '.join([str(b.get('fexSerial') or '') for b in bindings]),
-                    ' '.join([str(b.get('rack') or '') for b in bindings]),
-                ]).lower()
-
-                coupling_score = row.get('coupling_score') or 0
-                coupling_level = row.get('coupling_level') or 'low'
-                coupling_severity = 'critical' if coupling_score >= 60 else coupling_level
-
-                detailed_rows.append({
-                    **row,
-                    'overlap': vlan_id in overlap_set if vlan_id is not None else False,
-                    'binding_count': row.get('attachment_spread', {}).get('total_bindings', len(bindings)),
-                    'leaf_count': len(row.get('attachment_spread', {}).get('leafs', []) or leaf_ids),
-                    'fex_count': len(row.get('attachment_spread', {}).get('fex_identifiers', []) or fex_serials),
-                    'rack_count': len(row.get('attachment_spread', {}).get('racks', []) or racks),
-                    'has_leaf_bindings': has_leaf,
-                    'has_fex_bindings': has_fex,
-                    'mixed_bindings': has_leaf and has_fex,
-                    'multi_leaf': len(leaf_ids) > 1,
-                    'multi_rack': len(racks) > 1,
-                    'coupling_severity': coupling_severity,
-                    'reasons': reasons[:3],
-                    'epgs': epgs,
-                    'search_blob': search_blob
-                })
-
-            vlan_coupling['vlans_detailed'] = detailed_rows
-
-            # Add comprehensive statistics
-            viz_data['statistics'] = {
-                'total_leafs': leaf_fex.get('statistics', {}).get('total_leafs', 0),
-                'total_fex': leaf_fex.get('statistics', {}).get('total_fex', 0),
-                'avg_utilization': round(
-                    sum(p['utilization_pct'] for p in known_util) / len(known_util), 2
-                ) if known_util else None,
-                'consolidation_candidates': sum(
-                    1 for p in port_util if (p.get('consolidation_score') or 0) >= 60
-                ),
-                'utilization_needs_data': sum(1 for p in port_util if p.get('utilization_pct') is None),
-                'total_epgs': len(epg_complex),
-                'total_vlans': vlan_dist.get('statistics', {}).get('total_vlans_used', 0),
-                'vlan_overlaps': len(vlan_dist.get('overlaps', [])),
-                'migration_flags': len(migration_flags),
-                'vlan_coupling_high': vlan_coupling.get('statistics', {}).get('high_coupling', 0),
-                'worst_vlan_id': worst_vlan.get('vlan_id') if worst_vlan else None,
-                'worst_vlan_score': worst_vlan.get('coupling_score') if worst_vlan else None,
-                'migration_units': migration_units.get('statistics', {})
-            }
-
-            # Add detailed analysis data
-            viz_data['port_utilization'] = port_util
-            viz_data['port_utilization_quality'] = port_util_quality
-            viz_data['vlan_distribution'] = vlan_dist
-            viz_data['vlan_coupling'] = vlan_coupling
-            viz_data['epg_complexity'] = epg_complex[:20]  # Top 20 for charts
-            viz_data['epg_complexity_all'] = epg_complex
-            for flag in migration_flags:
-                severity = flag.get('severity')
-                flag['flagged'] = severity in {'high', 'medium'}
-                flag['why'] = flag.get('message', '')
-            viz_data['migration_flags'] = migration_flags
-            viz_data['migration_units'] = migration_units
-            viz_data['vpc_symmetry'] = vpc_symmetry
-            viz_data['leaf_fex_mapping'] = leaf_fex
-            viz_data['device_mapping'] = device_mapping
-            viz_data['validation_results'] = validation_results
-
-            # Store in cache
-            cache.set(cache_key, viz_data, timeout=300)
-            app.logger.info(f"Generated and cached visualization data for fabric {current_fabric}")
-        else:
-            validation_results = viz_data.get('validation_results')
-            if validation_results is None:
-                try:
-                    fabric_data = fm.get_fabric_data(current_fabric)
-                    analyzer = engine.ACIAnalyzer(fabric_data)
-                    analyzer._load_data()
-                    validation_results = analyzer.get_data_completeness()
-                except Exception as exc:
-                    app.logger.warning("Failed to refresh validation results for %s: %s", current_fabric, exc)
-
-    return render_template('visualize.html',
-                         mode=mode,
-                         current_fabric=current_fabric,
-                         viz_data=viz_data,
-                         validation_results=validation_results)
-
-
+    return render_template('visualize_hub.html',
+                          current_fabric=current_fabric,
+                          validation_results=validation_results)
 @app.route('/data')
 @handle_route_errors
 def data_explorer():

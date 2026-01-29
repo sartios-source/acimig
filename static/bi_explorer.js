@@ -126,17 +126,58 @@
         }
     }
 
+    function badgeClassFor(field, value) {
+        const normalized = String(value || '').toLowerCase();
+        if (field === 'coupling_level' || field === 'complexity_level') {
+            if (normalized.includes('critical')) return 'bi-badge--critical';
+            if (normalized.includes('high')) return 'bi-badge--high';
+            if (normalized.includes('medium')) return 'bi-badge--medium';
+            if (normalized.includes('low')) return 'bi-badge--low';
+        }
+        if (field === 'difficulty_bucket') {
+            if (normalized.includes('blocked')) return 'bi-badge--blocked';
+            if (normalized.includes('hard')) return 'bi-badge--hard';
+            if (normalized.includes('easy')) return 'bi-badge--easy';
+            if (normalized.includes('moderate')) return 'bi-badge--moderate';
+        }
+        if (field === 'matched_label') {
+            if (normalized.includes('matched')) return 'bi-badge--matched';
+            if (normalized.includes('unmatched')) return 'bi-badge--unmatched';
+        }
+        if (field === 'MatchReason' || field === 'match_reason') {
+            return 'bi-badge--soft';
+        }
+        if (field === 'vpc_symmetry') {
+            if (normalized.includes('symmetric')) return 'bi-badge--matched';
+            if (normalized.includes('asymmetric')) return 'bi-badge--unmatched';
+        }
+        return 'bi-badge--soft';
+    }
+
+    function badgeFormatter(field) {
+        return function(cell) {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '') return '';
+            const badgeClass = badgeClassFor(field, value);
+            const text = String(value);
+            return `<span class="bi-badge ${badgeClass}">${text}</span>`;
+        };
+    }
+
     function initExplorer(section) {
         const id = section.getAttribute('id');
         const rows = parseJson(`${id}-rows`) || [];
         const config = parseJson(`${id}-config`) || {};
+        const isNextMode = document.body.classList.contains('ui-next');
+        const badgeFields = new Set(['coupling_level', 'complexity_level', 'difficulty_bucket', 'matched_label', 'vpc_symmetry', 'MatchReason', 'match_reason']);
         const columns = (config.columns || []).map((col, index) => ({
             title: col.label || col.title || col.field,
             field: col.key || col.field,
             headerFilter: col.filter !== false,
             hozAlign: col.numeric ? 'right' : 'left',
             sorter: col.sorter || (col.numeric ? 'number' : 'string'),
-            frozen: col.frozen || index === 0
+            frozen: col.frozen || index === 0,
+            formatter: isNextMode && badgeFields.has(col.key || col.field) ? badgeFormatter(col.key || col.field) : undefined
         }));
 
         const tableEl = section.querySelector(`[data-table="${id}"]`);
@@ -213,15 +254,18 @@
             });
         }
 
-        section.querySelectorAll('[data-filter-field]').forEach(input => {
+        const scopedFilters = Array.from(section.querySelectorAll('[data-filter-field]'));
+        const externalFilters = Array.from(document.querySelectorAll(`[data-filter-field][data-filter-target="${id}"]`));
+        const filterInputs = Array.from(new Set(scopedFilters.concat(externalFilters)));
+        filterInputs.forEach(input => {
             input.addEventListener('change', () => {
                 const field = input.getAttribute('data-filter-field');
                 const value = input.getAttribute('data-filter-value');
-                const active = section.querySelectorAll(`[data-filter-field="${field}"]:checked`);
+                const active = filterInputs.filter(item => item.getAttribute('data-filter-field') === field && item.checked);
                 if (!active.length || value === 'all') {
                     table.removeFilter(field, '=');
                 } else {
-                    const selected = Array.from(active).map(item => item.getAttribute('data-filter-value'));
+                    const selected = active.map(item => item.getAttribute('data-filter-value'));
                     table.setFilter(row => selected.includes(String(row[field])));
                 }
                 updateChartAndPivot(table, section, config);

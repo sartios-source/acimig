@@ -5,9 +5,12 @@
 {% if not current_fabric %}
 {{ super() }}
 {% else %}
-<div class="feature-shell">
+<div class="feature-shell{% if ui_mode == 'next' %} next-shell{% endif %}">
 {% include "partials/data_readiness.html" %}
-<div class="feature-hero">
+<div class="{% if ui_mode == 'next' %}next-hero{% else %}feature-hero{% endif %}">
+    {% if ui_mode == 'next' %}
+    <div class="next-hero-kicker">Asset Correlation</div>
+    {% endif %}
     <h1>CMDB Correlation</h1>
     <p>Validate rack mapping by SerialNumber and ACI serials.</p>
 </div>
@@ -17,11 +20,11 @@
     <div class="mb-3">
         <label class="form-label">Matched</label>
         <div class="btn-group btn-group-sm" role="group" aria-label="Matched filter">
-            <input type="radio" class="btn-check" name="cmdb-match" id="cmdb-match-all" autocomplete="off" checked data-filter-field="matched_label" data-filter-value="all">
+            <input type="radio" class="btn-check" name="cmdb-match" id="cmdb-match-all" autocomplete="off" checked data-filter-field="matched_label" data-filter-value="all" data-filter-target="cmdb-explorer">
             <label class="btn btn-outline-secondary" for="cmdb-match-all">All</label>
-            <input type="radio" class="btn-check" name="cmdb-match" id="cmdb-match-yes" autocomplete="off" data-filter-field="matched_label" data-filter-value="Matched">
+            <input type="radio" class="btn-check" name="cmdb-match" id="cmdb-match-yes" autocomplete="off" data-filter-field="matched_label" data-filter-value="Matched" data-filter-target="cmdb-explorer">
             <label class="btn btn-outline-secondary" for="cmdb-match-yes">Matched</label>
-            <input type="radio" class="btn-check" name="cmdb-match" id="cmdb-match-no" autocomplete="off" data-filter-field="matched_label" data-filter-value="Unmatched">
+            <input type="radio" class="btn-check" name="cmdb-match" id="cmdb-match-no" autocomplete="off" data-filter-field="matched_label" data-filter-value="Unmatched" data-filter-target="cmdb-explorer">
             <label class="btn btn-outline-secondary" for="cmdb-match-no">Unmatched</label>
         </div>
     </div>
@@ -52,7 +55,8 @@
             {'label': 'Duplicate Serials', 'field': 'DuplicateSerialCount', 'agg': 'sum'}
         ]
     } %}
-    {% include "partials/bi_explorer.html" %}
+{% set explorer_template = "partials/bi_explorer_next.html" if ui_mode == 'next' else "partials/bi_explorer.html" %}
+{% include explorer_template %}
 </div>
 </div>
 {% endif %}

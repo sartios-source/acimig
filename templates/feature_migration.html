@@ -5,9 +5,12 @@
 {% if not current_fabric %}
 {{ super() }}
 {% else %}
-<div class="feature-shell">
+<div class="feature-shell{% if ui_mode == 'next' %} next-shell{% endif %}">
 {% include "partials/data_readiness.html" %}
-<div class="feature-hero">
+<div class="{% if ui_mode == 'next' %}next-hero{% else %}feature-hero{% endif %}">
+    {% if ui_mode == 'next' %}
+    <div class="next-hero-kicker">Execution Units</div>
+    {% endif %}
     <h1>Migration Units</h1>
     <p>Actionable work items grouped by leaf/FEX and coupling difficulty.</p>
 </div>
@@ -45,7 +48,8 @@
         {'label': 'Max Score', 'field': 'score', 'agg': 'max'}
     ]
 } %}
-{% include "partials/bi_explorer.html" %}
+{% set explorer_template = "partials/bi_explorer_next.html" if ui_mode == 'next' else "partials/bi_explorer.html" %}
+{% include explorer_template %}
 </div>
 {% endif %}
 {% endblock %}

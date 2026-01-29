@@ -1,0 +1,38 @@
+{% extends "feature_base.html" %}
+{% set title = "Visualize" %}
+{% set subtitle = "Choose a domain to explore detailed migration risk and topology data." %}
+{% block content %}
+{% if not current_fabric %}
+{{ super() }}
+{% else %}
+<div class="feature-shell">
+    {% include "partials/data_readiness.html" %}
+    <div class="feature-hero">
+        <h1>Visualize</h1>
+        <p>Explore coupling, consolidation, and inventory data in focused BI views.</p>
+    </div>
+    <div class="vlan-overview-grid">
+        <a class="feature-panel" href="{{ url_for('view_vlans') }}">
+            <h3>VLAN Coupling</h3>
+            <p>Blast radius and multi-tenant VLAN dependencies.</p>
+        </a>
+        <a class="feature-panel" href="{{ url_for('view_migration_units') }}">
+            <h3>Migration Units</h3>
+            <p>Executable work items with difficulty scoring.</p>
+        </a>
+        <a class="feature-panel" href="{{ url_for('view_epgs') }}">
+            <h3>EPG Complexity</h3>
+            <p>Attachment spread, contracts, and dependency risk.</p>
+        </a>
+        <a class="feature-panel" href="{{ url_for('view_fex_consolidation') }}">
+            <h3>FEX Consolidation</h3>
+            <p>Identify racks that can consolidate to 2248 capacity.</p>
+        </a>
+        <a class="feature-panel" href="{{ url_for('view_cmdb') }}">
+            <h3>CMDB Correlation</h3>
+            <p>Serial-based inventory alignment and gaps.</p>
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

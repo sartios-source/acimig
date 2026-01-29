@@ -5,9 +5,12 @@
 {% if not current_fabric %}
 {{ super() }}
 {% else %}
-<div class="feature-shell">
+<div class="feature-shell{% if ui_mode == 'next' %} next-shell{% endif %}">
     {% include "partials/data_readiness.html" %}
-    <div class="feature-hero">
+    <div class="{% if ui_mode == 'next' %}next-hero{% else %}feature-hero{% endif %}">
+        {% if ui_mode == 'next' %}
+        <div class="next-hero-kicker">Rack Consolidation</div>
+        {% endif %}
         <h1>FEX Consolidation</h1>
         <p>Racks with 2+ FEX and port usage <= 48 can consolidate.</p>
     </div>

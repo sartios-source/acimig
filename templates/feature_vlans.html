@@ -5,9 +5,12 @@
 {% if not current_fabric %}
 {{ super() }}
 {% else %}
-<div class="feature-shell">
+<div class="feature-shell{% if ui_mode == 'next' %} next-shell{% endif %}">
 {% include "partials/data_readiness.html" %}
-<div class="feature-hero">
+<div class="{% if ui_mode == 'next' %}next-hero{% else %}feature-hero{% endif %}">
+    {% if ui_mode == 'next' %}
+    <div class="next-hero-kicker">Risk Coupling</div>
+    {% endif %}
     <h1>VLAN Coupling</h1>
     <p>Identify VLANs that drive migration risk and review their EPG/leaf/FEX bindings.</p>
 </div>
@@ -46,7 +49,8 @@
         {'label': 'Worst Score', 'field': 'coupling_score', 'agg': 'max'}
     ]
 } %}
-{% include "partials/bi_explorer.html" %}
+{% set explorer_template = "partials/bi_explorer_next.html" if ui_mode == 'next' else "partials/bi_explorer.html" %}
+{% include explorer_template %}
 </div>
 {% endif %}
 {% endblock %}
