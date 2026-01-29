@@ -1891,254 +1891,335 @@ def data_explorer():
     validation_results = None
 
     if current_fabric:
-        cache_key = get_fabric_cache_key(current_fabric, 'data_hub')
-        cached = cache.get(cache_key)
-        if cached:
-            hub_data = cached
-            validation_results = cached.get('validation_results')
-            if validation_results is None:
-                try:
-                    fabric_data = fm.get_fabric_data(current_fabric)
-                    analyzer = engine.ACIAnalyzer(fabric_data)
-                    analyzer._load_data()
-                    validation_results = analyzer.get_data_completeness()
-                except Exception as exc:
-                    app.logger.warning("Failed to refresh validation results for %s: %s", current_fabric, exc)
-        else:
-            fabric_data = fm.get_fabric_data(current_fabric)
-            analyzer = engine.ACIAnalyzer(fabric_data)
-            analyzer._load_data()
-            validation_results = analyzer.get_data_completeness()
-
-            raw_cmdb = _load_cmdb_records_for_fabric(fabric_data, current_fabric)
-            cmdb_rows = _correlate_cmdb_records(raw_cmdb, analyzer, current_fabric)
-            cmdb_stats = {
-                'total': len(cmdb_rows),
-                'matched': sum(1 for row in cmdb_rows if row.get('Matched')),
-                'unmatched': sum(1 for row in cmdb_rows if not row.get('Matched'))
-            }
-            has_cmdb_dataset = any(d.get('type') == 'cmdb' for d in fabric_data.get('datasets', []))
-
-            vlan_coupling = analyzer.analyze_vlan_coupling_index()
-            vlan_detail = analyzer.analyze_vlan_coupling_detail()
-            vlan_dist = analyzer.analyze_vlan_distribution()
-            overlap_set = {
-                int(v.get('vlan') or v.get('vlan_id'))
-                for v in vlan_dist.get('overlaps', [])
-                if v.get('vlan') or v.get('vlan_id')
-            }
-            detailed_rows = []
-            for row in vlan_coupling.get('vlans', []):
-                vlan_id = row.get('vlan_id')
-                detail = vlan_detail.get(vlan_id, {})
-                epgs = detail.get('epgs', [])
-                bindings = [b for epg in epgs for b in epg.get('bindings', [])]
-                has_leaf = any(b.get('binding_type') == 'leaf' for b in bindings)
-                has_fex = any(b.get('binding_type') == 'fex' for b in bindings)
-                leaf_ids = {str(b.get('leafId')) for b in bindings if b.get('leafId') is not None}
-                fex_serials = {b.get('fexSerial') for b in bindings if b.get('fexSerial')}
-                racks = {b.get('rack') for b in bindings if b.get('rack')}
-                reasons = [r.strip() for r in str(row.get('why', '')).split(';') if r.strip()]
-                coupling_score = row.get('coupling_score') or 0
-                coupling_level = row.get('coupling_level') or 'low'
-                coupling_severity = 'critical' if coupling_score >= 60 else coupling_level
-                search_blob = ' '.join([
-                    str(vlan_id or ''),
-                    ' '.join(row.get('tenants') or []),
-                    ' '.join(row.get('bds') or []),
-                    ' '.join(row.get('vrfs') or []),
-                    ' '.join([f"{e.get('tenant','')}/{e.get('app','')}/{e.get('epg','')}" for e in epgs]),
-                    ' '.join([str(b.get('leafId') or '') for b in bindings]),
-                    ' '.join([str(b.get('fexId') or '') for b in bindings]),
-                    ' '.join([str(b.get('fexSerial') or '') for b in bindings]),
-                    ' '.join([str(b.get('rack') or '') for b in bindings]),
-                ]).lower()
-
-                detailed_rows.append({
-                    **row,
-                    'overlap': vlan_id in overlap_set if vlan_id is not None else False,
-                    'binding_count': row.get('attachment_spread', {}).get('total_bindings', len(bindings)),
-                    'leaf_count': len(row.get('attachment_spread', {}).get('leafs', []) or leaf_ids),
-                    'fex_count': len(row.get('attachment_spread', {}).get('fex_identifiers', []) or fex_serials),
-                    'rack_count': len(row.get('attachment_spread', {}).get('racks', []) or racks),
-                    'has_leaf_bindings': has_leaf,
-                    'has_fex_bindings': has_fex,
-                    'mixed_bindings': has_leaf and has_fex,
-                    'multi_leaf': len(leaf_ids) > 1,
-                    'multi_rack': len(racks) > 1,
-                    'coupling_severity': coupling_severity,
-                    'reasons': reasons[:3],
-                    'epgs': epgs,
-                    'search_blob': search_blob
-                })
-            vlan_coupling['vlans_detailed'] = detailed_rows
-
-            # Build EPG bindings map for drawer details
-            epg_bindings_map = {}
-            for detail in vlan_detail.values():
-                for epg in detail.get('epgs', []):
-                    key = f"{epg.get('tenant', '')}|{epg.get('app', '')}|{epg.get('epg', '')}"
-                    bindings = epg.get('bindings', []) or []
-                    binding_keys = epg_bindings_map.setdefault(key, {'bindings': [], 'keys': set()})
-                    for binding in bindings:
-                        dedupe_key = '|'.join([
-                            str(binding.get('binding_type') or ''),
-                            str(binding.get('leafId') or ''),
-                            str(binding.get('fexSerial') or binding.get('fexId') or ''),
-                            str(binding.get('interface') or ''),
-                            str(binding.get('path') or '')
-                        ])
-                        if dedupe_key in binding_keys['keys']:
-                            continue
-                        binding_keys['keys'].add(dedupe_key)
-                        binding_keys['bindings'].append(binding)
-
-            migration_units = analyzer.analyze_migration_units()
-            epg_complexity = analyzer.analyze_epg_complexity()
-            for row in epg_complexity:
-                key = f"{row.get('tenant', '')}|{row.get('app_profile', '')}|{row.get('epg_name', '')}"
-                bindings_entry = epg_bindings_map.get(key)
-                if bindings_entry:
-                    row['bindings'] = bindings_entry.get('bindings', [])
-                row['epg'] = row.get('epg_name')
-                row['risk'] = row.get('complexity_level')
-                row['score'] = row.get('complexity_score')
-                row['fex_count'] = row.get('fex_binding_count')
-                row['contract_count'] = row.get('contracts_count')
-            port_util = analyzer.analyze_port_utilization()
-
-            cmdb_by_serial = { _normalize_serial(r.get('SerialNumber') or r.get('serial_number')): r for r in cmdb_rows }
-            fex_util_rows = []
-            for row in port_util:
-                serial = _normalize_serial(row.get('serial'))
-                cmdb_record = cmdb_by_serial.get(serial)
-                fex_util_rows.append({
-                    **row,
-                    'rack': cmdb_record.get('Rack') if cmdb_record else 'Unknown',
-                    'site': cmdb_record.get('Site') if cmdb_record else 'Unknown',
-                    'building': cmdb_record.get('Building') if cmdb_record else 'Unknown',
-                    'hall': cmdb_record.get('Hall') if cmdb_record else 'Unknown',
-                })
-
-            rack_map = {}
-            for row in fex_util_rows:
-                rack = row.get('rack') or 'Unknown'
-                entry = rack_map.setdefault(rack, {
-                    'rack': rack,
-                    'fex_count': 0,
-                    'total_ports': 0,
-                    'connected_ports': 0,
-                    'utilization_known': True,
-                    'unknown_ports': 0,
-                    'site': row.get('site') or 'Unknown',
-                    'building': row.get('building') or 'Unknown',
-                    'hall': row.get('hall') or 'Unknown'
-                })
-                entry['fex_count'] += 1
-                total_ports = row.get('total_ports') or 0
-                connected = row.get('connected_ports')
-                entry['total_ports'] += total_ports
-                if connected is None:
-                    entry['utilization_known'] = False
-                    entry['unknown_ports'] += total_ports
-                else:
-                    entry['connected_ports'] += connected
-
-            rack_rows = []
-            consolidation_candidates = 0
-            racks_with_3plus = 0
-            for rack, entry in rack_map.items():
-                if entry['fex_count'] >= 3:
-                    racks_with_3plus += 1
-                if entry['utilization_known'] and entry['connected_ports'] <= 48 and entry['fex_count'] >= 3:
-                    can_consolidate = 'Yes'
-                    consolidation_candidates += 1
-                    recommendation = 'Consolidate into 2248 (<=48 ports)'
-                elif entry['utilization_known']:
-                    can_consolidate = 'No'
-                    recommendation = 'Do not consolidate (ports > 48)'
-                else:
-                    can_consolidate = 'Needs Data'
-                    recommendation = 'Needs port usage data'
-
-                rack_rows.append({
-                    **entry,
-                    'can_consolidate': can_consolidate,
-                    'recommendation': recommendation
-                })
-
-            fex_inventory = []
-            for fex in analyzer._fexes:
-                fex_inventory.append({
-                    'id': fex.get('id'),
-                    'name': fex.get('name'),
-                    'model': fex.get('model'),
-                    'serial': fex.get('ser'),
-                    'dn': fex.get('dn')
-                })
-            leaf_inventory = []
-            for leaf in analyzer._leafs:
-                leaf_inventory.append({
-                    'id': leaf.get('id'),
-                    'name': leaf.get('name'),
-                    'model': leaf.get('model'),
-                    'serial': leaf.get('serial') or leaf.get('ser'),
-                    'role': leaf.get('role'),
-                    'dn': leaf.get('dn')
-                })
-
-            contracts = [
-                {
-                    'name': c.get('name'),
-                    'tenant': analyzer._extract_tenant_from_dn(c.get('dn', '')),
-                    'scope': c.get('scope') or c.get('scope', '')
-                }
-                for c in analyzer._contracts
-            ]
-            vrfs = [
-                {
-                    'name': v.get('name'),
-                    'tenant': analyzer._extract_tenant_from_dn(v.get('dn', '')),
-                    'pcEnfPref': v.get('pcEnfPref') or v.get('pce_policy', '')
-                }
-                for v in analyzer._vrfs
-            ]
-            bds = [
-                {
-                    'name': b.get('name'),
-                    'tenant': analyzer._extract_tenant_from_dn(b.get('dn', '')),
-                    'vrf': analyzer._get_vrf_name_for_bd(b)
-                }
-                for b in analyzer._bds
-            ]
-
-            hub_data = {
-                'vlan_coupling': vlan_coupling,
-                'vlan_distribution': vlan_dist,
-                'migration_units': migration_units,
-                'epg_complexity': epg_complexity,
-                'fex_inventory': fex_inventory,
-                'leaf_inventory': leaf_inventory,
-                'contracts': contracts,
-                'vrfs': vrfs,
-                'bds': bds,
-                'fex_port_util': fex_util_rows,
-                'rack_consolidation': {
-                    'rows': rack_rows,
-                    'statistics': {
-                        'total_racks': len(rack_rows),
-                        'racks_with_3plus_fex': racks_with_3plus,
-                        'consolidation_candidates': consolidation_candidates
-                    }
-                },
-                'cmdb_rows': cmdb_rows,
-                'cmdb_stats': cmdb_stats,
-                'has_cmdb_dataset': has_cmdb_dataset,
-                'validation_results': validation_results
-            }
-            cache.set(cache_key, hub_data, timeout=300)
+        hub_data, validation_results = _get_hub_data(current_fabric)
 
     return render_template('data_explorer.html',
+                          mode=mode,
+                          current_fabric=current_fabric,
+                          hub_data=hub_data,
+                          validation_results=validation_results)
+
+
+def _get_hub_data(current_fabric: str):
+    cache_key = get_fabric_cache_key(current_fabric, 'data_hub')
+    cached = cache.get(cache_key)
+    if cached:
+        validation_results = cached.get('validation_results')
+        if validation_results is None:
+            try:
+                fabric_data = fm.get_fabric_data(current_fabric)
+                analyzer = engine.ACIAnalyzer(fabric_data)
+                analyzer._load_data()
+                validation_results = analyzer.get_data_completeness()
+            except Exception as exc:
+                app.logger.warning("Failed to refresh validation results for %s: %s", current_fabric, exc)
+        return cached, validation_results
+
+    fabric_data = fm.get_fabric_data(current_fabric)
+    analyzer = engine.ACIAnalyzer(fabric_data)
+    analyzer._load_data()
+    validation_results = analyzer.get_data_completeness()
+
+    raw_cmdb = _load_cmdb_records_for_fabric(fabric_data, current_fabric)
+    cmdb_rows = _correlate_cmdb_records(raw_cmdb, analyzer, current_fabric)
+    cmdb_stats = {
+        'total': len(cmdb_rows),
+        'matched': sum(1 for row in cmdb_rows if row.get('Matched')),
+        'unmatched': sum(1 for row in cmdb_rows if not row.get('Matched'))
+    }
+    has_cmdb_dataset = any(d.get('type') == 'cmdb' for d in fabric_data.get('datasets', []))
+
+    vlan_coupling = analyzer.analyze_vlan_coupling_index()
+    vlan_detail = analyzer.analyze_vlan_coupling_detail()
+    vlan_dist = analyzer.analyze_vlan_distribution()
+    overlap_set = {
+        int(v.get('vlan') or v.get('vlan_id'))
+        for v in vlan_dist.get('overlaps', [])
+        if v.get('vlan') or v.get('vlan_id')
+    }
+    detailed_rows = []
+    for row in vlan_coupling.get('vlans', []):
+        vlan_id = row.get('vlan_id')
+        detail = vlan_detail.get(vlan_id, {})
+        epgs = detail.get('epgs', [])
+        bindings = [b for epg in epgs for b in epg.get('bindings', [])]
+        has_leaf = any(b.get('binding_type') == 'leaf' for b in bindings)
+        has_fex = any(b.get('binding_type') == 'fex' for b in bindings)
+        leaf_ids = {str(b.get('leafId')) for b in bindings if b.get('leafId') is not None}
+        fex_serials = {b.get('fexSerial') for b in bindings if b.get('fexSerial')}
+        racks = {b.get('rack') for b in bindings if b.get('rack')}
+        reasons = [r.strip() for r in str(row.get('why', '')).split(';') if r.strip()]
+        coupling_score = row.get('coupling_score') or 0
+        coupling_level = row.get('coupling_level') or 'low'
+        coupling_severity = 'critical' if coupling_score >= 60 else coupling_level
+        search_blob = ' '.join([
+            str(vlan_id or ''),
+            ' '.join(row.get('tenants') or []),
+            ' '.join(row.get('bds') or []),
+            ' '.join(row.get('vrfs') or []),
+            ' '.join([f"{e.get('tenant','')}/{e.get('app','')}/{e.get('epg','')}" for e in epgs]),
+            ' '.join([str(b.get('leafId') or '') for b in bindings]),
+            ' '.join([str(b.get('fexId') or '') for b in bindings]),
+            ' '.join([str(b.get('fexSerial') or '') for b in bindings]),
+            ' '.join([str(b.get('rack') or '') for b in bindings]),
+        ]).lower()
+
+        detailed_rows.append({
+            **row,
+            'overlap': vlan_id in overlap_set if vlan_id is not None else False,
+            'binding_count': row.get('attachment_spread', {}).get('total_bindings', len(bindings)),
+            'leaf_count': len(row.get('attachment_spread', {}).get('leafs', []) or leaf_ids),
+            'fex_count': len(row.get('attachment_spread', {}).get('fex_identifiers', []) or fex_serials),
+            'rack_count': len(row.get('attachment_spread', {}).get('racks', []) or racks),
+            'has_leaf_bindings': has_leaf,
+            'has_fex_bindings': has_fex,
+            'mixed_bindings': has_leaf and has_fex,
+            'multi_leaf': len(leaf_ids) > 1,
+            'multi_rack': len(racks) > 1,
+            'coupling_severity': coupling_severity,
+            'reasons': reasons[:3],
+            'epgs': epgs,
+            'search_blob': search_blob
+        })
+    vlan_coupling['vlans_detailed'] = detailed_rows
+
+    # Build EPG bindings map for drawer details
+    epg_bindings_map = {}
+    for detail in vlan_detail.values():
+        for epg in detail.get('epgs', []):
+            key = f"{epg.get('tenant', '')}|{epg.get('app', '')}|{epg.get('epg', '')}"
+            bindings = epg.get('bindings', []) or []
+            binding_keys = epg_bindings_map.setdefault(key, {'bindings': [], 'keys': set()})
+            for binding in bindings:
+                dedupe_key = '|'.join([
+                    str(binding.get('binding_type') or ''),
+                    str(binding.get('leafId') or ''),
+                    str(binding.get('fexSerial') or binding.get('fexId') or ''),
+                    str(binding.get('interface') or ''),
+                    str(binding.get('path') or '')
+                ])
+                if dedupe_key in binding_keys['keys']:
+                    continue
+                binding_keys['keys'].add(dedupe_key)
+                binding_keys['bindings'].append(binding)
+
+    migration_units = analyzer.analyze_migration_units()
+    epg_complexity = analyzer.analyze_epg_complexity()
+    for row in epg_complexity:
+        key = f"{row.get('tenant', '')}|{row.get('app_profile', '')}|{row.get('epg_name', '')}"
+        bindings_entry = epg_bindings_map.get(key)
+        if bindings_entry:
+            row['bindings'] = bindings_entry.get('bindings', [])
+
+    port_util = analyzer.analyze_port_utilization()
+
+    cmdb_by_serial = { _normalize_serial(r.get('SerialNumber') or r.get('serial_number')): r for r in cmdb_rows }
+    fex_util_rows = []
+    for row in port_util:
+        serial = _normalize_serial(row.get('serial'))
+        cmdb_record = cmdb_by_serial.get(serial)
+        fex_util_rows.append({
+            **row,
+            'rack': cmdb_record.get('Rack') if cmdb_record else 'Unknown',
+            'site': cmdb_record.get('Site') if cmdb_record else 'Unknown',
+            'building': cmdb_record.get('Building') if cmdb_record else 'Unknown',
+            'hall': cmdb_record.get('Hall') if cmdb_record else 'Unknown',
+        })
+
+    rack_map = {}
+    for row in fex_util_rows:
+        rack = row.get('rack') or 'Unknown'
+        entry = rack_map.setdefault(rack, {
+            'rack': rack,
+            'fex_count': 0,
+            'total_ports': 0,
+            'connected_ports': 0,
+            'utilization_known': True,
+            'unknown_ports': 0,
+            'site': row.get('site') or 'Unknown',
+            'building': row.get('building') or 'Unknown',
+            'hall': row.get('hall') or 'Unknown'
+        })
+        entry['fex_count'] += 1
+        total_ports = row.get('total_ports') or 0
+        connected = row.get('connected_ports')
+        entry['total_ports'] += total_ports
+        if connected is None:
+            entry['utilization_known'] = False
+            entry['unknown_ports'] += total_ports
+        else:
+            entry['connected_ports'] += connected
+
+    rack_rows = []
+    consolidation_candidates = 0
+    racks_with_3plus = 0
+    for rack, entry in rack_map.items():
+        if entry['fex_count'] >= 3:
+            racks_with_3plus += 1
+        if entry['utilization_known'] and entry['connected_ports'] <= 48 and entry['fex_count'] >= 3:
+            can_consolidate = 'Yes'
+            consolidation_candidates += 1
+            recommendation = 'Consolidate into 2248 (<=48 ports)'
+        elif entry['utilization_known']:
+            can_consolidate = 'No'
+            recommendation = 'Do not consolidate (ports > 48)'
+        else:
+            can_consolidate = 'Needs Data'
+            recommendation = 'Needs port usage data'
+
+        rack_rows.append({
+            **entry,
+            'can_consolidate': can_consolidate,
+            'recommendation': recommendation
+        })
+
+    fex_inventory = []
+    for fex in analyzer._fexes:
+        fex_inventory.append({
+            'id': fex.get('id'),
+            'name': fex.get('name'),
+            'model': fex.get('model'),
+            'serial': fex.get('ser'),
+            'dn': fex.get('dn')
+        })
+    leaf_inventory = []
+    for leaf in analyzer._leafs:
+        leaf_inventory.append({
+            'id': leaf.get('id'),
+            'name': leaf.get('name'),
+            'model': leaf.get('model'),
+            'serial': leaf.get('serial') or leaf.get('ser'),
+            'role': leaf.get('role'),
+            'dn': leaf.get('dn')
+        })
+
+    contracts = [
+        {
+            'name': c.get('name'),
+            'tenant': analyzer._extract_tenant_from_dn(c.get('dn', '')),
+            'scope': c.get('scope') or c.get('scope', '')
+        }
+        for c in analyzer._contracts
+    ]
+    vrfs = [
+        {
+            'name': v.get('name'),
+            'tenant': analyzer._extract_tenant_from_dn(v.get('dn', '')),
+            'pcEnfPref': v.get('pcEnfPref') or v.get('pce_policy', '')
+        }
+        for v in analyzer._vrfs
+    ]
+    bds = [
+        {
+            'name': b.get('name'),
+            'tenant': analyzer._extract_tenant_from_dn(b.get('dn', '')),
+            'vrf': analyzer._get_vrf_name_for_bd(b)
+        }
+        for b in analyzer._bds
+    ]
+
+    hub_data = {
+        'vlan_coupling': vlan_coupling,
+        'vlan_distribution': vlan_dist,
+        'migration_units': migration_units,
+        'epg_complexity': epg_complexity,
+        'fex_inventory': fex_inventory,
+        'leaf_inventory': leaf_inventory,
+        'contracts': contracts,
+        'vrfs': vrfs,
+        'bds': bds,
+        'fex_port_util': fex_util_rows,
+        'rack_consolidation': {
+            'rows': rack_rows,
+            'statistics': {
+                'total_racks': len(rack_rows),
+                'racks_with_3plus_fex': racks_with_3plus,
+                'consolidation_candidates': consolidation_candidates
+            }
+        },
+        'cmdb_rows': cmdb_rows,
+        'cmdb_stats': cmdb_stats,
+        'has_cmdb_dataset': has_cmdb_dataset,
+        'validation_results': validation_results
+    }
+    cache.set(cache_key, hub_data, timeout=300)
+    return hub_data, validation_results
+
+
+@app.route('/vlans')
+@handle_route_errors
+def view_vlans():
+    mode = 'migration'
+    current_fabric = session.get('current_fabric')
+    hub_data = {}
+    validation_results = None
+    if current_fabric:
+        hub_data, validation_results = _get_hub_data(current_fabric)
+    return render_template('feature_vlans.html',
+                          mode=mode,
+                          current_fabric=current_fabric,
+                          hub_data=hub_data,
+                          validation_results=validation_results)
+
+
+@app.route('/migration-units')
+@handle_route_errors
+def view_migration_units():
+    mode = 'migration'
+    current_fabric = session.get('current_fabric')
+    hub_data = {}
+    validation_results = None
+    if current_fabric:
+        hub_data, validation_results = _get_hub_data(current_fabric)
+    return render_template('feature_migration.html',
+                          mode=mode,
+                          current_fabric=current_fabric,
+                          hub_data=hub_data,
+                          validation_results=validation_results)
+
+
+@app.route('/epgs')
+@handle_route_errors
+def view_epgs():
+    mode = 'migration'
+    current_fabric = session.get('current_fabric')
+    hub_data = {}
+    validation_results = None
+    if current_fabric:
+        hub_data, validation_results = _get_hub_data(current_fabric)
+    return render_template('feature_epgs.html',
+                          mode=mode,
+                          current_fabric=current_fabric,
+                          hub_data=hub_data,
+                          validation_results=validation_results)
+
+
+@app.route('/fex-consolidation')
+@handle_route_errors
+def view_fex_consolidation():
+    mode = 'migration'
+    current_fabric = session.get('current_fabric')
+    hub_data = {}
+    validation_results = None
+    if current_fabric:
+        hub_data, validation_results = _get_hub_data(current_fabric)
+    return render_template('feature_fex.html',
+                          mode=mode,
+                          current_fabric=current_fabric,
+                          hub_data=hub_data,
+                          validation_results=validation_results)
+
+
+@app.route('/cmdb')
+@handle_route_errors
+def view_cmdb():
+    mode = 'migration'
+    current_fabric = session.get('current_fabric')
+    hub_data = {}
+    validation_results = None
+    if current_fabric:
+        hub_data, validation_results = _get_hub_data(current_fabric)
+    return render_template('feature_cmdb.html',
                           mode=mode,
                           current_fabric=current_fabric,
                           hub_data=hub_data,

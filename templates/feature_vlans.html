@@ -1,0 +1,35 @@
+{% extends "feature_base.html" %}
+{% set title = "VLAN Coupling" %}
+{% set subtitle = "Identify VLANs that drive migration risk and review their EPG/leaf/FEX bindings." %}
+{% block content %}
+{% if not current_fabric %}
+{{ super() }}
+{% else %}
+{% include "partials/data_readiness.html" %}
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">VLAN Coupling</h1>
+    <p class="mt-2 text-sm text-gray-600">Identify VLANs that drive migration risk and review their EPG/leaf/FEX bindings.</p>
+</div>
+<div class="vlan-kpi-grid">
+    <div class="vlan-kpi-card">
+        <p>Total VLANs</p>
+        <h3>{{ hub_data.get('vlan_coupling', {}).get('statistics', {}).get('total_vlans', 0) }}</h3>
+    </div>
+    <div class="vlan-kpi-card">
+        <p>Overlap VLANs</p>
+        <h3>{{ hub_data.get('vlan_distribution', {}).get('overlaps', []) | length }}</h3>
+    </div>
+    <div class="vlan-kpi-card">
+        <p>High Coupling</p>
+        <h3>{{ hub_data.get('vlan_coupling', {}).get('statistics', {}).get('high_coupling', 0) }}</h3>
+    </div>
+</div>
+{% include "partials/vlan_filter_bar.html" %}
+{% include "partials/vlan_table.html" %}
+<script id="vlan-rows-data" type="application/json">{{ hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) | tojson }}</script>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='vlan_explorer.js') }}"></script>
+{% endblock %}

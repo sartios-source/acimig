@@ -1,0 +1,40 @@
+{% extends "feature_base.html" %}
+{% from "macros/data_explorer.html" import data_explorer %}
+{% set title = "EPG Complexity" %}
+{% set subtitle = "EPG attachment complexity and dependency risk." %}
+{% block content %}
+{% if not current_fabric %}
+{{ super() }}
+{% else %}
+{% include "partials/data_readiness.html" %}
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">EPG Complexity</h1>
+    <p class="mt-2 text-sm text-gray-600">EPG attachment complexity and dependency risk.</p>
+</div>
+{% set epg_columns = [
+    {'key': 'tenant', 'label': 'Tenant', 'type': 'text', 'filter': 'exact'},
+    {'key': 'app_profile', 'label': 'App', 'type': 'text', 'filter': 'exact'},
+    {'key': 'epg_name', 'label': 'EPG', 'type': 'text'},
+    {'key': 'vlan_count', 'label': 'VLANs', 'type': 'number'},
+    {'key': 'bd', 'label': 'BD', 'type': 'text'},
+    {'key': 'vrf', 'label': 'VRF', 'type': 'text'},
+    {'key': 'path_count', 'label': 'Bindings', 'type': 'number'},
+    {'key': 'node_count', 'label': 'Leafs', 'type': 'number'},
+    {'key': 'fex_binding_count', 'label': 'FEX', 'type': 'number'},
+    {'key': 'contracts_count', 'label': 'Contracts', 'type': 'number'},
+    {'key': 'complexity_score', 'label': 'Score', 'type': 'number'},
+    {'key': 'complexity_level', 'label': 'Risk', 'type': 'text'}
+] %}
+{{ data_explorer(
+    'feature-epgs',
+    'EPG Explorer',
+    'All EPGs with complexity scoring.',
+    epg_columns,
+    hub_data.get('epg_complexity', []),
+    {'defaultSort': 'complexity_score', 'titleField': 'epg_name', 'subtitleField': 'complexity_level'}
+) }}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='data_explorer.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "feature_base.html" %}
+{% set title = "CMDB Correlation" %}
+{% set subtitle = "Validate rack/site mapping by SerialNumber." %}
+{% block content %}
+{% if not current_fabric %}
+{{ super() }}
+{% else %}
+{% include "partials/data_readiness.html" %}
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">CMDB Correlation</h1>
+    <p class="mt-2 text-sm text-gray-600">Validate rack/site mapping by SerialNumber.</p>
+</div>
+{% set cmdb_stats = hub_data.get('cmdb_stats', {}) %}
+{% set cmdb_rows = hub_data.get('cmdb_rows', []) %}
+{% include "partials/cmdb_explorer.html" %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='cmdb_explorer.js') }}"></script>
+{% endblock %}

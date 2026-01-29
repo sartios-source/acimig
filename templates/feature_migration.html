@@ -1,0 +1,47 @@
+{% extends "feature_base.html" %}
+{% from "macros/data_explorer.html" import data_explorer %}
+{% set title = "Migration Units" %}
+{% set subtitle = "Actionable work items grouped by leaf/FEX and coupling difficulty." %}
+{% block content %}
+{% if not current_fabric %}
+{{ super() }}
+{% else %}
+{% include "partials/data_readiness.html" %}
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">Migration Units</h1>
+    <p class="mt-2 text-sm text-gray-600">Actionable work items grouped by leaf/FEX and coupling difficulty.</p>
+</div>
+{% set unit_columns = [
+    {'key': 'site', 'label': 'Site', 'type': 'text', 'filter': 'exact'},
+    {'key': 'building', 'label': 'Building', 'type': 'text', 'filter': 'exact'},
+    {'key': 'hall', 'label': 'Hall', 'type': 'text', 'filter': 'exact'},
+    {'key': 'rack', 'label': 'Rack', 'type': 'text', 'filter': 'exact'},
+    {'key': 'leaf_or_vpc', 'label': 'Leaf / VPC', 'type': 'text'},
+    {'key': 'fex_display', 'label': 'FEX', 'type': 'text'},
+    {'key': 'ports_used', 'label': 'Ports Used', 'type': 'number'},
+    {'key': 'ports_total', 'label': 'Ports Total', 'type': 'number'},
+    {'key': 'utilization_pct', 'label': 'Utilization %', 'type': 'number'},
+    {'key': 'impacted_epg_count', 'label': 'EPGs', 'type': 'number'},
+    {'key': 'impacted_vlan_count', 'label': 'VLANs', 'type': 'number'},
+    {'key': 'worst_vlan_display', 'label': 'Worst VLAN', 'type': 'text'},
+    {'key': 'coupled_vlan_count', 'label': 'Coupled VLANs', 'type': 'number'},
+    {'key': 'impacted_tenant_count', 'label': 'Tenants', 'type': 'number'},
+    {'key': 'service_graph_present', 'label': 'Service Graph', 'type': 'text'},
+    {'key': 'vpc_symmetry', 'label': 'VPC Symmetry', 'type': 'text'},
+    {'key': 'score', 'label': 'Score', 'type': 'number'},
+    {'key': 'difficulty_bucket', 'label': 'Difficulty', 'type': 'text', 'filter': 'exact'},
+    {'key': 'recommendation', 'label': 'Recommendation', 'type': 'text'}
+] %}
+{{ data_explorer(
+    'feature-migration',
+    'Migration Units',
+    'Actionable work items with coupling-driven difficulty.',
+    unit_columns,
+    hub_data.get('migration_units', {}).get('units', []),
+    {'defaultSort': 'score', 'titleField': 'leaf_or_vpc', 'subtitleField': 'difficulty_bucket'}
+) }}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='data_explorer.js') }}"></script>
+{% endblock %}

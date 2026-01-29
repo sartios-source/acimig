@@ -1,0 +1,18 @@
+{% extends "feature_base.html" %}
+{% set title = "FEX Consolidation" %}
+{% set subtitle = "Racks with 3+ FEX and port usage <= 48 can consolidate." %}
+{% block content %}
+{% if not current_fabric %}
+{{ super() }}
+{% else %}
+{% include "partials/data_readiness.html" %}
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">FEX Consolidation</h1>
+    <p class="mt-2 text-sm text-gray-600">Racks with 3+ FEX and port usage <= 48 can consolidate.</p>
+</div>
+{% include "partials/fex_consolidation.html" %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='fex_consolidation.js') }}"></script>
+{% endblock %}
