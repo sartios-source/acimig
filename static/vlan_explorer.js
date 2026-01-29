@@ -106,7 +106,7 @@
     }
 
     function compare(a, b, key, direction) {
-        const dir = direction === 'desc' - -1 : 1;
+        const dir = direction === 'desc' ? -1 : 1;
         const av = a[key];
         const bv = b[key];
         if (typeof av === 'number' && typeof bv === 'number') {
@@ -128,7 +128,7 @@
 
         document.querySelectorAll('#vlan-table thead th[data-col]').forEach(th => {
             const key = th.getAttribute('data-col');
-            th.style.display = state.visibleColumns.has(key) - '' : 'none';
+            th.style.display = state.visibleColumns.has(key) ? '' : 'none';
         });
 
         const colSpan = state.visibleColumns.size + 1;
@@ -149,7 +149,7 @@
             return;
         }
 
-        const worst = document.getElementById('worst-vlan-card')-.getAttribute('data-worst-vlan');
+        const worst = document.getElementById('worst-vlan-card')?.getAttribute('data-worst-vlan');
 
         state.filtered.forEach(row => {
             const tr = document.createElement('tr');
@@ -190,7 +190,7 @@
                     badge.textContent = level;
                     td.appendChild(badge);
                 } else {
-                    td.textContent = normalize(row[col.key] -- 'N/A');
+                    td.textContent = normalize(row[col.key] ?? 'N/A');
                 }
                 tr.appendChild(td);
             });
@@ -218,7 +218,7 @@
         const detailRow = rowEl.nextElementSibling;
         if (!detailRow || !detailRow.classList.contains('vlan-detail-row')) return;
         const isOpen = detailRow.classList.toggle('open');
-        btn.textContent = isOpen - '-' : '+';
+        btn.textContent = isOpen ? '-' : '+';
         if (isOpen && !detailRow.dataset.rendered) {
             const row = state.filtered.find(r => String(r.vlan_id) === String(vlanId));
             renderDetails(row, detailRow);
@@ -229,8 +229,8 @@
     function renderDetails(row, detailRow) {
         if (!row) return;
         const detailCell = detailRow.querySelector('td');
-        const readiness = row.coupling_score >= 35 - 'Hard' : row.coupling_score >= 15 - 'Medium' : 'Easy';
-        const reasons = row.reasons && row.reasons.length - row.reasons : (row.why - [row.why] : []);
+        const readiness = row.coupling_score >= 35 ? 'Hard' : row.coupling_score >= 15 ? 'Medium' : 'Easy';
+        const reasons = row.reasons && row.reasons.length ? row.reasons : (row.why ? [row.why] : []);
         const hasRack = (row.rack_count || 0) > 0;
 
         detailCell.innerHTML = `
@@ -250,7 +250,7 @@
                 <div class="vlan-detail-controls">
                     <span>Group by</span>
                     <button type="button" class="vlan-toggle-btn active" data-group="leaf">Leaf</button>
-                    <button type="button" class="vlan-toggle-btn" data-group="rack" ${hasRack - '' : 'disabled'}>Rack</button>
+                    <button type="button" class="vlan-toggle-btn" data-group="rack" ${hasRack ? '' : 'disabled'}>Rack</button>
                 </div>
             </div>
             <div class="vlan-epg-list" data-vlan="${row.vlan_id}"></div>
@@ -276,7 +276,7 @@
         const leafs = new Set(bindings.map(b => b.leafId).filter(Boolean));
         const fex = new Set(bindings.map(b => b.fexSerial || b.fexId).filter(Boolean));
         const racks = new Set(bindings.map(b => b.rack).filter(Boolean));
-        const reasons = row.reasons && row.reasons.length - row.reasons : (row.why - [row.why] : []);
+        const reasons = row.reasons && row.reasons.length ? row.reasons : (row.why ? [row.why] : []);
 
         panel.innerHTML = `
             <div class="vlan-detail-grid">
@@ -308,7 +308,7 @@
 
         const html = epgs.map(epg => {
             const title = `${epg.tenant || 'Unknown'} / ${epg.app || 'Unknown'} / ${epg.epg || 'Unknown'}`;
-            const bindings = Array.isArray(epg.bindings) - epg.bindings : [];
+            const bindings = Array.isArray(epg.bindings) ? epg.bindings : [];
             const grouped = groupBindings(bindings, groupBy);
             const groupsHtml = Object.entries(grouped).map(([label, items]) => {
                 const list = items.map(item => renderBinding(item)).join('');
@@ -330,7 +330,7 @@
             btn.addEventListener('click', () => {
                 const value = btn.getAttribute('data-copy');
                 if (!value) return;
-                navigator.clipboard-.writeText(value).then(() => {
+                navigator.clipboard?.writeText(value).then(() => {
                     btn.textContent = 'Copied';
                     setTimeout(() => (btn.textContent = 'Copy path'), 1500);
                 });
@@ -345,7 +345,7 @@
             if (groupBy === 'rack') {
                 key = binding.rack || 'Unknown Rack';
             } else {
-                key = binding.leafName || (binding.leafId - `Leaf ${binding.leafId}` : 'Leaf Unknown');
+                key = binding.leafName || (binding.leafId ? `Leaf ${binding.leafId}` : 'Leaf Unknown');
             }
             if (!grouped[key]) grouped[key] = [];
             grouped[key].push(binding);
@@ -354,19 +354,19 @@
     }
 
     function renderBinding(binding) {
-        const leafLabel = binding.leafName || (binding.leafId - `Leaf ${binding.leafId}` : 'Leaf Unknown');
-        const fexLabel = binding.fexSerial - `FEX ${binding.fexSerial}` : (binding.fexId - `FEX ${binding.fexId}` : '');
-        const rackLabel = binding.rack - `Rack ${binding.rack}` : '';
+        const leafLabel = binding.leafName || (binding.leafId ? `Leaf ${binding.leafId}` : 'Leaf Unknown');
+        const fexLabel = binding.fexSerial ? `FEX ${binding.fexSerial}` : (binding.fexId ? `FEX ${binding.fexId}` : '');
+        const rackLabel = binding.rack ? `Rack ${binding.rack}` : '';
         const path = binding.path || '';
         const interfaceLabel = binding.interface || 'N/A';
         return `
             <div class="vlan-binding">
-                <span class="vlan-pill">${binding.binding_type === 'fex' - 'FEX' : 'Leaf'}</span>
+                <span class="vlan-pill">${binding.binding_type === 'fex' ? 'FEX' : 'Leaf'}</span>
                 <span class="vlan-pill">${leafLabel}</span>
-                ${fexLabel - `<span class="vlan-pill">${fexLabel}</span>` : ''}
-                ${rackLabel - `<span class="vlan-pill">${rackLabel}</span>` : ''}
+                ${fexLabel ? `<span class="vlan-pill">${fexLabel}</span>` : ''}
+                ${rackLabel ? `<span class="vlan-pill">${rackLabel}</span>` : ''}
                 <span class="vlan-binding-path">${interfaceLabel}</span>
-                ${path - `<button type="button" class="vlan-copy" data-copy="${path}">Copy path</button>` : ''}
+                ${path ? `<button type="button" class="vlan-copy" data-copy="${path}">Copy path</button>` : ''}
             </div>
         `;
     }
@@ -400,7 +400,7 @@
         document.querySelectorAll('.vlan-dropdown').forEach(dropdown => {
             const button = dropdown.querySelector('.vlan-action-btn');
             const menu = dropdown.querySelector('.vlan-dropdown-menu');
-            button-.addEventListener('click', e => {
+            button.addEventListener('click', e => {
                 e.stopPropagation();
                 const open = !menu.hasAttribute('hidden');
                 document.querySelectorAll('.vlan-dropdown-menu').forEach(m => m.setAttribute('hidden', ''));
@@ -417,7 +417,7 @@
             const key = th.getAttribute('data-col');
             th.addEventListener('click', () => {
                 if (state.sort.key === key) {
-                    state.sort.direction = state.sort.direction === 'asc' - 'desc' : 'asc';
+                    state.sort.direction = state.sort.direction === 'asc' ? 'desc' : 'asc';
                 } else {
                     state.sort.key = key;
                     state.sort.direction = 'desc';
@@ -435,24 +435,24 @@
             });
         });
         const flagged = document.getElementById('vlan-flagged-toggle');
-        flagged-.addEventListener('change', e => {
+        flagged.addEventListener('change', e => {
             state.filters.flagged = e.target.checked;
             update();
         });
         const scoreMin = document.getElementById('vlan-score-min');
         const scoreMax = document.getElementById('vlan-score-max');
-        scoreMin-.addEventListener('input', e => {
-            const val = e.target.value === '' - null : Number(e.target.value);
-            state.filters.scoreMin = Number.isNaN(val) - null : val;
+        scoreMin.addEventListener('input', e => {
+            const val = e.target.value === '' ? null : Number(e.target.value);
+            state.filters.scoreMin = Number.isNaN(val) ? null : val;
             update();
         });
-        scoreMax-.addEventListener('input', e => {
-            const val = e.target.value === '' - null : Number(e.target.value);
-            state.filters.scoreMax = Number.isNaN(val) - null : val;
+        scoreMax.addEventListener('input', e => {
+            const val = e.target.value === '' ? null : Number(e.target.value);
+            state.filters.scoreMax = Number.isNaN(val) ? null : val;
             update();
         });
         const search = document.getElementById('vlan-search');
-        search-.addEventListener('input', e => {
+        search.addEventListener('input', e => {
             state.filters.search = e.target.value || '';
             update();
         });
@@ -470,7 +470,7 @@
             });
         });
         const reset = document.getElementById('vlan-reset');
-        reset-.addEventListener('click', () => resetFilters());
+        reset.addEventListener('click', () => resetFilters());
     }
 
     function resetFilters() {
@@ -522,7 +522,7 @@
             filters.push({
                 type: 'score',
                 value: [state.filters.scoreMin, state.filters.scoreMax],
-                label: `Score ${state.filters.scoreMin -- 0}-${state.filters.scoreMax -- 100}`
+                label: `Score ${state.filters.scoreMin ?? 0}-${state.filters.scoreMax ?? 100}`
             });
         }
         if (state.filters.search) {
@@ -653,7 +653,7 @@
     }
 
     function escapeCsv(value) {
-        const str = value === null || value === undefined - '' : String(value);
+        const str = value === null || value === undefined ? '' : String(value);
         if (str.includes(',') || str.includes('"') || str.includes('\n')) {
             return `"${str.replace(/"/g, '""')}"`;
         }
@@ -672,8 +672,8 @@
 
     function setupWorstVlanLink() {
         const card = document.getElementById('worst-vlan-card');
-        const button = card-.querySelector('.vlan-kpi-link');
-        const target = card-.getAttribute('data-worst-vlan');
+        const button = card?.querySelector('.vlan-kpi-link');
+        const target = card?.getAttribute('data-worst-vlan');
         if (!button || !target) return;
         button.addEventListener('click', () => {
             const row = document.querySelector(`tr.vlan-row[data-vlan-id="${target}"]`);
