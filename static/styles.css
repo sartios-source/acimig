@@ -1717,6 +1717,21 @@ body {
     font-size: 0.78rem;
     color: #334155;
 }
+.de-export-row {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.de-export-quick {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #cbd5f5;
+    background: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #1e293b;
+}
 .de-muted {
     font-size: 0.75rem;
     color: #64748b;

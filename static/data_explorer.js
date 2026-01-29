@@ -80,6 +80,18 @@
             `;
         }
 
+        if (Array.isArray(row.epgs) && row.epgs.length) {
+            return `
+                <div class="de-drawer-section">
+                    <h5>EPG list</h5>
+                    <div class="de-muted">${formatList(row.epgs)}</div>
+                    <div class="de-export-row">
+                        <button type="button" class="de-export-quick" data-export="epgs">Export EPGs</button>
+                    </div>
+                </div>
+            `;
+        }
+
         if (Array.isArray(row.bindings) && row.bindings.length) {
             const bindingLines = row.bindings.slice(0, 50).map(binding => `<li>${buildBindingLine(binding) || 'Binding'}</li>`).join('');
             const remainder = row.bindings.length > 50 ? `<div class="de-muted">+ ${row.bindings.length - 50} more bindings</div>` : '';
@@ -98,11 +110,32 @@
         if (row.impacted_bds) impactRows.push(`<div><strong>BDs</strong>: ${formatList(row.impacted_bds)}</div>`);
         if (row.impacted_vrfs) impactRows.push(`<div><strong>VRFs</strong>: ${formatList(row.impacted_vrfs)}</div>`);
         if (row.impacted_tenants) impactRows.push(`<div><strong>Tenants</strong>: ${formatList(row.impacted_tenants)}</div>`);
+        if (row.top_coupled_vlans && Array.isArray(row.top_coupled_vlans)) {
+            const items = row.top_coupled_vlans.map(v => `${v.vlan_id} (${v.level || 'n/a'})`).join(', ');
+            impactRows.push(`<div><strong>Top Coupled VLANs</strong>: ${escapeHtml(items) || 'None'}</div>`);
+        }
         if (impactRows.length) {
             return `
                 <div class="de-drawer-section">
                     <h5>Impact summary</h5>
                     ${impactRows.join('')}
+                    <div class="de-export-row">
+                        ${row.impacted_epgs ? '<button type="button" class="de-export-quick" data-export="impacted_epgs">Export EPGs</button>' : ''}
+                        ${row.impacted_vlans ? '<button type="button" class="de-export-quick" data-export="impacted_vlans">Export VLANs</button>' : ''}
+                        ${row.ports ? '<button type="button" class="de-export-quick" data-export="ports">Export Ports</button>' : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        if (Array.isArray(row.ports) && row.ports.length) {
+            return `
+                <div class="de-drawer-section">
+                    <h5>Ports</h5>
+                    <div class="de-muted">${formatList(row.ports)}</div>
+                    <div class="de-export-row">
+                        <button type="button" class="de-export-quick" data-export="ports">Export Ports</button>
+                    </div>
                 </div>
             `;
         }
@@ -393,6 +426,42 @@
             return `<div class="de-detail-row"><span>${key}</span><span>${normalizeValue(row[key])}</span></div>`;
         }).join('');
         detailsEl.innerHTML = `${mappingSection}<div class="de-detail-grid">${detailRows}</div>`;
+
+        detailsEl.querySelectorAll('.de-export-quick').forEach(button => {
+            button.addEventListener('click', e => {
+                e.stopPropagation();
+                const exportType = button.getAttribute('data-export');
+                if (!exportType) return;
+                exportRowList(row, exportType);
+            });
+        });
+    }
+
+    function exportRowList(row, exportType) {
+        let values = [];
+        let name = exportType;
+        if (exportType === 'epgs') {
+            values = Array.isArray(row.epgs) ? row.epgs : [];
+            name = 'epgs';
+        } else if (exportType === 'impacted_epgs') {
+            values = Array.isArray(row.impacted_epgs) ? row.impacted_epgs : [];
+            name = 'impacted_epgs';
+        } else if (exportType === 'impacted_vlans') {
+            values = Array.isArray(row.impacted_vlans) ? row.impacted_vlans : [];
+            name = 'impacted_vlans';
+        } else if (exportType === 'ports') {
+            values = Array.isArray(row.ports) ? row.ports : [];
+            name = 'ports';
+        }
+        const header = 'value';
+        const lines = [header, ...values.map(v => `"${String(v).replace(/"/g, '""')}"`)];
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${name}_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     function closeDrawer(state) {
