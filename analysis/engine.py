@@ -228,9 +228,17 @@ class ACIAnalyzer:
                 self._subnets.append(attrs)
 
             elif obj_type == 'ethpmPhysIf':
+                if not attrs.get('id'):
+                    iface_id = self._extract_interface_id_from_dn(attrs.get('dn', ''))
+                    if iface_id:
+                        attrs['id'] = iface_id
                 self._interfaces.append(attrs)
 
             elif obj_type == 'l1PhysIf':
+                if not attrs.get('id'):
+                    iface_id = self._extract_interface_id_from_dn(attrs.get('dn', ''))
+                    if iface_id:
+                        attrs['id'] = iface_id
                 self._l1_interfaces.append(attrs)
 
             elif obj_type == 'physDomP':
