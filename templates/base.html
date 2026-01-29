@@ -42,10 +42,20 @@
 
     <!-- Custom CSS -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+        :root {
+            --ui-bg: #f5f8fb;
+            --ui-panel: #ffffff;
+            --ui-border: #e2e8f0;
+            --ui-text: #0f172a;
+            --ui-muted: #5b6b82;
+            --ui-accent: #0070b8;
+            --ui-accent-dark: #004a7c;
+        }
 
         * {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Space Grotesk', 'Segoe UI', Tahoma, sans-serif;
         }
 
         /* Smooth scrolling */
@@ -176,12 +186,12 @@
         }
 
         .sidebar-link:hover {
-            background: rgba(59, 130, 246, 0.1);
+            background: rgba(0, 112, 184, 0.18);
         }
 
         .sidebar-link.active {
-            background: rgba(59, 130, 246, 0.15);
-            border-left: 3px solid #3b82f6;
+            background: rgba(0, 112, 184, 0.25);
+            border-left: 3px solid var(--ui-accent);
         }
 
         .sidebar-link.active::before {
@@ -191,16 +201,16 @@
             top: 0;
             bottom: 0;
             width: 3px;
-            background: #3b82f6;
+            background: var(--ui-accent);
         }
     </style>
 
     {% block extra_css %}{% endblock %}
 </head>
-<body class="h-full bg-gray-50 antialiased">
+    <body class="h-full antialiased" style="background: var(--ui-bg);">
 
     <!-- Sidebar -->
-    <aside id="sidebar" class="sidebar fixed top-0 left-0 z-40 w-64 h-screen bg-slate-800 text-white shadow-2xl">
+    <aside id="sidebar" class="sidebar fixed top-0 left-0 z-40 w-64 h-screen text-white shadow-2xl" style="background: linear-gradient(180deg, #001b2f 0%, #002a45 60%, #0a3d6a 100%);">
         <!-- Logo/Brand Section -->
         <div class="flex items-center justify-between p-4 border-b border-slate-700">
             <div class="flex items-center space-x-3">

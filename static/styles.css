@@ -1,24 +1,33 @@
 /* ACI Analysis Tool - Styles */
 :root {
     --primary-color: #0070b8;
-    --bg-color: #f4f9fc;
-    --card-bg: #FFFFFF;
+    --primary-ink: #003b5c;
+    --bg-color: #eef3f8;
+    --card-bg: #ffffff;
     --border-color: #d7e6f3;
+    --muted-text: #5b6b7a;
+    --shadow-soft: 0 12px 30px rgba(0, 28, 61, 0.08);
+    --shadow-tight: 0 6px 16px rgba(0, 28, 61, 0.1);
+    --accent-ink: #0c4a6e;
+    --success-color: #0f766e;
+    --warn-color: #b45309;
+    --danger-color: #b91c1c;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    font-family: "Space Grotesk", "Segoe UI", Arial, sans-serif;
     font-size: 14px;
     line-height: 1.6;
-    color: #333;
-    background: var(--bg-color);
+    color: #0f172a;
+    background: radial-gradient(circle at top, #f8fbff 0%, var(--bg-color) 55%, #e4edf6 100%);
 }
 
 .top-nav {
-    background: var(--card-bg);
-    border-bottom: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.9);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+    backdrop-filter: blur(10px);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -46,14 +55,14 @@ body {
 
 .nav-link {
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: 999px;
     text-decoration: none;
-    color: #333;
-    transition: all 0.2s;
+    color: #0f172a;
+    transition: all 0.2s ease;
 }
 
 .nav-link:hover {
-    background: #F5F5F5;
+    background: rgba(15, 23, 42, 0.08);
 }
 
 .mode-toggle {
@@ -79,10 +88,10 @@ body {
 .main-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 24px 20px 40px;
     display: grid;
     grid-template-columns: 1fr 280px;
-    gap: 20px;
+    gap: 22px;
 }
 
 .content-area {
@@ -90,13 +99,14 @@ body {
 }
 
 .context-help {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 16px;
     padding: 20px;
     height: fit-content;
     position: sticky;
     top: 80px;
+    box-shadow: var(--shadow-soft);
 }
 
 .hero {
@@ -1435,22 +1445,23 @@ body {
 
 /* Data Explorer */
 .data-explorer {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 16px;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: var(--shadow-soft);
 }
 .de-layout {
     display: grid;
     grid-template-columns: minmax(220px, 260px) 1fr;
-    gap: 16px;
+    gap: 18px;
 }
 .de-filters-panel {
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 12px;
-    background: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 14px;
+    padding: 14px;
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
 }
 .de-filters-panel h4 {
     font-size: 0.9rem;
@@ -1471,11 +1482,11 @@ body {
 }
 .de-filter-control select,
 .de-filter-control input[type="text"] {
-    border: 1px solid #cbd5f5;
-    border-radius: 8px;
-    padding: 6px 8px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
+    border-radius: 10px;
+    padding: 8px 10px;
     background: #ffffff;
-    font-size: 0.8rem;
+    font-size: 0.82rem;
 }
 .de-filter-control input[type="checkbox"] {
     width: 16px;
@@ -1498,18 +1509,18 @@ body {
     gap: 4px;
 }
 .de-title {
-    font-size: 1.125rem;
+    font-size: 1.2rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--primary-ink);
 }
 .de-description {
-    font-size: 0.9rem;
-    color: #64748b;
+    font-size: 0.92rem;
+    color: var(--muted-text);
 }
 .de-controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
 }
 .de-filter-summary {
@@ -1519,33 +1530,33 @@ body {
     align-items: center;
     font-size: 0.8rem;
     color: #475569;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 8px 10px;
+    background: rgba(248, 250, 252, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 12px;
+    padding: 10px 12px;
 }
 .de-filter-summary .de-clear-filters {
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid #cbd5f5;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
     background: #ffffff;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #1e293b;
+    color: #0f172a;
 }
 .de-search {
     flex: 1 1 220px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid #cbd5f5;
+    padding: 9px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
     font-size: 0.875rem;
 }
 .de-page-size,
 .de-columns-toggle,
 .de-export {
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid #cbd5f5;
+    padding: 8px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
     background: #f8fafc;
     font-size: 0.825rem;
     font-weight: 600;
@@ -1553,9 +1564,9 @@ body {
 }
 .de-columns-panel {
     background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 14px;
+    padding: 12px;
 }
 .de-columns-list {
     display: grid;
@@ -1581,34 +1592,36 @@ body {
 }
 .de-table-wrapper {
     overflow-x: auto;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: #ffffff;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
 }
 .de-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.85rem;
+    font-size: 0.86rem;
 }
 .de-table th,
 .de-table td {
-    padding: 8px 10px;
+    padding: 10px 12px;
     text-align: left;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
 }
 .de-table th {
     background: #f1f5f9;
     font-weight: 700;
-    color: #1e293b;
+    color: #0f172a;
 }
 .de-filter-row input {
     width: 100%;
-    padding: 6px 8px;
-    border-radius: 6px;
-    border: 1px solid #cbd5f5;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
     font-size: 0.75rem;
 }
 .de-row:hover {
-    background: #f8fafc;
+    background: rgba(219, 234, 254, 0.35);
     cursor: pointer;
 }
 .de-empty {
@@ -1625,9 +1638,9 @@ body {
     color: #475569;
 }
 .de-page-controls button {
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid #cbd5f5;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
     background: #f8fafc;
     font-size: 0.8rem;
 }
@@ -1643,7 +1656,7 @@ body {
 .de-drawer-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(15, 23, 42, 0.45);
+    background: rgba(15, 23, 42, 0.55);
 }
 .de-drawer-panel {
     position: absolute;
@@ -1653,7 +1666,7 @@ body {
     width: min(420px, 90vw);
     background: #ffffff;
     padding: 20px;
-    box-shadow: -12px 0 30px rgba(15, 23, 42, 0.2);
+    box-shadow: -18px 0 40px rgba(15, 23, 42, 0.22);
     overflow-y: auto;
 }
 .de-drawer-header {
@@ -1674,9 +1687,9 @@ body {
     color: #64748b;
 }
 .de-drawer-close {
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid #cbd5f5;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
     background: #f8fafc;
 }
 .de-drawer-why h5 {
@@ -1700,10 +1713,10 @@ body {
 }
 .de-mapping-group {
     margin-bottom: 10px;
-    padding: 8px;
+    padding: 10px;
     background: #f8fafc;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
 }
 .de-mapping-title {
     font-size: 0.8rem;
@@ -1724,13 +1737,13 @@ body {
     flex-wrap: wrap;
 }
 .de-export-quick {
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid #cbd5f5;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
     background: #ffffff;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #1e293b;
+    color: #0f172a;
 }
 .de-muted {
     font-size: 0.75rem;
@@ -1765,15 +1778,15 @@ body {
 .vlan-kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
+    gap: 18px;
+    margin-bottom: 26px;
 }
 .vlan-kpi-card {
-    background: linear-gradient(135deg, #ffffff, #f8fafc);
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    padding: 16px;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+    background: linear-gradient(135deg, #ffffff 25%, #eef4fa 100%);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: var(--shadow-tight);
 }
 .vlan-kpi-card p {
     font-size: 0.75rem;
@@ -1782,7 +1795,7 @@ body {
     color: #64748b;
 }
 .vlan-kpi-card h3 {
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     font-weight: 700;
     color: #0f172a;
     display: flex;
@@ -1814,11 +1827,11 @@ body {
     margin-bottom: 24px;
 }
 .vlan-overview-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 18px;
-    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: var(--shadow-soft);
 }
 .vlan-overview-header h3 {
     font-size: 1rem;
@@ -1842,23 +1855,23 @@ body {
 .vlan-help-note {
     margin-top: 12px;
     background: #f8fafc;
-    border: 1px dashed #cbd5f5;
+    border: 1px dashed rgba(148, 163, 184, 0.6);
     border-radius: 12px;
-    padding: 10px;
-    font-size: 0.8rem;
+    padding: 12px;
+    font-size: 0.82rem;
     color: #475569;
 }
 
 .vlan-filter-bar {
     position: sticky;
-    top: 0;
+    top: 84px;
     z-index: 20;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 18px;
     padding: 16px;
     margin-bottom: 18px;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    box-shadow: var(--shadow-soft);
 }
 .vlan-filter-row {
     display: flex;
@@ -1893,7 +1906,7 @@ body {
     cursor: pointer;
 }
 .vlan-segment input:checked + span {
-    background: #1d4ed8;
+    background: #0f172a;
     color: #ffffff;
 }
 .vlan-toggle {
@@ -1926,7 +1939,7 @@ body {
     transition: transform 0.2s ease;
 }
 .vlan-toggle input:checked + .vlan-toggle-track {
-    background: #1d4ed8;
+    background: #0f172a;
 }
 .vlan-toggle input:checked + .vlan-toggle-track::after {
     transform: translateX(16px);
@@ -1938,22 +1951,22 @@ body {
 }
 .vlan-score-range input {
     width: 70px;
-    padding: 6px 8px;
-    border-radius: 8px;
-    border: 1px solid #cbd5f5;
+    padding: 7px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
     font-size: 0.8rem;
 }
 .vlan-filter-search input {
     min-width: 220px;
-    padding: 8px 10px;
-    border-radius: 10px;
-    border: 1px solid #cbd5f5;
+    padding: 9px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
     font-size: 0.85rem;
 }
 .vlan-reset {
     padding: 8px 12px;
-    border-radius: 10px;
-    border: 1px solid #cbd5f5;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
     background: #ffffff;
     font-size: 0.8rem;
     font-weight: 600;
@@ -1970,7 +1983,7 @@ body {
     gap: 8px;
 }
 .vlan-chip {
-    border: 1px solid #cbd5f5;
+    border: 1px solid rgba(148, 163, 184, 0.6);
     border-radius: 999px;
     padding: 6px 12px;
     font-size: 0.75rem;
@@ -1980,25 +1993,25 @@ body {
     cursor: pointer;
 }
 .vlan-chip.active {
-    background: #1d4ed8;
+    background: #0f172a;
     color: #ffffff;
-    border-color: #1d4ed8;
+    border-color: #0f172a;
 }
 
 .cmdb-kpi-grid,
 .fex-kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 18px;
+    margin-bottom: 22px;
 }
 .cmdb-kpi-card,
 .fex-kpi-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    padding: 16px;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+    background: linear-gradient(135deg, #ffffff 30%, #f3f7fb 100%);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: var(--shadow-tight);
 }
 .cmdb-kpi-card p,
 .fex-kpi-card p {
@@ -2015,19 +2028,19 @@ body {
 }
 .cmdb-kpi-ok h3,
 .fex-kpi-ok h3 {
-    color: #15803d;
+    color: var(--success-color);
 }
 .cmdb-kpi-warn h3 {
-    color: #be123c;
+    color: var(--danger-color);
 }
 .cmdb-filter-bar,
 .fex-filter-bar {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 18px;
     padding: 16px;
-    margin-bottom: 16px;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+    margin-bottom: 18px;
+    box-shadow: var(--shadow-soft);
 }
 .cmdb-filter-row,
 .fex-filter-row {
@@ -2056,15 +2069,15 @@ body {
 .cmdb-filter-search input,
 .fex-filter-search input {
     width: 100%;
-    border: 1px solid #cbd5f5;
-    border-radius: 10px;
-    padding: 8px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
+    border-radius: 999px;
+    padding: 9px 12px;
     font-size: 0.85rem;
 }
 .cmdb-select {
-    border: 1px solid #cbd5f5;
-    border-radius: 10px;
-    padding: 6px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
+    border-radius: 12px;
+    padding: 7px 12px;
     font-size: 0.85rem;
     background: #ffffff;
 }
@@ -2092,14 +2105,14 @@ body {
 }
 .cmdb-segment input:checked + span,
 .fex-segment input:checked + span {
-    background: #1d4ed8;
+    background: #0f172a;
     color: #ffffff;
 }
 .cmdb-reset,
 .fex-reset {
-    border: 1px solid #cbd5f5;
-    border-radius: 10px;
-    padding: 8px 12px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
+    border-radius: 999px;
+    padding: 8px 14px;
     background: #f8fafc;
     font-size: 0.8rem;
     font-weight: 600;
@@ -2112,10 +2125,12 @@ body {
 }
 .cmdb-table-wrapper,
 .fex-table-wrapper {
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 16px;
     overflow-x: auto;
     margin-bottom: 16px;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
 }
 .cmdb-table,
 .fex-table {
@@ -2127,15 +2142,15 @@ body {
 .cmdb-table td,
 .fex-table th,
 .fex-table td {
-    padding: 8px 10px;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
     text-align: left;
 }
 .cmdb-table th,
 .fex-table th {
     background: #f1f5f9;
     font-weight: 700;
-    color: #1e293b;
+    color: #0f172a;
 }
 .cmdb-empty,
 .fex-empty {
@@ -2145,10 +2160,10 @@ body {
 }
 .fex-info-panel {
     background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 12px 16px;
-    margin-bottom: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
     color: #475569;
     font-size: 0.85rem;
 }
@@ -2170,9 +2185,9 @@ body {
     gap: 10px;
 }
 .vlan-action-btn {
-    padding: 8px 12px;
-    border-radius: 10px;
-    border: 1px solid #cbd5f5;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
     background: #ffffff;
     font-size: 0.8rem;
     font-weight: 600;
@@ -2188,9 +2203,9 @@ body {
     top: 100%;
     min-width: 200px;
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 14px;
+    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.14);
     padding: 8px;
     z-index: 30;
 }
@@ -2230,8 +2245,10 @@ body {
 
 .vlan-table-wrapper {
     overflow-x: auto;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 .vlan-table {
     width: 100%;
@@ -2241,7 +2258,7 @@ body {
 .vlan-table th,
 .vlan-table td {
     padding: 10px 12px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
     text-align: left;
     white-space: nowrap;
 }

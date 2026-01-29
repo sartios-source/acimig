@@ -361,19 +361,23 @@ class ACIAnalyzer:
 
         interface_counts = {
             'ethpmPhysIf': self._aci_class_counts.get('ethpmPhysIf', 0),
-            'l1PhysIf': self._aci_class_counts.get('l1PhysIf', 0)
+            'l1PhysIf': self._aci_class_counts.get('l1PhysIf', 0),
+            'fvRsPathAtt': self._aci_class_counts.get('fvRsPathAtt', 0)
         }
 
-        ports_total = len(self._interfaces)
-        ports_with_state = sum(1 for iface in self._interfaces if iface.get('operSt'))
+        interface_source = 'ethpmPhysIf' if self._interfaces else 'l1PhysIf' if self._l1_interfaces else ''
+        interface_candidates = self._interfaces if self._interfaces else self._l1_interfaces
+        ports_total = len(interface_candidates)
+        ports_with_state = sum(1 for iface in interface_candidates if iface.get('operSt'))
 
         fex_id_set = {str(f.get('id')) for f in self._fexes if f.get('id') is not None}
         matched = 0
-        for iface in self._interfaces:
-            iface_id = iface.get('id', '')
-            match = re.match(r'^eth(\d+)/', iface_id)
-            if match and match.group(1) in fex_id_set:
-                matched += 1
+        if interface_candidates:
+            for iface in interface_candidates:
+                iface_id = iface.get('id', '')
+                match = re.match(r'^eth(\d+)/', iface_id)
+                if match and match.group(1) in fex_id_set:
+                    matched += 1
         ports_unmatched = max(ports_total - matched, 0)
 
         reasons = []
@@ -381,10 +385,13 @@ class ACIAnalyzer:
             reasons.append('No FEX inventory loaded (eqptFex missing).')
         if interface_counts['ethpmPhysIf'] == 0 and interface_counts['l1PhysIf'] == 0:
             reasons.append('No interface operational data loaded (ethpmPhysIf/l1PhysIf missing).')
-        if ports_total > 0 and matched == 0:
+        if ports_total > 0 and matched == 0 and interface_candidates:
             reasons.append('Interface data present, but no interfaces matched to FEX IDs.')
+        if interface_counts['fvRsPathAtt'] == 0:
+            reasons.append('No path attachment data loaded (fvRsPathAtt missing).')
 
         utilization_data_present = bool(self._fexes) and ports_total > 0 and matched > 0
+        path_attachment_available = bool(self._fexes) and interface_counts['fvRsPathAtt'] > 0
 
         return {
             'utilization_data_present': utilization_data_present,
@@ -393,6 +400,8 @@ class ACIAnalyzer:
             'ports_with_state': ports_with_state,
             'ports_matched_to_fex': matched,
             'ports_unmatched': ports_unmatched,
+            'interface_source': interface_source,
+            'path_attachment_available': path_attachment_available,
             'reasons': reasons
         }
 
@@ -408,6 +417,9 @@ class ACIAnalyzer:
 
         results = []
         quality = self.get_port_utilization_quality()
+        interface_candidates = self._interfaces if self._interfaces else self._l1_interfaces
+        interface_source = quality.get('interface_source') or ''
+        path_attachment_available = quality.get('path_attachment_available')
 
         for fex in self._fexes:
             fex_id = fex.get('id', '')
@@ -424,9 +436,9 @@ class ACIAnalyzer:
 
             # Count interfaces for this FEX
             fex_interfaces = [
-                iface for iface in self._interfaces
+                iface for iface in interface_candidates
                 if f'eth{fex_id}/' in iface.get('id', '')
-            ]
+            ] if interface_candidates else []
 
             utilization_known = True
             utilization_reason = None
@@ -434,19 +446,36 @@ class ACIAnalyzer:
             # Count connected (up) ports
             connected_ports = None
             if not quality.get('utilization_data_present'):
-                utilization_known = False
-                utilization_reason = 'Insufficient interface data to compute utilization'
+                if path_attachment_available:
+                    connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id))
+                    if connected_ports is None:
+                        utilization_known = False
+                        utilization_reason = 'Insufficient interface data to compute utilization'
+                    else:
+                        utilization_reason = 'Using fvRsPathAtt bindings (interface data missing)'
+                else:
+                    utilization_known = False
+                    utilization_reason = 'Insufficient interface data to compute utilization'
             elif total_ports <= 0:
                 utilization_known = False
                 utilization_reason = 'Unknown total port count for FEX model'
             elif len(fex_interfaces) == 0:
-                utilization_known = False
-                utilization_reason = 'No interfaces matched to this FEX'
+                if path_attachment_available:
+                    connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id))
+                    if connected_ports is None:
+                        utilization_known = False
+                        utilization_reason = 'No interfaces matched to this FEX'
+                    else:
+                        utilization_reason = 'Using fvRsPathAtt bindings (no interfaces matched)'
+                else:
+                    utilization_known = False
+                    utilization_reason = 'No interfaces matched to this FEX'
             else:
                 connected_ports = sum(
                     1 for iface in fex_interfaces
                     if iface.get('operSt') == 'up'
                 )
+                utilization_reason = f'Using {interface_source} operational state'
 
             utilization_pct = None
             if utilization_known and connected_ports is not None and total_ports > 0:
@@ -468,6 +497,7 @@ class ACIAnalyzer:
                 'utilization_pct': utilization_pct,
                 'utilization_known': utilization_known,
                 'utilization_reason': utilization_reason,
+                'utilization_source': interface_source if utilization_known and interface_candidates else 'fvRsPathAtt' if connected_ports is not None else 'unknown',
                 'status': fex.get('operSt', 'unknown'),
                 'consolidation_score': consolidation_score,
                 'recommendation': recommendation,
@@ -1915,6 +1945,38 @@ class ACIAnalyzer:
         if match:
             return match.group(1)
         return ''
+
+    def _count_fex_ports_from_path_attachments(self, fex_id: str) -> Optional[int]:
+        """
+        Count unique FEX host ports using fvRsPathAtt target DNs.
+        This is a fallback when ethpmPhysIf/l1PhysIf data is missing or unmatched.
+        """
+        if not fex_id:
+            return None
+
+        port_keys = set()
+        for att in self._path_attachments:
+            tdn = att.get('tDn', '') or att.get('dn', '')
+            if not tdn:
+                continue
+
+            # Typical FEX path format: topology/pod-1/paths-101/extpaths-101/pathep-[eth1/11]
+            match = re.search(r'paths-(\d+)/extpaths-(\d+)/pathep-\[([^\]]+)\]', tdn)
+            if not match:
+                continue
+
+            leaf_id = match.group(1)
+            fex_match = match.group(2)
+            interface_id = match.group(3)
+
+            if str(fex_match) != str(fex_id):
+                continue
+
+            port_keys.add(f"{leaf_id}:{fex_id}:{interface_id}")
+
+        if not port_keys:
+            return None
+        return len(port_keys)
 
     def _get_bd_name_for_epg(self, epg: Dict[str, Any]) -> str:
         """Resolve BD name for an EPG using attributes or relation map."""
