@@ -1,11 +1,29 @@
 {% extends "feature_base.html" %}
 {% set title = "Visualize" %}
 {% set subtitle = "All datapoints visualized with KPI cards, charts, and searchable tables." %}
+{% block extra_css %}
+<style>
+    .viz-only .bi-table,
+    .viz-only .bi-pivot,
+    .viz-only .bi-next-side .bi-pivot {
+        display: none;
+    }
+    .viz-only .bi-grid,
+    .viz-only .bi-next-grid {
+        grid-template-columns: 1fr;
+    }
+    .viz-only .bi-chart {
+        height: 320px;
+    }
+</style>
+{% endblock %}
 {% block content %}
 {% if not current_fabric %}
 {{ super() }}
 {% else %}
-{% include "partials/data_hub.html" %}
+<div class="viz-only">
+    {% include "partials/data_hub.html" %}
+</div>
 {% endif %}
 {% endblock %}
 {% block scripts %}

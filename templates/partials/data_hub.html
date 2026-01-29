@@ -141,6 +141,7 @@
     {% set rack_groups = hub_data.get('rack_groups', {}) %}
     {% set rack_columns = [
         {'key': 'rack', 'label': 'Rack', 'frozen': True},
+        {'key': 'fex_list', 'label': 'FEX (Serial/Model/Ports)', 'formatter': 'html'},
         {'key': 'fex_count', 'label': 'FEX Count', 'numeric': True},
         {'key': 'total_ports', 'label': 'Total Ports', 'numeric': True},
         {'key': 'connected_ports', 'label': 'Connected Ports', 'numeric': True},
@@ -189,6 +190,22 @@
     {% endfor %}
 
     {% set fex_rows = hub_data.get('fex_port_util', []) %}
+    {% if not fex_rows %}
+    <div class="fex-info-panel">
+        <h4>FEX port utilization data missing</h4>
+        <p>
+            Upload eqptFex inventory plus interface operational state (ethpmPhysIf or l1PhysIf).
+            For best results, include fvRsPathAtt so we can map FEX ports to bindings.
+        </p>
+        {% if hub_data.get('port_utilization_quality') %}
+        <ul>
+            {% for reason in hub_data.get('port_utilization_quality', {}).get('reasons', []) %}
+            <li>{{ reason }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
     {% set explorer = {
         'id': 'hub-fex-ports',
         'title': 'FEX Port Utilization',

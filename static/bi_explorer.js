@@ -177,7 +177,9 @@
             hozAlign: col.numeric ? 'right' : 'left',
             sorter: col.sorter || (col.numeric ? 'number' : 'string'),
             frozen: col.frozen || index === 0,
-            formatter: isNextMode && badgeFields.has(col.key || col.field) ? badgeFormatter(col.key || col.field) : undefined
+            formatter: isNextMode && badgeFields.has(col.key || col.field)
+                ? badgeFormatter(col.key || col.field)
+                : (col.formatter || undefined)
         }));
 
         const tableEl = section.querySelector(`[data-table="${id}"]`);

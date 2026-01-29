@@ -144,6 +144,36 @@ def invalidate_fabric_cache(fabric_name: str):
         cache.delete(key)
     app.logger.info(f"Invalidated cache for fabric: {fabric_name}")
 
+def get_active_fabric_data():
+    """Load the active fabric dataset and return analyzer + basic counts."""
+    current_fabric = session.get('current_fabric')
+    if not current_fabric:
+        return {
+            'ok': False,
+            'error': 'No current fabric selected',
+            'fabric': None
+        }
+
+    try:
+        fabric_data = fm.get_fabric_data(current_fabric)
+        analyzer = engine.ACIAnalyzer(fabric_data)
+        analyzer._load_data()
+        counts = dict(analyzer._aci_class_counts) if hasattr(analyzer, '_aci_class_counts') else {}
+        return {
+            'ok': True,
+            'fabric': current_fabric,
+            'fabric_data': fabric_data,
+            'analyzer': analyzer,
+            'counts': counts
+        }
+    except Exception as exc:
+        app.logger.error("Active fabric load failed for %s: %s", current_fabric, exc)
+        return {
+            'ok': False,
+            'error': str(exc),
+            'fabric': current_fabric
+        }
+
 
 def _normalize_serial(value: str) -> str:
     if value is None:
@@ -568,6 +598,29 @@ def health_check():
     })
 
 
+@app.route('/api/health/fabric')
+def fabric_health():
+    """Return active fabric diagnostics and object counts."""
+    result = get_active_fabric_data()
+    if not result.get('ok'):
+        return jsonify({
+            'active_fabric': result.get('fabric'),
+            'ok': False,
+            'error': result.get('error')
+        }), 400
+
+    fabric_data = result.get('fabric_data') or {}
+    datasets = fabric_data.get('datasets', [])
+    return jsonify({
+        'active_fabric': result.get('fabric'),
+        'ok': True,
+        'dataset_count': len(datasets),
+        'datasets': [d.get('type') for d in datasets],
+        'object_counts': result.get('counts', {}),
+        'last_loaded': fabric_data.get('modified') or fabric_data.get('created')
+    })
+
+
 @app.route('/')
 def index():
     """Landing page with mode selection and fabric-specific statistics."""
@@ -576,6 +629,7 @@ def index():
     session['ui_mode'] = ui_mode
     current_fabric = session.get('current_fabric')
     fabric_stats = None
+    validation_results = None
 
     if current_fabric:
         fabric_data = fm.get_fabric_data(current_fabric)
@@ -631,6 +685,18 @@ def index():
         except Exception as e:
             app.logger.warning(f"Could not load detailed analyzer stats for {current_fabric}: {e}")
             # Keep default zeros if analyzer fails
+        # Try to load data completeness once for homepage
+        try:
+            cache_key = get_fabric_cache_key(current_fabric, 'data_hub')
+            cached = cache.get(cache_key)
+            if cached and cached.get('validation_results'):
+                validation_results = cached.get('validation_results')
+            else:
+                analyzer = engine.ACIAnalyzer(fabric_data)
+                analyzer._load_data()
+                validation_results = analyzer.get_data_completeness()
+        except Exception as e:
+            app.logger.warning(f"Could not load validation results for {current_fabric}: {e}")
 
     template_name = 'index_new.html'
 
@@ -638,7 +704,8 @@ def index():
                          mode=mode,
                          ui_mode=ui_mode,
                          current_fabric=current_fabric,
-                         fabric_stats=fabric_stats)
+                         fabric_stats=fabric_stats,
+                         validation_results=validation_results)
 
 
 @app.route('/ui/select')
@@ -1712,16 +1779,17 @@ def build_imdata_from_mcp(mcp_data: Dict[str, Any]) -> list:
 @handle_route_errors
 def visualize():
     """Visualization page - interactive dashboards with charts and graphs."""
+    mode = 'migration'
     current_fabric = session.get('current_fabric')
+    hub_data = {}
     validation_results = None
     if current_fabric:
-        fabric_data = fm.get_fabric_data(current_fabric)
-        analyzer = engine.ACIAnalyzer(fabric_data)
-        analyzer._load_data()
-        validation_results = analyzer.get_data_completeness()
+        hub_data, validation_results = _get_hub_data(current_fabric)
 
     return render_template('visualize_hub.html',
+                          mode=mode,
                           current_fabric=current_fabric,
+                          hub_data=hub_data,
                           validation_results=validation_results)
 @app.route('/data')
 @handle_route_errors
@@ -1860,14 +1928,28 @@ def _get_hub_data(current_fabric: str):
     cmdb_by_serial = { _normalize_serial(r.get('SerialNumber') or r.get('serial_number')): r for r in cmdb_rows }
     leaf_name_by_id = {str(l.get('id')): (l.get('name') or '') for l in analyzer._leafs}
     fex_util_rows = []
+    port_warnings = []
     for row in port_util:
         serial = _normalize_serial(row.get('serial'))
         cmdb_record = cmdb_by_serial.get(serial)
         leaf_id = row.get('leaf_id')
+        total_ports = row.get('total_ports') or 0
+        connected_ports = row.get('connected_ports')
+        if total_ports > 0 and connected_ports is not None and connected_ports > total_ports:
+            port_warnings.append({
+                'fex_id': row.get('fex_id'),
+                'serial': serial,
+                'connected_ports': connected_ports,
+                'total_ports': total_ports,
+                'reason': 'connected_ports exceeded total_ports; clamped'
+            })
+            connected_ports = total_ports
         fex_util_rows.append({
             **row,
             'rack': cmdb_record.get('Rack') if cmdb_record else 'Unknown',
             'leaf_name': leaf_name_by_id.get(str(leaf_id), ''),
+            'connected_ports': connected_ports,
+            'total_ports': total_ports
         })
 
     rack_map = {}
@@ -1879,22 +1961,38 @@ def _get_hub_data(current_fabric: str):
             'total_ports': 0,
             'connected_ports': 0,
             'utilization_known': True,
-            'unknown_ports': 0
+            'unknown_ports': 0,
+            'unknown_fex': 0
         })
         entry['fex_count'] += 1
         total_ports = row.get('total_ports') or 0
         connected = row.get('connected_ports')
-        entry['total_ports'] += total_ports
-        if connected is None:
+        if total_ports > 0:
+            entry['total_ports'] += total_ports
+        if connected is None or total_ports <= 0:
             entry['utilization_known'] = False
-            entry['unknown_ports'] += total_ports
-        else:
-            entry['connected_ports'] += connected
+            entry['unknown_fex'] += 1
+            continue
+        if connected > total_ports:
+            connected = total_ports
+        entry['connected_ports'] += connected
 
     rack_fex_map = {}
     for row in fex_util_rows:
         rack = row.get('rack') or 'Unknown'
         rack_fex_map.setdefault(rack, []).append(row)
+    rack_fex_summary = {}
+    for rack, fex_list in rack_fex_map.items():
+        lines = []
+        for fex in fex_list:
+            fex_id = fex.get('fex_id') or 'N/A'
+            serial = fex.get('serial') or 'N/A'
+            model = fex.get('model') or 'unknown'
+            connected = fex.get('connected_ports')
+            total_ports = fex.get('total_ports') or 0
+            conn_display = str(connected) if connected is not None else 'N/A'
+            lines.append(f"FEX {fex_id} | {serial} | {model} | {conn_display}/{total_ports}")
+        rack_fex_summary[rack] = "<br>".join(lines)
 
     def _pick_target_fex(fex_list):
         if not fex_list:
@@ -1944,7 +2042,8 @@ def _get_hub_data(current_fabric: str):
             'target_fex': target_label,
             'utilization_pct': utilization_pct,
             'ports_per_fex': ports_per_fex,
-            'connected_per_fex': connected_per_fex
+            'connected_per_fex': connected_per_fex,
+            'fex_list': rack_fex_summary.get(rack, '')
         })
         rack_groups.setdefault(entry['fex_count'], []).append(rack_rows[-1])
 
@@ -2019,7 +2118,8 @@ def _get_hub_data(current_fabric: str):
             'statistics': {
                 'total_racks': len(rack_rows),
                 'racks_with_2plus_fex': racks_with_2plus,
-                'consolidation_candidates': consolidation_candidates
+                'consolidation_candidates': consolidation_candidates,
+                'warnings': port_warnings
             }
         },
         'rack_groups': rack_groups,

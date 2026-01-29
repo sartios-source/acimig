@@ -496,6 +496,13 @@ class ACIAnalyzer:
                 )
                 utilization_reason = f'Using {interface_source} operational state'
 
+            if total_ports <= 0:
+                utilization_known = False
+                utilization_reason = 'Unknown total port count for FEX model'
+                connected_ports = None
+            elif connected_ports is not None and connected_ports > total_ports:
+                connected_ports = total_ports
+
             utilization_pct = None
             if utilization_known and connected_ports is not None and total_ports > 0:
                 utilization_pct = round((connected_ports / total_ports * 100), 2)
