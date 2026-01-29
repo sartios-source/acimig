@@ -54,6 +54,9 @@ from analysis import parsers, engine, fabric_manager, planning, reporting
 # Initialize Flask app
 app = Flask(__name__)
 
+# Ensure url_for is always available in templates, even in non-request contexts
+app.jinja_env.globals['url_for'] = url_for
+
 # Load configuration
 config_name = os.environ.get('FLASK_ENV', 'development')
 config_class = get_config(config_name)
