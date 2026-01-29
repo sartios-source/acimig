@@ -290,7 +290,7 @@ def ensure_mock_samples():
 def inject_fabrics():
     """Make common values available to all templates."""
     if 'ui_mode' not in session:
-        session['ui_mode'] = 'classic'
+        session['ui_mode'] = 'data'
     return {
         'fabrics': fm.list_fabrics(),
         'app_version': APP_VERSION,
@@ -544,7 +544,7 @@ def health_check():
 def index():
     """Landing page with mode selection and fabric-specific statistics."""
     mode = 'migration'
-    ui_mode = session.get('ui_mode', 'classic')
+    ui_mode = session.get('ui_mode', 'data')
     session['ui_mode'] = ui_mode
     current_fabric = session.get('current_fabric')
     fabric_stats = None
@@ -619,9 +619,7 @@ def select_ui_mode():
     requested_mode = request.args.get('mode', '').strip().lower()
     if requested_mode not in {'classic', 'data', 'new'}:
         return jsonify({'error': 'Invalid UI mode'}), 400
-    if requested_mode == 'new':
-        requested_mode = 'classic'
-    session['ui_mode'] = requested_mode
+    session['ui_mode'] = 'data'
     next_path = request.args.get('next', '/')
     if not next_path.startswith('/'):
         next_path = '/'
@@ -639,11 +637,8 @@ def settings():
 def set_ui_mode():
     """Set UI mode via settings form."""
     requested_mode = request.form.get('ui_mode', '').strip().lower()
-    if requested_mode not in {'classic', 'data'}:
-        flash("Invalid UI mode selection.", "error")
-        return redirect(url_for('settings'))
-    session['ui_mode'] = requested_mode
-    flash("UI mode updated.", "success")
+    session['ui_mode'] = 'data'
+    flash("UI updated to data-centric navigation.", "success")
     return redirect(url_for('settings'))
 
 
