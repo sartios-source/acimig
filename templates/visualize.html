@@ -99,13 +99,13 @@
             </div>
             <div class="flex items-center space-x-2">
                 <button onclick="zoomIn()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
-                    🔍 Zoom In
+                    Zoom Zoom In
                 </button>
                 <button onclick="zoomOut()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
-                    🔍 Zoom Out
+                    Zoom Zoom Out
                 </button>
                 <button onclick="resetView()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
-                    🔄 Reset
+                    Reset Reset
                 </button>
             </div>
             <div class="flex items-center space-x-4">
@@ -155,8 +155,24 @@
 <!-- VLAN Dashboard -->
 <div id="vlans-dashboard" class="dashboard-panel active">
     <p class="text-sm text-gray-600 mb-4">
-        Goal: pinpoint VLANs that drive off‑ramp risk and map their EPG/leaf/FEX spread.
+        Goal: pinpoint VLANs that drive off-ramp risk and map their EPG/leaf/FEX spread.
     </p>
+    <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">VLAN <-> EPG <-> Leaf/FEX Mapping</h3>
+                <p class="text-sm text-gray-600">
+                    Click a VLAN row below to load the full mapping (EPGs, leaf/FEX bindings, rack).
+                </p>
+            </div>
+            <button type="button" id="vlan-mapping-reset" class="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200 transition-colors">
+                Clear Selection
+            </button>
+        </div>
+        <div id="vlan-mapping-panel" class="mt-4">
+            <div class="text-sm text-gray-500">No VLAN selected yet.</div>
+        </div>
+    </div>
     <div class="vlan-kpi-grid">
         <div class="vlan-kpi-card">
             <p>Total VLANs</p>
