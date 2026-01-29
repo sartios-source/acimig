@@ -25,6 +25,7 @@
         <a href="#section-migration" class="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">Migration Units</a>
         <a href="#section-epgs" class="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">EPGs</a>
         <a href="#section-inventory" class="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">Inventory</a>
+        <a href="#section-consolidation" class="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">FEX + Rack</a>
         <a href="#section-contracts" class="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">Contracts / VRFs / BDs</a>
         <a href="#section-cmdb" class="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">CMDB</a>
     </aside>
@@ -139,6 +140,66 @@
                     {'defaultSort': 'id', 'titleField': 'name', 'subtitleField': 'model'}
                 ) }}
             </div>
+        </section>
+
+        <section id="section-consolidation">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">FEX + Rack Consolidation</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Total Racks</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('total_racks', 0) }}</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Racks w/ 3+ FEX</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('racks_with_3plus_fex', 0) }}</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Consolidation Candidates</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('consolidation_candidates', 0) }}</p>
+                </div>
+            </div>
+
+            {% set rack_columns = [
+                {'key': 'rack', 'label': 'Rack', 'type': 'text', 'filter': 'exact'},
+                {'key': 'site', 'label': 'Site', 'type': 'text', 'filter': 'exact'},
+                {'key': 'building', 'label': 'Building', 'type': 'text', 'filter': 'exact'},
+                {'key': 'hall', 'label': 'Hall', 'type': 'text', 'filter': 'exact'},
+                {'key': 'fex_count', 'label': 'FEX Count', 'type': 'number'},
+                {'key': 'connected_ports', 'label': 'Ports Used', 'type': 'number'},
+                {'key': 'total_ports', 'label': 'Ports Total', 'type': 'number'},
+                {'key': 'can_consolidate', 'label': 'Can Consolidate', 'type': 'text'},
+                {'key': 'recommendation', 'label': 'Recommendation', 'type': 'text'}
+            ] %}
+            {{ data_explorer(
+                'hub-racks',
+                'Rack Consolidation',
+                'Rule: consolidate if 3+ FEX and total used ports ≤ 48 (2248 capacity).',
+                rack_columns,
+                hub_data.get('rack_consolidation', {}).get('rows', []),
+                {'defaultSort': 'fex_count', 'titleField': 'rack', 'subtitleField': 'recommendation'}
+            ) }}
+
+            {% set fex_util_columns = [
+                {'key': 'fex_id', 'label': 'FEX ID', 'type': 'number'},
+                {'key': 'fex_identifier', 'label': 'FEX Identifier', 'type': 'text'},
+                {'key': 'serial', 'label': 'Serial', 'type': 'text'},
+                {'key': 'model', 'label': 'Model', 'type': 'text'},
+                {'key': 'leaf_id', 'label': 'Leaf', 'type': 'text'},
+                {'key': 'rack', 'label': 'Rack', 'type': 'text', 'filter': 'exact'},
+                {'key': 'connected_ports', 'label': 'Ports Used', 'type': 'number'},
+                {'key': 'total_ports', 'label': 'Ports Total', 'type': 'number'},
+                {'key': 'utilization_pct', 'label': 'Utilization %', 'type': 'number'},
+                {'key': 'utilization_known', 'label': 'Utilization Known', 'type': 'text'},
+                {'key': 'recommendation', 'label': 'Recommendation', 'type': 'text'}
+            ] %}
+            {{ data_explorer(
+                'hub-fex-util',
+                'FEX Port Usage',
+                'Per‑FEX port usage and utilization signals.',
+                fex_util_columns,
+                hub_data.get('fex_port_util', []),
+                {'defaultSort': 'utilization_pct', 'titleField': 'fex_identifier', 'subtitleField': 'rack'}
+            ) }}
         </section>
 
         <section id="section-contracts">

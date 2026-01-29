@@ -1951,6 +1951,67 @@ def data_explorer():
 
             migration_units = analyzer.analyze_migration_units()
             epg_complexity = analyzer.analyze_epg_complexity()
+            port_util = analyzer.analyze_port_utilization()
+
+            cmdb_by_serial = { _normalize_serial(r.get('SerialNumber') or r.get('serial_number')): r for r in cmdb_rows }
+            fex_util_rows = []
+            for row in port_util:
+                serial = _normalize_serial(row.get('serial'))
+                cmdb_record = cmdb_by_serial.get(serial)
+                fex_util_rows.append({
+                    **row,
+                    'rack': cmdb_record.get('Rack') if cmdb_record else 'Unknown',
+                    'site': cmdb_record.get('Site') if cmdb_record else 'Unknown',
+                    'building': cmdb_record.get('Building') if cmdb_record else 'Unknown',
+                    'hall': cmdb_record.get('Hall') if cmdb_record else 'Unknown',
+                })
+
+            rack_map = {}
+            for row in fex_util_rows:
+                rack = row.get('rack') or 'Unknown'
+                entry = rack_map.setdefault(rack, {
+                    'rack': rack,
+                    'fex_count': 0,
+                    'total_ports': 0,
+                    'connected_ports': 0,
+                    'utilization_known': True,
+                    'unknown_ports': 0,
+                    'site': row.get('site') or 'Unknown',
+                    'building': row.get('building') or 'Unknown',
+                    'hall': row.get('hall') or 'Unknown'
+                })
+                entry['fex_count'] += 1
+                total_ports = row.get('total_ports') or 0
+                connected = row.get('connected_ports')
+                entry['total_ports'] += total_ports
+                if connected is None:
+                    entry['utilization_known'] = False
+                    entry['unknown_ports'] += total_ports
+                else:
+                    entry['connected_ports'] += connected
+
+            rack_rows = []
+            consolidation_candidates = 0
+            racks_with_3plus = 0
+            for rack, entry in rack_map.items():
+                if entry['fex_count'] >= 3:
+                    racks_with_3plus += 1
+                if entry['utilization_known'] and entry['connected_ports'] <= 48 and entry['fex_count'] >= 3:
+                    can_consolidate = 'Yes'
+                    consolidation_candidates += 1
+                    recommendation = 'Consolidate into 2248 (<=48 ports)'
+                elif entry['utilization_known']:
+                    can_consolidate = 'No'
+                    recommendation = 'Do not consolidate (ports > 48)'
+                else:
+                    can_consolidate = 'Needs Data'
+                    recommendation = 'Needs port usage data'
+
+                rack_rows.append({
+                    **entry,
+                    'can_consolidate': can_consolidate,
+                    'recommendation': recommendation
+                })
 
             fex_inventory = []
             for fex in analyzer._fexes:
@@ -2007,6 +2068,15 @@ def data_explorer():
                 'contracts': contracts,
                 'vrfs': vrfs,
                 'bds': bds,
+                'fex_port_util': fex_util_rows,
+                'rack_consolidation': {
+                    'rows': rack_rows,
+                    'statistics': {
+                        'total_racks': len(rack_rows),
+                        'racks_with_3plus_fex': racks_with_3plus,
+                        'consolidation_candidates': consolidation_candidates
+                    }
+                },
                 'cmdb_rows': cmdb_rows,
                 'cmdb_stats': cmdb_stats,
                 'has_cmdb_dataset': has_cmdb_dataset
