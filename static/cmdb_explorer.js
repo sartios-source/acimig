@@ -82,7 +82,7 @@
         if (!rows.length) {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
-            td.colSpan = 11;
+            td.colSpan = 13;
             td.className = 'cmdb-empty';
             td.textContent = 'No matching rows';
             tr.appendChild(td);
@@ -95,6 +95,8 @@
                     row.Name || row.name || '',
                     row.ModelName || row.model_name || '',
                     getMatchedLabel(row),
+                    row.MatchReason || row.match_reason || '',
+                    row.DuplicateSerialCount || row.duplicate_serial_count || '',
                     row.DeviceType || row.device_type || '',
                     row.DeviceID || row.device_id || '',
                     row.Site || row.site || '',
@@ -118,7 +120,7 @@
 
     function exportCsv(rows) {
         const header = [
-            'SerialNumber', 'Name', 'ModelName', 'Matched', 'DeviceType', 'DeviceID',
+            'SerialNumber', 'Name', 'ModelName', 'Matched', 'MatchReason', 'DuplicateSerialCount', 'DeviceType', 'DeviceID',
             'Site', 'Building', 'Hall', 'Rack', 'UnitLocation'
         ];
         const lines = [header.join(',')];
@@ -128,6 +130,8 @@
                 row.Name || row.name || '',
                 row.ModelName || row.model_name || '',
                 getMatchedLabel(row),
+                row.MatchReason || row.match_reason || '',
+                row.DuplicateSerialCount || row.duplicate_serial_count || '',
                 row.DeviceType || row.device_type || '',
                 row.DeviceID || row.device_id || '',
                 row.Site || row.site || '',
@@ -141,8 +145,7 @@
                 return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
             }).join(','));
         });
-        const blob = new Blob([lines.join('
-')], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = `cmdb_export_${new Date().toISOString().split('T')[0]}.csv`;

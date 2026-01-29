@@ -187,39 +187,65 @@ def _correlate_cmdb_records(records: list, analyzer: engine.ACIAnalyzer, fabric_
     fex_by_serial = { _normalize_serial(f.get('ser')): f for f in analyzer._fexes if f.get('ser') }
     leaf_by_serial = { _normalize_serial(l.get('serial') or l.get('ser')): l for l in analyzer._leafs if (l.get('serial') or l.get('ser')) }
 
-    correlated = []
+    def record_score(rec: dict) -> int:
+        fields = ['Name', 'ModelName', 'DeviceType', 'DeviceID', 'Site', 'Building', 'Hall', 'Rack', 'UnitLocation']
+        score = 0
+        for field in fields:
+            if rec.get(field) or rec.get(field.lower()):
+                score += 1
+        return score
+
+    grouped = {}
     for record in records:
         serial = _normalize_serial(record.get('SerialNumber') or record.get('serial_number') or record.get('serial'))
-        fex = fex_by_serial.get(serial)
-        leaf = leaf_by_serial.get(serial) if not fex else None
+        grouped.setdefault(serial, []).append(record)
+
+    correlated = []
+    for serial, items in grouped.items():
+        fex = fex_by_serial.get(serial) if serial else None
+        leaf = leaf_by_serial.get(serial) if serial and not fex else None
         matched = bool(fex or leaf)
         matched_type = 'FEX' if fex else 'Leaf' if leaf else ''
         aci_model = fex.get('model') if fex else leaf.get('model') if leaf else ''
         matched_dn = fex.get('dn') if fex else leaf.get('dn') if leaf else ''
 
+        if not serial:
+            match_reason = 'Missing SerialNumber'
+        elif matched_type == 'FEX':
+            match_reason = 'Matched to FEX serial'
+        elif matched_type == 'Leaf':
+            match_reason = 'Matched to Leaf serial'
+        else:
+            match_reason = 'Serial not found in ACI inventory'
+
+        duplicate_count = len(items)
+        selected = sorted(items, key=record_score, reverse=True)[0]
+
         correlated.append({
-            **record,
-            'SerialNumber': serial or record.get('SerialNumber') or record.get('serial_number') or '',
+            **selected,
+            'SerialNumber': serial or selected.get('SerialNumber') or selected.get('serial_number') or '',
             'Matched': matched,
             'AciModel': aci_model or '',
             'MatchedObjectType': matched_type,
             'MatchedDn': matched_dn or '',
+            'MatchReason': match_reason,
+            'DuplicateSerialCount': duplicate_count,
             'Fabric': fabric_name,
             # Backwards compatible keys
-            'serial_number': serial or record.get('serial_number') or '',
-            'name': record.get('Name') or record.get('name') or '',
-            'model_name': record.get('ModelName') or record.get('model_name') or record.get('model') or '',
+            'serial_number': serial or selected.get('serial_number') or '',
+            'name': selected.get('Name') or selected.get('name') or '',
+            'model_name': selected.get('ModelName') or selected.get('model_name') or selected.get('model') or '',
             'aci_model': aci_model or '',
             'matched': matched,
             'matched_label': 'Matched' if matched else 'Unmatched',
             'flagged': not matched,
-            'device_type': record.get('DeviceType') or record.get('device_type') or '',
-            'device_id': record.get('DeviceID') or record.get('device_id') or '',
-            'site': record.get('Site') or record.get('site') or '',
-            'building': record.get('Building') or record.get('building') or '',
-            'hall': record.get('Hall') or record.get('hall') or '',
-            'rack': record.get('Rack') or record.get('rack') or '',
-            'unit_location': record.get('UnitLocation') or record.get('unit_location') or ''
+            'device_type': selected.get('DeviceType') or selected.get('device_type') or '',
+            'device_id': selected.get('DeviceID') or selected.get('device_id') or '',
+            'site': selected.get('Site') or selected.get('site') or '',
+            'building': selected.get('Building') or selected.get('building') or '',
+            'hall': selected.get('Hall') or selected.get('hall') or '',
+            'rack': selected.get('Rack') or selected.get('rack') or '',
+            'unit_location': selected.get('UnitLocation') or selected.get('unit_location') or ''
         })
     return correlated
 
@@ -752,14 +778,7 @@ def analyze():
             has_cmdb_dataset = any(d.get('type') == 'cmdb' for d in datasets)
             raw_cmdb = _load_cmdb_records_for_fabric(fabric_data, current_fabric)
             cmdb_rows = _correlate_cmdb_records(raw_cmdb, analyzer, current_fabric)
-            duplicate_serials = 0
-            serial_seen = set()
-            for record in cmdb_rows:
-                serial = record.get('SerialNumber') or record.get('serial_number')
-                if serial in serial_seen:
-                    duplicate_serials += 1
-                else:
-                    serial_seen.add(serial)
+            duplicate_serials = sum(1 for row in cmdb_rows if (row.get('DuplicateSerialCount') or 0) > 1)
             cmdb_stats = {
                 'total': len(cmdb_rows),
                 'matched': sum(1 for row in cmdb_rows if row.get('Matched')),
@@ -1922,10 +1941,12 @@ def _get_hub_data(current_fabric: str):
 
     raw_cmdb = _load_cmdb_records_for_fabric(fabric_data, current_fabric)
     cmdb_rows = _correlate_cmdb_records(raw_cmdb, analyzer, current_fabric)
+    duplicate_serials = sum(1 for row in cmdb_rows if (row.get('DuplicateSerialCount') or 0) > 1)
     cmdb_stats = {
         'total': len(cmdb_rows),
         'matched': sum(1 for row in cmdb_rows if row.get('Matched')),
-        'unmatched': sum(1 for row in cmdb_rows if not row.get('Matched'))
+        'unmatched': sum(1 for row in cmdb_rows if not row.get('Matched')),
+        'duplicate_serials': duplicate_serials
     }
     has_cmdb_dataset = any(d.get('type') == 'cmdb' for d in fabric_data.get('datasets', []))
 
