@@ -218,6 +218,8 @@
             <p class="text-sm text-gray-600 mb-4">
                 Goal: map inventory and location data (rack/site) to ACI serials for physical migration planning.
             </p>
+            {% set cmdb_stats = hub_data.get('cmdb_stats', {}) %}
+            {% set cmdb_rows = hub_data.get('cmdb_rows', []) %}
             {% include "partials/cmdb_explorer.html" %}
         </section>
     </div>

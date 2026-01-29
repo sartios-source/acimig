@@ -1,20 +1,22 @@
+{% set local_cmdb_stats = cmdb_stats or {} %}
+{% set local_cmdb_rows = cmdb_rows or [] %}
 <div class="cmdb-explorer" id="cmdb-explorer">
     <div class="cmdb-kpi-grid">
         <div class="cmdb-kpi-card">
             <p>Total Rows</p>
-            <h3 id="cmdb-kpi-total">{{ cmdb_stats.total or 0 }}</h3>
+            <h3 id="cmdb-kpi-total">{{ local_cmdb_stats.total or 0 }}</h3>
         </div>
         <div class="cmdb-kpi-card cmdb-kpi-ok">
             <p>Matched</p>
-            <h3 id="cmdb-kpi-matched">{{ cmdb_stats.matched or 0 }}</h3>
+            <h3 id="cmdb-kpi-matched">{{ local_cmdb_stats.matched or 0 }}</h3>
         </div>
         <div class="cmdb-kpi-card cmdb-kpi-warn">
             <p>Unmatched</p>
-            <h3 id="cmdb-kpi-unmatched">{{ cmdb_stats.unmatched or 0 }}</h3>
+            <h3 id="cmdb-kpi-unmatched">{{ local_cmdb_stats.unmatched or 0 }}</h3>
         </div>
         <div class="cmdb-kpi-card cmdb-kpi-neutral">
             <p>Duplicate Serials</p>
-            <h3 id="cmdb-kpi-duplicates">{{ cmdb_stats.duplicate_serials or 0 }}</h3>
+            <h3 id="cmdb-kpi-duplicates">{{ local_cmdb_stats.duplicate_serials or 0 }}</h3>
         </div>
     </div>
 
@@ -83,5 +85,5 @@
         </table>
     </div>
 
-    <script id="cmdb-rows-data" type="application/json">{{ cmdb_rows | tojson }}</script>
+    <script id="cmdb-rows-data" type="application/json">{{ local_cmdb_rows | tojson }}</script>
 </div>
