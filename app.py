@@ -1702,6 +1702,7 @@ def visualize():
     current_fabric = session.get('current_fabric')
 
     viz_data = {}
+    validation_results = None
     if current_fabric:
         # Try to get from cache first
         cache_key = get_fabric_cache_key(current_fabric, 'visualization')
@@ -1711,6 +1712,8 @@ def visualize():
             # Cache miss - generate data
             fabric_data = fm.get_fabric_data(current_fabric)
             analyzer = engine.ACIAnalyzer(fabric_data)
+            analyzer._load_data()
+            validation_results = analyzer.get_data_completeness()
 
             # Get base visualization data
             viz_data = analyzer.get_visualization_data()
@@ -1857,15 +1860,27 @@ def visualize():
             viz_data['vpc_symmetry'] = vpc_symmetry
             viz_data['leaf_fex_mapping'] = leaf_fex
             viz_data['device_mapping'] = device_mapping
+            viz_data['validation_results'] = validation_results
 
             # Store in cache
             cache.set(cache_key, viz_data, timeout=300)
             app.logger.info(f"Generated and cached visualization data for fabric {current_fabric}")
+        else:
+            validation_results = viz_data.get('validation_results')
+            if validation_results is None:
+                try:
+                    fabric_data = fm.get_fabric_data(current_fabric)
+                    analyzer = engine.ACIAnalyzer(fabric_data)
+                    analyzer._load_data()
+                    validation_results = analyzer.get_data_completeness()
+                except Exception as exc:
+                    app.logger.warning("Failed to refresh validation results for %s: %s", current_fabric, exc)
 
     return render_template('visualize.html',
                          mode=mode,
                          current_fabric=current_fabric,
-                         viz_data=viz_data)
+                         viz_data=viz_data,
+                         validation_results=validation_results)
 
 
 @app.route('/data')
@@ -1875,16 +1890,27 @@ def data_explorer():
     mode = 'migration'
     current_fabric = session.get('current_fabric')
     hub_data = {}
+    validation_results = None
 
     if current_fabric:
         cache_key = get_fabric_cache_key(current_fabric, 'data_hub')
         cached = cache.get(cache_key)
         if cached:
             hub_data = cached
+            validation_results = cached.get('validation_results')
+            if validation_results is None:
+                try:
+                    fabric_data = fm.get_fabric_data(current_fabric)
+                    analyzer = engine.ACIAnalyzer(fabric_data)
+                    analyzer._load_data()
+                    validation_results = analyzer.get_data_completeness()
+                except Exception as exc:
+                    app.logger.warning("Failed to refresh validation results for %s: %s", current_fabric, exc)
         else:
             fabric_data = fm.get_fabric_data(current_fabric)
             analyzer = engine.ACIAnalyzer(fabric_data)
             analyzer._load_data()
+            validation_results = analyzer.get_data_completeness()
 
             raw_cmdb = _load_cmdb_records_for_fabric(fabric_data, current_fabric)
             cmdb_rows = _correlate_cmdb_records(raw_cmdb, analyzer, current_fabric)
@@ -1949,8 +1975,38 @@ def data_explorer():
                 })
             vlan_coupling['vlans_detailed'] = detailed_rows
 
+            # Build EPG bindings map for drawer details
+            epg_bindings_map = {}
+            for detail in vlan_detail.values():
+                for epg in detail.get('epgs', []):
+                    key = f"{epg.get('tenant', '')}|{epg.get('app', '')}|{epg.get('epg', '')}"
+                    bindings = epg.get('bindings', []) or []
+                    binding_keys = epg_bindings_map.setdefault(key, {'bindings': [], 'keys': set()})
+                    for binding in bindings:
+                        dedupe_key = '|'.join([
+                            str(binding.get('binding_type') or ''),
+                            str(binding.get('leafId') or ''),
+                            str(binding.get('fexSerial') or binding.get('fexId') or ''),
+                            str(binding.get('interface') or ''),
+                            str(binding.get('path') or '')
+                        ])
+                        if dedupe_key in binding_keys['keys']:
+                            continue
+                        binding_keys['keys'].add(dedupe_key)
+                        binding_keys['bindings'].append(binding)
+
             migration_units = analyzer.analyze_migration_units()
             epg_complexity = analyzer.analyze_epg_complexity()
+            for row in epg_complexity:
+                key = f"{row.get('tenant', '')}|{row.get('app_profile', '')}|{row.get('epg_name', '')}"
+                bindings_entry = epg_bindings_map.get(key)
+                if bindings_entry:
+                    row['bindings'] = bindings_entry.get('bindings', [])
+                row['epg'] = row.get('epg_name')
+                row['risk'] = row.get('complexity_level')
+                row['score'] = row.get('complexity_score')
+                row['fex_count'] = row.get('fex_binding_count')
+                row['contract_count'] = row.get('contracts_count')
             port_util = analyzer.analyze_port_utilization()
 
             cmdb_by_serial = { _normalize_serial(r.get('SerialNumber') or r.get('serial_number')): r for r in cmdb_rows }
@@ -2079,14 +2135,16 @@ def data_explorer():
                 },
                 'cmdb_rows': cmdb_rows,
                 'cmdb_stats': cmdb_stats,
-                'has_cmdb_dataset': has_cmdb_dataset
+                'has_cmdb_dataset': has_cmdb_dataset,
+                'validation_results': validation_results
             }
             cache.set(cache_key, hub_data, timeout=300)
 
     return render_template('data_explorer.html',
                           mode=mode,
                           current_fabric=current_fabric,
-                          hub_data=hub_data)
+                          hub_data=hub_data,
+                          validation_results=validation_results)
 
 
 @app.route('/plan')

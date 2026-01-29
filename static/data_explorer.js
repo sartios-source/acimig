@@ -31,6 +31,85 @@
         return String(value);
     }
 
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatList(values, emptyLabel) {
+        if (!Array.isArray(values) || !values.length) return emptyLabel || 'None';
+        return values.map(item => escapeHtml(item)).join(', ');
+    }
+
+    function buildBindingLine(binding) {
+        const parts = [];
+        const bindingType = binding.binding_type || binding.type || '';
+        if (bindingType) parts.push(bindingType.toUpperCase());
+        if (binding.leafName || binding.leafId) parts.push(binding.leafName || `Leaf ${binding.leafId}`);
+        if (binding.fexSerial || binding.fexId) parts.push(binding.fexSerial || `FEX ${binding.fexId}`);
+        if (binding.rack) parts.push(`Rack ${binding.rack}`);
+        if (binding.interface) parts.push(binding.interface);
+        return parts.filter(Boolean).map(part => escapeHtml(part)).join(' | ');
+    }
+
+    function buildMappingSection(row) {
+        if (!row) return '';
+        if (Array.isArray(row.epgs) && row.epgs.length && typeof row.epgs[0] === 'object') {
+            const epgBlocks = row.epgs.map(epg => {
+                const title = `${epg.tenant || 'Unknown'} / ${epg.app || 'Unknown'} / ${epg.epg || 'Unknown'}`;
+                const bindings = Array.isArray(epg.bindings) ? epg.bindings : [];
+                const bindingLines = bindings.slice(0, 50).map(binding => `<li>${buildBindingLine(binding) || 'Binding'}</li>`).join('');
+                const remainder = bindings.length > 50 ? `<div class="de-muted">+ ${bindings.length - 50} more bindings</div>` : '';
+                return `
+                    <div class="de-mapping-group">
+                        <div class="de-mapping-title">${escapeHtml(title)}</div>
+                        <ul class="de-mapping-list">${bindingLines || '<li>No bindings found</li>'}</ul>
+                        ${remainder}
+                    </div>
+                `;
+            }).join('');
+            return `
+                <div class="de-drawer-section">
+                    <h5>EPG to Leaf/FEX mapping</h5>
+                    ${epgBlocks}
+                </div>
+            `;
+        }
+
+        if (Array.isArray(row.bindings) && row.bindings.length) {
+            const bindingLines = row.bindings.slice(0, 50).map(binding => `<li>${buildBindingLine(binding) || 'Binding'}</li>`).join('');
+            const remainder = row.bindings.length > 50 ? `<div class="de-muted">+ ${row.bindings.length - 50} more bindings</div>` : '';
+            return `
+                <div class="de-drawer-section">
+                    <h5>Bindings</h5>
+                    <ul class="de-mapping-list">${bindingLines || '<li>No bindings found</li>'}</ul>
+                    ${remainder}
+                </div>
+            `;
+        }
+
+        const impactRows = [];
+        if (row.impacted_epgs) impactRows.push(`<div><strong>EPGs</strong>: ${formatList(row.impacted_epgs)}</div>`);
+        if (row.impacted_vlans) impactRows.push(`<div><strong>VLANs</strong>: ${formatList(row.impacted_vlans)}</div>`);
+        if (row.impacted_bds) impactRows.push(`<div><strong>BDs</strong>: ${formatList(row.impacted_bds)}</div>`);
+        if (row.impacted_vrfs) impactRows.push(`<div><strong>VRFs</strong>: ${formatList(row.impacted_vrfs)}</div>`);
+        if (row.impacted_tenants) impactRows.push(`<div><strong>Tenants</strong>: ${formatList(row.impacted_tenants)}</div>`);
+        if (impactRows.length) {
+            return `
+                <div class="de-drawer-section">
+                    <h5>Impact summary</h5>
+                    ${impactRows.join('')}
+                </div>
+            `;
+        }
+
+        return '';
+    }
+
     function compareValues(a, b, type, direction) {
         const dir = direction === 'desc' ? -1 : 1;
         if (a === null || a === undefined || a === '') return 1;
@@ -309,10 +388,11 @@
             whyEl.innerHTML = '';
         }
 
+        const mappingSection = buildMappingSection(row);
         const detailRows = Object.keys(row).map(key => {
             return `<div class="de-detail-row"><span>${key}</span><span>${normalizeValue(row[key])}</span></div>`;
         }).join('');
-        detailsEl.innerHTML = `<div class="de-detail-grid">${detailRows}</div>`;
+        detailsEl.innerHTML = `${mappingSection}<div class="de-detail-grid">${detailRows}</div>`;
     }
 
     function closeDrawer(state) {

@@ -1689,6 +1689,39 @@ body {
     font-size: 0.8rem;
     color: #334155;
 }
+.de-drawer-section {
+    margin-top: 12px;
+}
+.de-drawer-section h5 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #0f172a;
+}
+.de-mapping-group {
+    margin-bottom: 10px;
+    padding: 8px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+.de-mapping-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+.de-mapping-list {
+    list-style: disc;
+    padding-left: 16px;
+    font-size: 0.78rem;
+    color: #334155;
+}
+.de-muted {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 4px;
+}
 .de-detail-grid {
     display: grid;
     gap: 6px;
