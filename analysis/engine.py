@@ -431,6 +431,7 @@ class ACIAnalyzer:
 
         for fex in self._fexes:
             fex_id = fex.get('id', '')
+            fex_norm = self._normalize_fex_id(fex_id)
             fex_serial = fex.get('ser', '')
             fex_model = fex.get('model', '')
             fex_dn = fex.get('dn', '')
@@ -445,7 +446,7 @@ class ACIAnalyzer:
             # Count interfaces for this FEX
             fex_interfaces = [
                 iface for iface in interface_candidates
-                if f'eth{fex_id}/' in iface.get('id', '')
+                if fex_norm and iface.get('id', '').startswith(f'eth{fex_norm}/')
             ] if interface_candidates else []
 
             utilization_known = True
@@ -1962,6 +1963,13 @@ class ACIAnalyzer:
         match = re.search(r'node-(\d+)', dn)
         return match.group(1) if match else None
 
+    def _normalize_fex_id(self, value: str) -> Optional[str]:
+        """Normalize FEX ID to digits only for matching."""
+        if value is None:
+            return None
+        match = re.search(r'(\d+)', str(value))
+        return match.group(1) if match else None
+
     def _extract_interface_id_from_dn(self, dn: str) -> str:
         """Extract interface ID from DN."""
         match = re.search(r'phys-\[(.*?)\]', dn)
@@ -1979,6 +1987,9 @@ class ACIAnalyzer:
         """
         if not fex_id:
             return None
+        fex_norm = self._normalize_fex_id(fex_id)
+        if not fex_norm:
+            return None
 
         port_keys = set()
         for att in self._path_attachments:
@@ -1992,7 +2003,7 @@ class ACIAnalyzer:
                 leaf_id = match.group(1)
                 fex_match = match.group(2)
                 interface_id = match.group(3)
-                if str(fex_match) == str(fex_id) or str(fex_match).endswith(str(fex_id)):
+                if str(fex_match) == str(fex_norm) or str(fex_match).endswith(str(fex_norm)):
                     port_keys.add(f"{leaf_id}:{fex_id}:{interface_id}")
                 continue
 
@@ -2003,7 +2014,7 @@ class ACIAnalyzer:
                 leaf_b = match.group(2)
                 fex_match = match.group(3)
                 interface_id = match.group(4)
-                if str(fex_match) == str(fex_id) or str(fex_match).endswith(str(fex_id)):
+                if str(fex_match) == str(fex_norm) or str(fex_match).endswith(str(fex_norm)):
                     port_keys.add(f"{leaf_a}:{fex_id}:{interface_id}")
                     port_keys.add(f"{leaf_b}:{fex_id}:{interface_id}")
                 continue
@@ -2013,13 +2024,13 @@ class ACIAnalyzer:
             if match:
                 leaf_id = match.group(1)
                 fex_match = match.group(2)
-                if str(fex_match) == str(fex_id) or str(fex_match).endswith(str(fex_id)):
+                if str(fex_match) == str(fex_norm) or str(fex_match).endswith(str(fex_norm)):
                     port_keys.add(f"{leaf_id}:{fex_id}:unknown")
                 continue
 
             # Fallback: extpaths appears in DN without leaf context
             match = re.search(r'extpaths-(\d+)', tdn)
-            if match and (str(match.group(1)) == str(fex_id) or str(match.group(1)).endswith(str(fex_id))):
+            if match and (str(match.group(1)) == str(fex_norm) or str(match.group(1)).endswith(str(fex_norm))):
                 port_keys.add(f"unknown:{fex_id}:unknown")
 
         if not port_keys:
