@@ -452,13 +452,23 @@ class ACIAnalyzer:
                         utilization_known = False
                         utilization_reason = 'Insufficient interface data to compute utilization'
                     else:
+                        utilization_known = True
                         utilization_reason = 'Using fvRsPathAtt bindings (interface data missing)'
                 else:
                     utilization_known = False
                     utilization_reason = 'Insufficient interface data to compute utilization'
             elif total_ports <= 0:
-                utilization_known = False
-                utilization_reason = 'Unknown total port count for FEX model'
+                if path_attachment_available:
+                    connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id))
+                    if connected_ports is None:
+                        utilization_known = False
+                        utilization_reason = 'Unknown total port count for FEX model'
+                    else:
+                        utilization_known = True
+                        utilization_reason = 'Using fvRsPathAtt bindings (unknown total ports)'
+                else:
+                    utilization_known = False
+                    utilization_reason = 'Unknown total port count for FEX model'
             elif len(fex_interfaces) == 0:
                 if path_attachment_available:
                     connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id))
@@ -466,6 +476,7 @@ class ACIAnalyzer:
                         utilization_known = False
                         utilization_reason = 'No interfaces matched to this FEX'
                     else:
+                        utilization_known = True
                         utilization_reason = 'Using fvRsPathAtt bindings (no interfaces matched)'
                 else:
                     utilization_known = False
@@ -1960,19 +1971,29 @@ class ACIAnalyzer:
             if not tdn:
                 continue
 
-            # Typical FEX path format: topology/pod-1/paths-101/extpaths-101/pathep-[eth1/11]
+            # Typical FEX path format: topology/pod-1/paths-101/extpaths-1101/pathep-[eth1/11]
             match = re.search(r'paths-(\d+)/extpaths-(\d+)/pathep-\[([^\]]+)\]', tdn)
-            if not match:
+            if match:
+                leaf_id = match.group(1)
+                fex_match = match.group(2)
+                interface_id = match.group(3)
+                if str(fex_match) == str(fex_id):
+                    port_keys.add(f"{leaf_id}:{fex_id}:{interface_id}")
                 continue
 
-            leaf_id = match.group(1)
-            fex_match = match.group(2)
-            interface_id = match.group(3)
-
-            if str(fex_match) != str(fex_id):
+            # Alternate format without pathep section
+            match = re.search(r'paths-(\d+)/extpaths-(\d+)', tdn)
+            if match:
+                leaf_id = match.group(1)
+                fex_match = match.group(2)
+                if str(fex_match) == str(fex_id):
+                    port_keys.add(f"{leaf_id}:{fex_id}:unknown")
                 continue
 
-            port_keys.add(f"{leaf_id}:{fex_id}:{interface_id}")
+            # Fallback: extpaths appears in DN without leaf context
+            match = re.search(r'extpaths-(\d+)', tdn)
+            if match and str(match.group(1)) == str(fex_id):
+                port_keys.add(f"unknown:{fex_id}:unknown")
 
         if not port_keys:
             return None

@@ -87,7 +87,7 @@
         if (!rows.length) {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
-            td.colSpan = 9;
+            td.colSpan = 10;
             td.className = 'fex-empty';
             td.textContent = 'No matching FEX devices';
             tr.appendChild(td);
@@ -106,6 +106,7 @@
                 row.connected_ports === null || row.connected_ports === undefined ? 'Unknown' : row.connected_ports,
                 row.total_ports || 0,
                 row.utilization_pct === null || row.utilization_pct === undefined ? 'Unknown' : row.utilization_pct,
+                row.utilization_source || 'Unknown',
                 row.rack ? role : ''
             ];
             cells.forEach(value => {
