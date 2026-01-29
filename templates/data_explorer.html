@@ -32,7 +32,10 @@
 
     <div class="space-y-10">
         <section id="section-vlans">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">VLAN Coupling Explorer</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-1">VLAN Coupling Explorer</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Goal: identify VLANs that drive migration risk (shared EPGs, cross-tenant use, and blast radius).
+            </p>
             {% include "partials/vlan_filter_bar.html" %}
             {% include "partials/vlan_table.html" %}
             <script id="vlan-rows-data" type="application/json">
@@ -41,7 +44,10 @@
         </section>
 
         <section id="section-migration">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">Migration Units</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-1">Migration Units</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Goal: define actionable work units with coupling-driven difficulty and clear sequencing.
+            </p>
             {% set unit_columns = [
                 {'key': 'site', 'label': 'Site', 'type': 'text', 'filter': 'exact'},
                 {'key': 'building', 'label': 'Building', 'type': 'text', 'filter': 'exact'},
@@ -79,7 +85,10 @@
         </section>
 
         <section id="section-epgs">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">EPG Complexity</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-1">EPG Complexity</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Goal: find EPGs with the widest attachments and highest dependency risk.
+            </p>
             {% set epg_columns = [
                 {'key': 'tenant', 'label': 'Tenant', 'type': 'text', 'filter': 'exact'},
                 {'key': 'app_profile', 'label': 'App', 'type': 'text', 'filter': 'exact'},
@@ -105,7 +114,10 @@
         </section>
 
         <section id="section-inventory">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">Inventory</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-1">Inventory</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Goal: validate FEX and leaf inventory coverage before migration scoping.
+            </p>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {% set fex_columns = [
                     {'key': 'id', 'label': 'FEX ID', 'type': 'number'},
@@ -143,7 +155,10 @@
         </section>
 
         <section id="section-consolidation">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">FEX + Rack Consolidation</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-1">FEX + Rack Consolidation</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Goal: identify racks with 3+ FEX and determine if they can consolidate into a 2248 (≤48 ports).
+            </p>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                     <p class="text-xs text-gray-500 uppercase tracking-wide">Total Racks</p>
@@ -203,7 +218,10 @@
         </section>
 
         <section id="section-contracts">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">Contracts / VRFs / BDs</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-1">Contracts / VRFs / BDs</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Goal: understand policy dependencies that affect cutover sequencing and blast radius.
+            </p>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {% set contract_columns = [
                     {'key': 'tenant', 'label': 'Tenant', 'type': 'text', 'filter': 'exact'},
@@ -250,7 +268,10 @@
         </section>
 
         <section id="section-cmdb">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4">CMDB Correlation</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-1">CMDB Correlation</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Goal: map inventory and location data (rack/site) to ACI serials for physical migration planning.
+            </p>
             {% set cmdb_columns = [
                 {'key': 'serial_number', 'label': 'SerialNumber', 'type': 'text', 'filter': 'exact'},
                 {'key': 'name', 'label': 'Name', 'type': 'text'},
