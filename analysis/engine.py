@@ -1992,7 +1992,7 @@ class ACIAnalyzer:
                 leaf_id = match.group(1)
                 fex_match = match.group(2)
                 interface_id = match.group(3)
-                if str(fex_match) == str(fex_id):
+                if str(fex_match) == str(fex_id) or str(fex_match).endswith(str(fex_id)):
                     port_keys.add(f"{leaf_id}:{fex_id}:{interface_id}")
                 continue
 
@@ -2003,7 +2003,7 @@ class ACIAnalyzer:
                 leaf_b = match.group(2)
                 fex_match = match.group(3)
                 interface_id = match.group(4)
-                if str(fex_match) == str(fex_id):
+                if str(fex_match) == str(fex_id) or str(fex_match).endswith(str(fex_id)):
                     port_keys.add(f"{leaf_a}:{fex_id}:{interface_id}")
                     port_keys.add(f"{leaf_b}:{fex_id}:{interface_id}")
                 continue
@@ -2013,13 +2013,13 @@ class ACIAnalyzer:
             if match:
                 leaf_id = match.group(1)
                 fex_match = match.group(2)
-                if str(fex_match) == str(fex_id):
+                if str(fex_match) == str(fex_id) or str(fex_match).endswith(str(fex_id)):
                     port_keys.add(f"{leaf_id}:{fex_id}:unknown")
                 continue
 
             # Fallback: extpaths appears in DN without leaf context
             match = re.search(r'extpaths-(\d+)', tdn)
-            if match and str(match.group(1)) == str(fex_id):
+            if match and (str(match.group(1)) == str(fex_id) or str(match.group(1)).endswith(str(fex_id))):
                 port_keys.add(f"unknown:{fex_id}:unknown")
 
         if not port_keys:
