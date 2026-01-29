@@ -81,6 +81,14 @@
         </table>
     </div>
 
+    <div class="fex-flow-panel">
+        <div class="fex-flow-header">
+            <h4>Consolidation Flow</h4>
+            <p>Candidate racks show the target FEX and member FEX devices proposed for consolidation.</p>
+        </div>
+        <div class="fex-flow-grid" id="fex-flow-grid"></div>
+    </div>
+
     <script id="fex-rack-data" type="application/json">{{ hub_data.get('rack_consolidation', {}).get('rows', []) | tojson }}</script>
     <script id="fex-device-data" type="application/json">{{ hub_data.get('fex_port_util', []) | tojson }}</script>
 </div>

@@ -1,14 +1,15 @@
 (() => {
-    const rowsDataEl = document.getElementById('vlan-rows-data');
-    if (!rowsDataEl) return;
+    function initVlanExplorer() {
+        const rowsDataEl = document.getElementById('vlan-rows-data');
+        if (!rowsDataEl) return;
 
-    let vlanRows = [];
-    try {
-        vlanRows = JSON.parse(rowsDataEl.textContent || '[]');
-    } catch (err) {
-        console.error('Failed to parse VLAN rows data', err);
-        vlanRows = [];
-    }
+        let vlanRows = [];
+        try {
+            vlanRows = JSON.parse(rowsDataEl.textContent || '[]');
+        } catch (err) {
+            console.error('Failed to parse VLAN rows data', err);
+            vlanRows = [];
+        }
 
     const state = {
         rows: vlanRows,
@@ -691,25 +692,32 @@
         renderTable();
     }
 
-    function init() {
-        initColumns();
-        renderColumnMenu();
-        setupDropdowns();
-        setupSorting();
-        setupFilters();
-        setupExport();
-        setupWorstVlanLink();
-        const reset = document.getElementById('vlan-mapping-reset');
-        if (reset) {
-            reset.addEventListener('click', () => {
-                const panel = document.getElementById('vlan-mapping-panel');
-                if (panel) {
-                    panel.innerHTML = '<div class="text-sm text-gray-500">No VLAN selected yet.</div>';
-                }
-            });
+        function init() {
+            initColumns();
+            renderColumnMenu();
+            setupDropdowns();
+            setupSorting();
+            setupFilters();
+            setupExport();
+            setupWorstVlanLink();
+            const reset = document.getElementById('vlan-mapping-reset');
+            if (reset) {
+                reset.addEventListener('click', () => {
+                    const panel = document.getElementById('vlan-mapping-panel');
+                    if (panel) {
+                        panel.innerHTML = '<div class="text-sm text-gray-500">No VLAN selected yet.</div>';
+                    }
+                });
+            }
+            update();
         }
-        update();
+
+        init();
     }
 
-    init();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initVlanExplorer);
+    } else {
+        initVlanExplorer();
+    }
 })();
