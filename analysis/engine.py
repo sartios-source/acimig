@@ -459,7 +459,9 @@ class ACIAnalyzer:
             # Count interfaces for this FEX
             fex_interfaces = [
                 iface for iface in interface_candidates
-                if fex_norm and self._extract_fex_id_from_interface_id(iface.get('id', '')) == str(fex_norm)
+                if fex_norm
+                and self._extract_fex_id_from_interface_id(iface.get('id', '')) == str(fex_norm)
+                and (not leaf_id or self._extract_node_id_from_dn(iface.get('dn', '')) == str(leaf_id))
             ] if interface_candidates else []
 
             utilization_known = True
