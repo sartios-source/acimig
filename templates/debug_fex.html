@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}FEX Debug{% endblock %}
+{% block page_title %}FEX Debug{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+    <h2 class="text-xl font-semibold text-gray-900 mb-2">FEX Debug Checks</h2>
+    <p class="text-sm text-gray-600 mb-4">
+        Select a fabric, run checks, and see API results without leaving the app.
+    </p>
+
+    <div class="flex flex-wrap items-center gap-3 mb-6">
+        <label class="text-sm font-medium text-gray-700" for="debug-fabric">Fabric</label>
+        <select id="debug-fabric" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+            <option value="">Loading...</option>
+        </select>
+        <button id="run-check" class="px-4 py-2 rounded-md bg-slate-900 text-white text-sm font-semibold">
+            Run checks
+        </button>
+        <span id="debug-status" class="text-sm text-gray-600"></span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="debug-summary">
+        <div class="p-4 rounded-lg border border-gray-100 bg-gray-50">
+            <div class="text-xs text-gray-500">Active Fabric</div>
+            <div class="text-lg font-semibold text-gray-900" id="sum-fabric">-</div>
+        </div>
+        <div class="p-4 rounded-lg border border-gray-100 bg-gray-50">
+            <div class="text-xs text-gray-500">FEX Devices</div>
+            <div class="text-lg font-semibold text-gray-900" id="sum-fex-devices">-</div>
+        </div>
+        <div class="p-4 rounded-lg border border-gray-100 bg-gray-50">
+            <div class="text-xs text-gray-500">FEX Racks</div>
+            <div class="text-lg font-semibold text-gray-900" id="sum-fex-racks">-</div>
+        </div>
+        <div class="p-4 rounded-lg border border-gray-100 bg-gray-50">
+            <div class="text-xs text-gray-500">FEX IDs</div>
+            <div class="text-lg font-semibold text-gray-900" id="sum-fex-ids">-</div>
+        </div>
+        <div class="p-4 rounded-lg border border-gray-100 bg-gray-50">
+            <div class="text-xs text-gray-500">Missing FEX IDs</div>
+            <div class="text-lg font-semibold text-gray-900" id="sum-fex-missing">-</div>
+        </div>
+        <div class="p-4 rounded-lg border border-gray-100 bg-gray-50">
+            <div class="text-xs text-gray-500">Match Rate</div>
+            <div class="text-lg font-semibold text-gray-900" id="sum-match-rate">-</div>
+        </div>
+    </div>
+
+    <div class="bg-gray-900 rounded-lg p-4 text-xs text-gray-100 overflow-auto" style="max-height: 420px;">
+        <pre id="debug-json" class="whitespace-pre-wrap">{}</pre>
+    </div>
+</div>
+
+<script>
+(() => {
+    const fabricSelect = document.getElementById('debug-fabric');
+    const statusEl = document.getElementById('debug-status');
+    const runBtn = document.getElementById('run-check');
+    const debugJson = document.getElementById('debug-json');
+
+    const sum = {
+        fabric: document.getElementById('sum-fabric'),
+        devices: document.getElementById('sum-fex-devices'),
+        racks: document.getElementById('sum-fex-racks'),
+        ids: document.getElementById('sum-fex-ids'),
+        missing: document.getElementById('sum-fex-missing'),
+        match: document.getElementById('sum-match-rate')
+    };
+
+    function setStatus(text, isError=false) {
+        statusEl.textContent = text;
+        statusEl.className = isError ? 'text-sm text-red-600' : 'text-sm text-gray-600';
+    }
+
+    function updateSummary(payload) {
+        sum.fabric.textContent = payload.active_fabric || '-';
+        sum.devices.textContent = payload.bi?.fex_devices_total ?? '-';
+        sum.racks.textContent = payload.bi?.fex_racks_total ?? '-';
+        sum.ids.textContent = payload.debug?.fex_ids ?? '-';
+        sum.missing.textContent = payload.debug?.fex_missing_id ?? '-';
+        sum.match.textContent = payload.debug?.match_rate !== undefined ? `${payload.debug.match_rate}%` : '-';
+    }
+
+    async function loadFabrics() {
+        try {
+            const res = await fetch('/fabrics');
+            const fabrics = await res.json();
+            fabricSelect.innerHTML = '';
+            if (!Array.isArray(fabrics) || fabrics.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'No fabrics found';
+                fabricSelect.appendChild(opt);
+                return;
+            }
+            fabrics.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.name;
+                opt.textContent = f.name;
+                fabricSelect.appendChild(opt);
+            });
+            // Try to pick active fabric if already set
+            const health = await fetch('/api/health/fabric').then(r => r.json());
+            if (health && health.active_fabric) {
+                fabricSelect.value = health.active_fabric;
+                updateSummary({ active_fabric: health.active_fabric });
+            }
+        } catch (err) {
+            setStatus('Failed to load fabrics', true);
+        }
+    }
+
+    async function runCheck() {
+        const fabric = fabricSelect.value;
+        if (!fabric) {
+            setStatus('Select a fabric first', true);
+            return;
+        }
+        setStatus('Running checks...');
+        debugJson.textContent = '{}';
+        try {
+            const res = await fetch(`/api/debug/fex-check?fabric=${encodeURIComponent(fabric)}`);
+            const payload = await res.json();
+            if (!payload.ok) {
+                setStatus(payload.error || 'Check failed', true);
+                debugJson.textContent = JSON.stringify(payload, null, 2);
+                return;
+            }
+            setStatus('Checks complete');
+            updateSummary(payload);
+            debugJson.textContent = JSON.stringify(payload, null, 2);
+        } catch (err) {
+            setStatus('Check failed', true);
+        }
+    }
+
+    runBtn.addEventListener('click', runCheck);
+    loadFabrics();
+})();
+</script>
+{% endblock %}

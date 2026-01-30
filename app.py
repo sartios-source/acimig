@@ -22,6 +22,7 @@ import re
 import sys
 import subprocess
 import csv
+import time
 from io import StringIO
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
@@ -676,6 +677,77 @@ def debug_fex_match():
     })
 
 
+@app.route('/api/debug/fex-check')
+def debug_fex_check():
+    """Aggregate FEX debug checks for UI use."""
+    requested_fabric = request.args.get('fabric', '').strip()
+    if requested_fabric:
+        try:
+            requested_fabric = validate_fabric_name(requested_fabric)
+            if requested_fabric not in [f['name'] for f in fm.list_fabrics()]:
+                return jsonify({'ok': False, 'error': 'Fabric not found'}), 404
+            session['current_fabric'] = requested_fabric
+        except ValueError as exc:
+            return jsonify({'ok': False, 'error': str(exc)}), 400
+
+    t0 = time.time()
+    result = get_active_fabric_data()
+    if not result.get('ok'):
+        return jsonify({
+            'ok': False,
+            'error': result.get('error'),
+            'active_fabric': result.get('fabric')
+        }), 400
+    analyzer = result.get('analyzer')
+    t1 = time.time()
+
+    hub_data, _ = _get_hub_data(result.get('fabric'))
+    t2 = time.time()
+
+    interfaces = analyzer._interfaces if analyzer._interfaces else analyzer._l1_interfaces
+    fex_ids = {str(f.get('id')) for f in analyzer._fexes if f.get('id') is not None}
+    missing_fex_ids = sum(1 for f in analyzer._fexes if not f.get('id'))
+    matched = 0
+    checked = 0
+    fex_style = 0
+    for iface in interfaces[:5000]:
+        iface_id = iface.get('id', '')
+        iface_fex = analyzer._extract_fex_id_from_interface_id(iface_id or '')
+        if iface_fex:
+            fex_style += 1
+        if iface_fex and str(iface_fex) in fex_ids:
+            matched += 1
+        checked += 1
+    t3 = time.time()
+
+    payload = {
+        'ok': True,
+        'active_fabric': result.get('fabric'),
+        'health': {
+            'counts': result.get('counts', {}),
+            'dataset_count': len(result.get('fabric_data', {}).get('datasets', []))
+        },
+        'bi': {
+            'fex_devices_total': len(hub_data.get('fex_port_util', [])),
+            'fex_racks_total': len(hub_data.get('rack_consolidation', {}).get('rows', []))
+        },
+        'debug': {
+            'fex_total_objects': len(analyzer._fexes),
+            'fex_ids': len(fex_ids),
+            'fex_missing_id': missing_fex_ids,
+            'fex_style_interfaces': fex_style,
+            'interface_count': len(interfaces),
+            'match_rate': round((matched / checked * 100), 2) if checked else 0
+        },
+        'timings': {
+            'load_data_s': round(t1 - t0, 3),
+            'hub_data_s': round(t2 - t1, 3),
+            'match_calc_s': round(t3 - t2, 3)
+        }
+    }
+    return jsonify(payload)
+
+
 @app.route('/')
 def index():
     """Landing page with mode selection and fabric-specific statistics."""
@@ -761,6 +833,12 @@ def index():
                          current_fabric=current_fabric,
                          fabric_stats=fabric_stats,
                          validation_results=validation_results)
+
+
+@app.route('/debug/fex')
+def debug_fex_page():
+    """Interactive FEX debug checks."""
+    return render_template('debug_fex.html')
 
 
 @app.route('/ui/select')
