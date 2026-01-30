@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}FEX Debug{% endblock %}
-{% block page_title %}FEX Debug{% endblock %}
+{% block title %}Data Debug{% endblock %}
+{% block page_title %}Data Debug{% endblock %}
 
 {% block content %}
 <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-    <h2 class="text-xl font-semibold text-gray-900 mb-2">FEX Debug Checks</h2>
+    <h2 class="text-xl font-semibold text-gray-900 mb-2">Data Pipeline Debug Checks</h2>
     <p class="text-sm text-gray-600 mb-4">
-        Select a fabric, run checks, and see API results without leaving the app.
+        Select a fabric, run checks, and see API + UI binding status without leaving the app.
     </p>
 
     <div class="flex flex-wrap items-center gap-3 mb-6">
@@ -14,8 +14,11 @@
         <select id="debug-fabric" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
             <option value="">Loading...</option>
         </select>
-        <button id="run-check" class="px-4 py-2 rounded-md bg-slate-900 text-white text-sm font-semibold">
-            Run checks
+        <button id="run-fex-check" class="px-4 py-2 rounded-md bg-slate-900 text-white text-sm font-semibold">
+            Run FEX checks
+        </button>
+        <button id="run-data-check" class="px-4 py-2 rounded-md bg-slate-700 text-white text-sm font-semibold">
+            Run full data checks
         </button>
         <span id="debug-status" class="text-sm text-gray-600"></span>
     </div>
@@ -47,6 +50,26 @@
         </div>
     </div>
 
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <div class="bg-white border border-gray-100 rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-gray-900 mb-2">Module Rows</h3>
+            <div class="text-xs text-gray-600 mb-2">Counts from the hub pipeline.</div>
+            <div id="module-rows" class="text-sm text-gray-800">-</div>
+        </div>
+        <div class="bg-white border border-gray-100 rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-gray-900 mb-2">Missing Required Datasets</h3>
+            <div id="missing-required" class="text-sm text-gray-800">-</div>
+        </div>
+        <div class="bg-white border border-gray-100 rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-gray-900 mb-2">Analysis Capabilities</h3>
+            <div id="capabilities" class="text-sm text-gray-800">-</div>
+        </div>
+        <div class="bg-white border border-gray-100 rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-gray-900 mb-2">Timings</h3>
+            <div id="timings" class="text-sm text-gray-800">-</div>
+        </div>
+    </div>
+
     <div class="bg-gray-900 rounded-lg p-4 text-xs text-gray-100 overflow-auto" style="max-height: 420px;">
         <pre id="debug-json" class="whitespace-pre-wrap">{}</pre>
     </div>
@@ -56,8 +79,13 @@
 (() => {
     const fabricSelect = document.getElementById('debug-fabric');
     const statusEl = document.getElementById('debug-status');
-    const runBtn = document.getElementById('run-check');
+    const runFexBtn = document.getElementById('run-fex-check');
+    const runDataBtn = document.getElementById('run-data-check');
     const debugJson = document.getElementById('debug-json');
+    const moduleRows = document.getElementById('module-rows');
+    const missingRequired = document.getElementById('missing-required');
+    const capabilities = document.getElementById('capabilities');
+    const timings = document.getElementById('timings');
 
     const sum = {
         fabric: document.getElementById('sum-fabric'),
@@ -80,6 +108,27 @@
         sum.ids.textContent = payload.debug?.fex_ids ?? '-';
         sum.missing.textContent = payload.debug?.fex_missing_id ?? '-';
         sum.match.textContent = payload.debug?.match_rate !== undefined ? `${payload.debug.match_rate}%` : '-';
+    }
+
+    function updateDataChecks(payload) {
+        const modules = payload.modules || {};
+        moduleRows.textContent = Object.keys(modules).length
+            ? Object.entries(modules).map(([k, v]) => `${k}: ${v}`).join(', ')
+            : '-';
+
+        const missing = payload.validation?.missing_required || [];
+        missingRequired.textContent = missing.length
+            ? missing.map(m => `${m.type}`).join(', ')
+            : 'none';
+
+        const caps = payload.validation?.analysis_capabilities || {};
+        const capItems = Object.entries(caps).map(([k, v]) => `${k}: ${v.enabled ? 'OK' : 'Missing'}`);
+        capabilities.textContent = capItems.length ? capItems.join(', ') : '-';
+
+        const t = payload.timings || {};
+        timings.textContent = Object.keys(t).length
+            ? `load=${t.load_data_s}s, hub=${t.hub_data_s}s, completeness=${t.completeness_s}s`
+            : '-';
     }
 
     async function loadFabrics() {
@@ -111,14 +160,13 @@
         }
     }
 
-    async function runCheck() {
+    async function runFexCheck() {
         const fabric = fabricSelect.value;
         if (!fabric) {
             setStatus('Select a fabric first', true);
             return;
         }
-        setStatus('Running checks...');
-        debugJson.textContent = '{}';
+        setStatus('Running FEX checks...');
         try {
             const res = await fetch(`/api/debug/fex-check?fabric=${encodeURIComponent(fabric)}`);
             const payload = await res.json();
@@ -127,7 +175,7 @@
                 debugJson.textContent = JSON.stringify(payload, null, 2);
                 return;
             }
-            setStatus('Checks complete');
+            setStatus('FEX checks complete');
             updateSummary(payload);
             debugJson.textContent = JSON.stringify(payload, null, 2);
         } catch (err) {
@@ -135,7 +183,32 @@
         }
     }
 
-    runBtn.addEventListener('click', runCheck);
+    async function runDataCheck() {
+        const fabric = fabricSelect.value;
+        if (!fabric) {
+            setStatus('Select a fabric first', true);
+            return;
+        }
+        setStatus('Running data checks...');
+        debugJson.textContent = '{}';
+        try {
+            const res = await fetch(`/api/debug/data-check?fabric=${encodeURIComponent(fabric)}&full=1`);
+            const payload = await res.json();
+            if (!payload.ok) {
+                setStatus(payload.error || 'Check failed', true);
+                debugJson.textContent = JSON.stringify(payload, null, 2);
+                return;
+            }
+            setStatus('Data checks complete');
+            updateDataChecks(payload);
+            debugJson.textContent = JSON.stringify(payload, null, 2);
+        } catch (err) {
+            setStatus('Check failed', true);
+        }
+    }
+
+    runFexBtn.addEventListener('click', runFexCheck);
+    runDataBtn.addEventListener('click', runDataCheck);
     loadFabrics();
 })();
 </script>

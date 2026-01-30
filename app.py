@@ -841,6 +841,68 @@ def debug_fex_page():
     return render_template('debug_fex.html')
 
 
+@app.route('/api/debug/data-check')
+def debug_data_check():
+    """Aggregate data pipeline checks across all modules."""
+    requested_fabric = request.args.get('fabric', '').strip()
+    full = request.args.get('full', '').strip().lower() in {'1', 'true', 'yes'}
+    if requested_fabric:
+        try:
+            requested_fabric = validate_fabric_name(requested_fabric)
+            if requested_fabric not in [f['name'] for f in fm.list_fabrics()]:
+                return jsonify({'ok': False, 'error': 'Fabric not found'}), 404
+            session['current_fabric'] = requested_fabric
+        except ValueError as exc:
+            return jsonify({'ok': False, 'error': str(exc)}), 400
+
+    t0 = time.time()
+    result = get_active_fabric_data()
+    if not result.get('ok'):
+        return jsonify({
+            'ok': False,
+            'error': result.get('error'),
+            'active_fabric': result.get('fabric')
+        }), 400
+    analyzer = result.get('analyzer')
+    t1 = time.time()
+
+    hub_data, validation_results = _get_hub_data(result.get('fabric'))
+    t2 = time.time()
+
+    completeness = None
+    if full:
+        try:
+            completeness = analyzer.get_data_completeness()
+        except Exception as exc:
+            completeness = {'error': str(exc)}
+    t3 = time.time()
+
+    payload = {
+        'ok': True,
+        'active_fabric': result.get('fabric'),
+        'object_counts': result.get('counts', {}),
+        'modules': {
+            'vlan_coupling': len(hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) or []),
+            'migration_units': len(hub_data.get('migration_units', {}).get('units', []) or []),
+            'epg_complexity': len(hub_data.get('epg_complexity', []) or []),
+            'cmdb_rows': len(hub_data.get('cmdb_rows', []) or []),
+            'fex_port_util': len(hub_data.get('fex_port_util', []) or []),
+            'fex_racks': len(hub_data.get('rack_consolidation', {}).get('rows', []) or []),
+            'contracts': len(hub_data.get('contracts', []) or []),
+            'vrfs': len(hub_data.get('vrfs', []) or []),
+            'bds': len(hub_data.get('bds', []) or [])
+        },
+        'validation': validation_results or {},
+        'completeness': completeness,
+        'timings': {
+            'load_data_s': round(t1 - t0, 3),
+            'hub_data_s': round(t2 - t1, 3),
+            'completeness_s': round(t3 - t2, 3)
+        }
+    }
+    return jsonify(payload)
+
+
 @app.route('/ui/select')
 def select_ui_mode():
     """Persist the preferred UI mode in the session."""
