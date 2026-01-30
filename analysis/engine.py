@@ -190,9 +190,17 @@ class ACIAnalyzer:
             if obj_type == 'eqptFex':
                 if not attrs.get('id'):
                     dn = attrs.get('dn', '')
-                    match = re.search(r'fex-(\d+)', dn)
+                    match = re.search(r'extch-(\d+)', dn)
                     if match:
                         attrs['id'] = match.group(1)
+                    else:
+                        match = re.search(r'fex-(\d+)', dn)
+                        if match:
+                            attrs['id'] = match.group(1)
+                        else:
+                            node_match = re.search(r'node-(\d+)', dn)
+                            if node_match and int(node_match.group(1)) <= 200:
+                                attrs['id'] = node_match.group(1)
                 self._fexes.append(attrs)
                 fex_id = attrs.get('id')
                 if fex_id:
@@ -431,6 +439,7 @@ class ACIAnalyzer:
         results = []
         quality = self.get_port_utilization_quality()
         interface_candidates = self._interfaces if self._interfaces else self._l1_interfaces
+        interface_state = self._build_interface_state_map(interface_candidates) if interface_candidates else {}
         interface_source = quality.get('interface_source') or ''
         path_attachment_available = quality.get('path_attachment_available')
         for fex in self._fexes:
@@ -450,7 +459,7 @@ class ACIAnalyzer:
             # Count interfaces for this FEX
             fex_interfaces = [
                 iface for iface in interface_candidates
-                if fex_norm and iface.get('id', '').startswith(f'eth{fex_norm}/')
+                if fex_norm and self._extract_fex_id_from_interface_id(iface.get('id', '')) == str(fex_norm)
             ] if interface_candidates else []
 
             utilization_known = True
@@ -460,37 +469,49 @@ class ACIAnalyzer:
             connected_ports = None
             if not quality.get('utilization_data_present'):
                 if path_attachment_available:
-                    connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
+                    connected_ports = self._count_fex_ports_from_path_attachments_with_state(
+                        str(fex_id), leaf_id, interface_state
+                    )
+                    if connected_ports is None:
+                        connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
                     if connected_ports is None:
                         utilization_known = False
                         utilization_reason = 'Insufficient interface data to compute utilization'
                     else:
                         utilization_known = True
-                        utilization_reason = 'Using fvRsPathAtt bindings (interface data missing)'
+                        utilization_reason = 'Using fvRsPathAtt + interface state (interface data missing)'
                 else:
                     utilization_known = False
                     utilization_reason = 'Insufficient interface data to compute utilization'
             elif total_ports <= 0:
                 if path_attachment_available:
-                    connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
+                    connected_ports = self._count_fex_ports_from_path_attachments_with_state(
+                        str(fex_id), leaf_id, interface_state
+                    )
+                    if connected_ports is None:
+                        connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
                     if connected_ports is None:
                         utilization_known = False
                         utilization_reason = 'Unknown total port count for FEX model'
                     else:
                         utilization_known = True
-                        utilization_reason = 'Using fvRsPathAtt bindings (unknown total ports)'
+                        utilization_reason = 'Using fvRsPathAtt + interface state (unknown total ports)'
                 else:
                     utilization_known = False
                     utilization_reason = 'Unknown total port count for FEX model'
             elif len(fex_interfaces) == 0:
                 if path_attachment_available:
-                    connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
+                    connected_ports = self._count_fex_ports_from_path_attachments_with_state(
+                        str(fex_id), leaf_id, interface_state
+                    )
+                    if connected_ports is None:
+                        connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
                     if connected_ports is None:
                         utilization_known = False
                         utilization_reason = 'No interfaces matched to this FEX'
                     else:
                         utilization_known = True
-                        utilization_reason = 'Using fvRsPathAtt bindings (no interfaces matched)'
+                        utilization_reason = 'Using fvRsPathAtt + interface state (no interfaces matched)'
                 else:
                     utilization_known = False
                     utilization_reason = 'No interfaces matched to this FEX'
@@ -520,6 +541,7 @@ class ACIAnalyzer:
             results.append({
                 'fex_id': fex_id,
                 'fex_identifier': fex_identifier,
+                'name': fex.get('name'),
                 'serial': fex_serial,
                 'model': fex_model,
                 'leaf_id': leaf_id,
@@ -1974,6 +1996,13 @@ class ACIAnalyzer:
         match = re.search(r'(\d+)', str(value))
         return match.group(1) if match else None
 
+    def _extract_fex_id_from_interface_id(self, iface_id: str) -> Optional[str]:
+        """Extract FEX ID from interface ID like eth103/1/34."""
+        if not iface_id:
+            return None
+        match = re.match(r'eth(\d+)/', str(iface_id))
+        return match.group(1) if match else None
+
     def _extract_interface_id_from_dn(self, dn: str) -> str:
         """Extract interface ID from DN."""
         match = re.search(r'phys-\[(.*?)\]', dn)
@@ -1983,6 +2012,19 @@ class ACIAnalyzer:
         if match:
             return match.group(1)
         return ''
+
+    def _build_interface_state_map(self, interface_candidates: List[Dict[str, Any]]) -> Dict[str, str]:
+        """Map (node_id, interface_id) -> operSt for fast lookups."""
+        state_map = {}
+        for iface in interface_candidates:
+            iface_id = iface.get('id') or self._extract_interface_id_from_dn(iface.get('dn', ''))
+            if not iface_id:
+                continue
+            node_id = self._extract_node_id_from_dn(iface.get('dn', ''))
+            if not node_id:
+                continue
+            state_map[f"{node_id}:{iface_id}"] = iface.get('operSt')
+        return state_map
 
     def _count_fex_ports_from_path_attachments(self, fex_id: str, leaf_id: Optional[str] = None) -> Optional[int]:
         """
@@ -1997,6 +2039,7 @@ class ACIAnalyzer:
         leaf_norm = self._normalize_fex_id(leaf_id) if leaf_id else None
 
         port_keys = set()
+        port_keys_unfiltered = set()
         for att in self._path_attachments:
             tdn = att.get('tDn', '') or att.get('dn', '')
             if not tdn:
@@ -2009,6 +2052,7 @@ class ACIAnalyzer:
                 fex_match = match.group(2)
                 interface_id = match.group(3)
                 if str(fex_match) == str(fex_norm) or str(fex_match).endswith(str(fex_norm)):
+                    port_keys_unfiltered.add(f"{leaf_id}:{fex_id}:{interface_id}")
                     if leaf_norm and str(leaf_id) != str(leaf_norm):
                         continue
                     port_keys.add(f"{leaf_id}:{fex_id}:{interface_id}")
@@ -2022,6 +2066,8 @@ class ACIAnalyzer:
                 fex_match = match.group(3)
                 interface_id = match.group(4)
                 if str(fex_match) == str(fex_norm) or str(fex_match).endswith(str(fex_norm)):
+                    port_keys_unfiltered.add(f"{leaf_a}:{fex_id}:{interface_id}")
+                    port_keys_unfiltered.add(f"{leaf_b}:{fex_id}:{interface_id}")
                     if leaf_norm and str(leaf_norm) not in {str(leaf_a), str(leaf_b)}:
                         continue
                     port_keys.add(f"{leaf_a}:{fex_id}:{interface_id}")
@@ -2034,6 +2080,7 @@ class ACIAnalyzer:
                 leaf_id = match.group(1)
                 fex_match = match.group(2)
                 if str(fex_match) == str(fex_norm) or str(fex_match).endswith(str(fex_norm)):
+                    port_keys_unfiltered.add(f"{leaf_id}:{fex_id}:unknown")
                     if leaf_norm and str(leaf_id) != str(leaf_norm):
                         continue
                     port_keys.add(f"{leaf_id}:{fex_id}:unknown")
@@ -2042,11 +2089,83 @@ class ACIAnalyzer:
             # Fallback: extpaths appears in DN without leaf context
             match = re.search(r'extpaths-(\d+)', tdn)
             if match and (str(match.group(1)) == str(fex_norm) or str(match.group(1)).endswith(str(fex_norm))):
+                port_keys_unfiltered.add(f"unknown:{fex_id}:unknown")
+                if leaf_norm:
+                    continue
                 port_keys.add(f"unknown:{fex_id}:unknown")
 
+        if not port_keys and port_keys_unfiltered:
+            port_keys = port_keys_unfiltered
         if not port_keys:
             return None
         return len(port_keys)
+
+    def _count_fex_ports_from_path_attachments_with_state(
+        self,
+        fex_id: str,
+        leaf_id: Optional[str],
+        interface_state: Dict[str, str]
+    ) -> Optional[int]:
+        """Count FEX ports using fvRsPathAtt + interface operSt from leaf ports."""
+        if not fex_id or not interface_state:
+            return None
+        fex_norm = self._normalize_fex_id(fex_id)
+        if not fex_norm:
+            return None
+        leaf_norm = self._normalize_fex_id(leaf_id) if leaf_id else None
+
+        matched = set()
+        for att in self._path_attachments:
+            tdn = att.get('tDn', '') or att.get('dn', '')
+            if not tdn:
+                continue
+
+            match = re.search(r'paths-(\d+)/extpaths-(\d+)/pathep-\[([^\]]+)\]', tdn)
+            if match:
+                leaf = match.group(1)
+                fex_match = match.group(2)
+                interface_id = match.group(3)
+                if str(fex_match) == str(fex_norm) or str(fex_match).endswith(str(fex_norm)):
+                    if leaf_norm and str(leaf) != str(leaf_norm):
+                        continue
+                    key = f"{leaf}:{interface_id}"
+                    matched.add(key)
+                continue
+
+            match = re.search(r'protpaths-(\d+)-(\d+)/extpaths-(\d+)/pathep-\[([^\]]+)\]', tdn)
+            if match:
+                leaf_a = match.group(1)
+                leaf_b = match.group(2)
+                fex_match = match.group(3)
+                interface_id = match.group(4)
+                if str(fex_match) == str(fex_norm) or str(fex_match).endswith(str(fex_norm)):
+                    if not leaf_norm or str(leaf_norm) in {str(leaf_a), str(leaf_b)}:
+                        matched.add(f"{leaf_a}:{interface_id}")
+                        matched.add(f"{leaf_b}:{interface_id}")
+                continue
+
+            match = re.search(r'paths-(\d+)/extpaths-(\d+)', tdn)
+            if match:
+                leaf = match.group(1)
+                fex_match = match.group(2)
+                if str(fex_match) == str(fex_norm) or str(fex_match).endswith(str(fex_norm)):
+                    if leaf_norm and str(leaf) != str(leaf_norm):
+                        continue
+                    matched.add(f"{leaf}:unknown")
+                continue
+
+        if not matched:
+            return None
+
+        connected = 0
+        for entry in matched:
+            leaf, interface_id = entry.split(':', 1)
+            if interface_id == 'unknown':
+                continue
+            oper = interface_state.get(f"{leaf}:{interface_id}")
+            if oper == 'up':
+                connected += 1
+        return connected if connected > 0 else None
 
     def _get_bd_name_for_epg(self, epg: Dict[str, Any]) -> str:
         """Resolve BD name for an EPG using attributes or relation map."""

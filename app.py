@@ -635,14 +635,20 @@ def debug_fex_match():
     analyzer = result.get('analyzer')
     interfaces = analyzer._interfaces if analyzer._interfaces else analyzer._l1_interfaces
     fex_ids = {str(f.get('id')) for f in analyzer._fexes if f.get('id') is not None}
+    missing_fex_ids = sum(1 for f in analyzer._fexes if not f.get('id'))
     sample_ifaces = []
     matched = 0
     checked = 0
+    fex_style = 0
+    interface_fex_ids = set()
     for iface in interfaces[:5000]:
         iface_id = iface.get('id', '')
         match = False
-        m = re.match(r'^eth(\d+)/', iface_id or '')
-        if m and m.group(1) in fex_ids:
+        iface_fex = analyzer._extract_fex_id_from_interface_id(iface_id or '')
+        if iface_fex:
+            fex_style += 1
+            interface_fex_ids.add(str(iface_fex))
+        if iface_fex and str(iface_fex) in fex_ids:
             match = True
         checked += 1
         matched += 1 if match else 0
@@ -657,10 +663,14 @@ def debug_fex_match():
         'ok': True,
         'active_fabric': result.get('fabric'),
         'fex_count': len(fex_ids),
+        'fex_total_objects': len(analyzer._fexes),
+        'fex_missing_id': missing_fex_ids,
         'interface_count': len(interfaces),
         'checked': checked,
         'matched': matched,
         'match_rate': round((matched / checked * 100), 2) if checked else 0,
+        'fex_style_interfaces': fex_style,
+        'interface_fex_id_sample': sorted(list(interface_fex_ids))[:20],
         'sample_interfaces': sample_ifaces,
         'sample_fex_ids': sorted(list(fex_ids))[:20]
     })
@@ -1991,6 +2001,7 @@ def _get_hub_data(current_fabric: str):
             connected_ports = total_ports
         fex_util_rows.append({
             **row,
+            'fex_name': row.get('name') or row.get('fex_name'),
             'rack': cmdb_record.get('Rack') if cmdb_record else 'Unknown',
             'leaf_name': leaf_name_by_id.get(str(leaf_id), ''),
             'connected_ports': connected_ports,
@@ -2033,10 +2044,11 @@ def _get_hub_data(current_fabric: str):
             fex_id = fex.get('fex_id') or 'N/A'
             serial = fex.get('serial') or 'N/A'
             model = fex.get('model') or 'unknown'
+            name = fex.get('fex_name') or 'N/A'
             connected = fex.get('connected_ports')
             total_ports = fex.get('total_ports') or 0
             conn_display = str(connected) if connected is not None else 'N/A'
-            lines.append(f"FEX {fex_id} | {serial} | {model} | {conn_display}/{total_ports}")
+            lines.append(f"FEX {fex_id} ({name}) | {serial} | {model} | {conn_display}/{total_ports}")
         rack_fex_summary[rack] = "<br>".join(lines)
 
     def _pick_target_fex(fex_list):
