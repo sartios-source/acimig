@@ -433,13 +433,6 @@ class ACIAnalyzer:
         interface_candidates = self._interfaces if self._interfaces else self._l1_interfaces
         interface_source = quality.get('interface_source') or ''
         path_attachment_available = quality.get('path_attachment_available')
-        # If most interface IDs look like leaf ports (eth1/xx), do not treat them as FEX host ports
-        leaf_style = False
-        if interface_candidates:
-            sample_ids = [i.get('id', '') for i in interface_candidates[:100] if i.get('id')]
-            if sample_ids and all(re.match(r'^eth\\d+/\\d+$', i) for i in sample_ids):
-                leaf_style = True
-
         for fex in self._fexes:
             fex_id = fex.get('id', '')
             fex_norm = self._normalize_fex_id(fex_id)
@@ -458,22 +451,14 @@ class ACIAnalyzer:
             fex_interfaces = [
                 iface for iface in interface_candidates
                 if fex_norm and iface.get('id', '').startswith(f'eth{fex_norm}/')
-            ] if (interface_candidates and not leaf_style) else []
+            ] if interface_candidates else []
 
             utilization_known = True
             utilization_reason = None
 
             # Count connected (up) ports
             connected_ports = None
-            if leaf_style:
-                if path_attachment_available:
-                    connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
-                    utilization_known = connected_ports is not None
-                    utilization_reason = 'Using fvRsPathAtt bindings (interfaces are leaf-style)'
-                else:
-                    utilization_known = False
-                    utilization_reason = 'Interfaces appear leaf-style; fvRsPathAtt missing'
-            elif not quality.get('utilization_data_present'):
+            if not quality.get('utilization_data_present'):
                 if path_attachment_available:
                     connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
                     if connected_ports is None:
