@@ -466,30 +466,39 @@ class ACIAnalyzer:
             utilization_reason = None
             utilization_source = None
 
-            # Prefer binding-based utilization if available
+            # Prefer operational state from ethpmPhysIf/l1PhysIf when matched
             connected_ports = None
-            bound_ports = None
-            if path_attachment_available:
+            if not quality.get('utilization_data_present'):
+                utilization_known = False
+                utilization_reason = 'Insufficient interface data to compute utilization'
+            elif len(fex_interfaces) == 0:
+                utilization_known = False
+                utilization_reason = 'No interfaces matched to this FEX'
+            else:
+                def _is_port_up(iface):
+                    oper_st = (iface.get('operSt') or '').lower()
+                    admin_st = (iface.get('adminSt') or '').lower()
+                    oper_qual = (iface.get('operStQual') or '').lower()
+                    usage = (iface.get('usage') or '').lower()
+                    if admin_st and admin_st != 'up':
+                        return False
+                    if oper_qual in {'admin-down', 'administratively-down'}:
+                        return False
+                    if usage in {'blacklist'}:
+                        return False
+                    return oper_st == 'up'
+
+                connected_ports = sum(1 for iface in fex_interfaces if _is_port_up(iface))
+                utilization_reason = f'Using {interface_source} operational state'
+                utilization_source = interface_source or 'ethpmPhysIf'
+
+            # Fallback to bindings only when no operational matches exist
+            if connected_ports is None and path_attachment_available:
                 bound_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
                 if bound_ports is not None:
                     connected_ports = bound_ports
-                    utilization_reason = 'Using fvRsPathAtt bindings'
+                    utilization_reason = 'Using fvRsPathAtt bindings (no oper state)'
                     utilization_source = 'fvRsPathAtt'
-
-            if connected_ports is None:
-                if not quality.get('utilization_data_present'):
-                    utilization_known = False
-                    utilization_reason = 'Insufficient interface data to compute utilization'
-                elif len(fex_interfaces) == 0:
-                    utilization_known = False
-                    utilization_reason = 'No interfaces matched to this FEX'
-                else:
-                    connected_ports = sum(
-                        1 for iface in fex_interfaces
-                        if iface.get('operSt') == 'up'
-                    )
-                    utilization_reason = f'Using {interface_source} operational state'
-                    utilization_source = interface_source or 'ethpmPhysIf'
 
             if total_ports <= 0:
                 utilization_known = False
