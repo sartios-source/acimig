@@ -2900,7 +2900,11 @@ if __name__ == '__main__':
                 return candidate
         return start_port
 
-    selected_port = _pick_port(5001)
+    env_port = os.getenv('PORT') or os.getenv('FLASK_RUN_PORT')
+    if env_port and env_port.isdigit():
+        selected_port = int(env_port)
+    else:
+        selected_port = _pick_port(5001)
     print("=" * 70)
     print("ACI Migrator - Professional ACI Migration Tool")
     print(f"Version: {APP_VERSION}")
@@ -2912,4 +2916,4 @@ if __name__ == '__main__':
     print(f"Access the application at: http://0.0.0.0:{selected_port}")
     print("=" * 70)
 
-    app.run(debug=True, host='0.0.0.0', port=selected_port, threaded=True)
+    app.run(debug=True, host='0.0.0.0', port=selected_port, threaded=True, use_reloader=False)
