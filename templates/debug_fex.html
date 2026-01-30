@@ -20,6 +20,9 @@
         <button id="run-data-check" class="px-4 py-2 rounded-md bg-slate-700 text-white text-sm font-semibold">
             Run full data checks
         </button>
+        <button id="export-debug" class="px-4 py-2 rounded-md bg-slate-200 text-slate-800 text-sm font-semibold">
+            Export debug JSON
+        </button>
         <span id="debug-status" class="text-sm text-gray-600"></span>
     </div>
 
@@ -74,6 +77,7 @@
                 <button id="refresh-errors" class="px-3 py-1 rounded-md bg-slate-200 text-slate-800 text-xs font-semibold">Refresh</button>
             </div>
             <div id="ui-errors" class="text-xs text-gray-700 whitespace-pre-wrap">-</div>
+            <div id="ui-summary" class="text-xs text-gray-600 mt-2">-</div>
         </div>
     </div>
 
@@ -89,12 +93,15 @@
     const runFexBtn = document.getElementById('run-fex-check');
     const runDataBtn = document.getElementById('run-data-check');
     const debugJson = document.getElementById('debug-json');
+    const exportBtn = document.getElementById('export-debug');
     const moduleRows = document.getElementById('module-rows');
     const missingRequired = document.getElementById('missing-required');
     const capabilities = document.getElementById('capabilities');
     const timings = document.getElementById('timings');
     const uiErrors = document.getElementById('ui-errors');
     const refreshErrors = document.getElementById('refresh-errors');
+    const uiSummary = document.getElementById('ui-summary');
+    let lastPayload = null;
 
     const sum = {
         fabric: document.getElementById('sum-fabric'),
@@ -186,6 +193,7 @@
             }
             setStatus('FEX checks complete');
             updateSummary(payload);
+            lastPayload = payload;
             debugJson.textContent = JSON.stringify(payload, null, 2);
         } catch (err) {
             setStatus('Check failed', true);
@@ -210,6 +218,7 @@
             }
             setStatus('Data checks complete');
             updateDataChecks(payload);
+            lastPayload = payload;
             debugJson.textContent = JSON.stringify(payload, null, 2);
         } catch (err) {
             setStatus('Check failed', true);
@@ -229,18 +238,48 @@
                 return;
             }
             uiErrors.textContent = payload.rows.map(e =>
-                `[${e.ts}] ${e.source}: ${e.message} (${e.detail || 'n/a'})`
+                `[${e.ts}] ${e.severity || 'info'} ${e.category || 'unknown'}: ${e.message} (${e.detail || 'n/a'})`
             ).join('\\n');
         } catch (err) {
             uiErrors.textContent = 'Failed to load UI errors';
         }
     }
 
+    async function loadUiSummary() {
+        try {
+            const res = await fetch('/api/debug/js-errors?summary=1');
+            const payload = await res.json();
+            if (!payload.ok) {
+                uiSummary.textContent = 'No error summary';
+                return;
+            }
+            const summary = payload.summary || {};
+            const lines = Object.keys(summary).map(key => `${key}=${summary[key]}`);
+            uiSummary.textContent = lines.length ? lines.join(', ') : 'No error summary';
+        } catch (err) {
+            uiSummary.textContent = 'No error summary';
+        }
+    }
+
+    function exportDebug() {
+        const payload = lastPayload || {};
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `debug_${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
     runFexBtn.addEventListener('click', runFexCheck);
     runDataBtn.addEventListener('click', runDataCheck);
     refreshErrors.addEventListener('click', loadUiErrors);
+    exportBtn.addEventListener('click', exportDebug);
     loadFabrics();
     loadUiErrors();
+    loadUiSummary();
+    runDataCheck();
 })();
 </script>
 {% endblock %}

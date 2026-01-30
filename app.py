@@ -126,6 +126,38 @@ fm = fabric_manager.FabricManager(FABRICS_DIR)
 # Simple in-memory JS error log for UI diagnostics
 JS_ERROR_LOG = []
 
+def _classify_ui_error(entry: dict) -> dict:
+    message = (entry.get('message') or '').lower()
+    detail = (entry.get('detail') or '').lower()
+    source = (entry.get('source') or '').lower()
+
+    category = 'unknown'
+    severity = 'info'
+
+    if 'tabulator' in message or 'tabulator' in detail:
+        category = 'ui.library.tabulator'
+        severity = 'error'
+    elif 'chart' in message or 'chart.js' in detail:
+        category = 'ui.library.chart'
+        severity = 'error'
+    elif 'network' in message or 'http' in message:
+        category = 'ui.network'
+        severity = 'warn'
+    elif 'binding' in message or 'table is empty' in message:
+        category = 'ui.binding'
+        severity = 'error'
+    elif 'unhandled' in source:
+        category = 'ui.promise'
+        severity = 'error'
+    elif 'window.onerror' in source:
+        category = 'ui.runtime'
+        severity = 'error'
+
+    entry['category'] = category
+    entry['severity'] = severity
+    entry['fingerprint'] = f"{category}|{entry.get('message','')}|{entry.get('detail','')}"
+    return entry
+
 
 # Cache helper functions
 def get_fabric_cache_key(fabric_name: str, suffix: str = '') -> str:
@@ -920,12 +952,24 @@ def debug_js_errors():
             'path': payload.get('path'),
             'userAgent': payload.get('userAgent')
         }
+        entry = _classify_ui_error(entry)
         JS_ERROR_LOG.append(entry)
         if len(JS_ERROR_LOG) > 200:
             JS_ERROR_LOG[:] = JS_ERROR_LOG[-200:]
         return jsonify({'ok': True})
 
     limit = int(request.args.get('limit', 50))
+    summarize = request.args.get('summary', '').strip().lower() in {'1', 'true', 'yes'}
+    if summarize:
+        counts = {}
+        for row in JS_ERROR_LOG:
+            key = f"{row.get('severity')}:{row.get('category')}"
+            counts[key] = counts.get(key, 0) + 1
+        return jsonify({
+            'ok': True,
+            'count': len(JS_ERROR_LOG),
+            'summary': counts
+        })
     return jsonify({
         'ok': True,
         'count': len(JS_ERROR_LOG),
