@@ -873,8 +873,8 @@ def index():
             if cached and cached.get('validation_results'):
                 validation_results = cached.get('validation_results')
             else:
-            analyzer = get_cached_analyzer(current_fabric, fabric_data)
-            validation_results = analyzer.get_data_completeness()
+                analyzer = get_cached_analyzer(current_fabric, fabric_data)
+                validation_results = analyzer.get_data_completeness()
         except Exception as e:
             app.logger.warning(f"Could not load validation results for {current_fabric}: {e}")
 
