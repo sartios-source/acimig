@@ -877,6 +877,8 @@ def index():
             app.logger.warning(f"Could not load validation results for {current_fabric}: {e}")
 
     template_name = 'index_new.html'
+    if session.get('ui_layout') == 'path':
+        return redirect(url_for('migration_path'))
 
     return render_template(template_name,
                          mode=mode,
@@ -890,6 +892,22 @@ def index():
 def debug_fex_page():
     """Interactive FEX debug checks."""
     return render_template('debug_fex.html')
+
+
+@app.route('/migration-path')
+def migration_path():
+    """Engineer-first migration path dashboard."""
+    mode = 'migration'
+    current_fabric = session.get('current_fabric')
+    hub_data = {}
+    validation_results = None
+    if current_fabric:
+        hub_data, validation_results = _get_hub_data(current_fabric)
+    return render_template('migration_path.html',
+                          mode=mode,
+                          current_fabric=current_fabric,
+                          hub_data=hub_data,
+                          validation_results=validation_results)
 
 
 @app.route('/safe/data')
@@ -1026,6 +1044,19 @@ def select_ui_mode():
     if not next_path.startswith('/'):
         next_path = '/'
 
+    return redirect(next_path)
+
+
+@app.route('/ui/layout', methods=['POST'])
+def set_ui_layout():
+    """Set frontend layout preference (classic/path)."""
+    layout = request.form.get('layout', '').strip().lower()
+    if layout not in {'classic', 'path'}:
+        layout = 'classic'
+    session['ui_layout'] = layout
+    next_path = request.form.get('next', '/')
+    if not next_path.startswith('/'):
+        next_path = '/'
     return redirect(next_path)
 
 

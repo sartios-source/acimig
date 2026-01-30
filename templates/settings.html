@@ -8,12 +8,23 @@
     <div class="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
         <h1 class="text-2xl font-bold text-gray-900 mb-2">UI Settings</h1>
         <p class="text-sm text-gray-600 mb-6">
-            The new UI is now the default experience across the app.
+            Choose the frontend layout. Classic keeps the current UI; Migration Path focuses on the engineer workflow.
         </p>
 
-        <div class="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-900">
-            Analyze and Visualize views remain available for reference but use the new UI styling.
-        </div>
+        <form method="post" action="{{ url_for('set_ui_layout') }}" class="space-y-4">
+            <input type="hidden" name="next" value="{{ request.path }}"/>
+            <div class="flex items-center gap-4">
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="radio" name="layout" value="classic" {% if session.get('ui_layout', 'classic') != 'path' %}checked{% endif %}>
+                    Classic UI
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="radio" name="layout" value="path" {% if session.get('ui_layout') == 'path' %}checked{% endif %}>
+                    Migration Path UI
+                </label>
+            </div>
+            <button class="px-4 py-2 rounded-md bg-slate-900 text-white text-sm font-semibold">Save layout</button>
+        </form>
     </div>
 </div>
 {% endblock %}

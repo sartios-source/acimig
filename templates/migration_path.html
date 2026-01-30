@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Migration Path - ACI Migrator{% endblock %}
+{% block page_title %}Migration Path{% endblock %}
+
+{% block content %}
+{% if not current_fabric %}
+<div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-6 mb-8">
+    <div class="flex items-start">
+        <svg class="h-6 w-6 text-yellow-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <div>
+            <h3 class="text-lg font-semibold text-yellow-800 mb-2">No Fabric Selected</h3>
+            <p class="text-yellow-700">Select a fabric to build the migration path.</p>
+        </div>
+    </div>
+</div>
+{% else %}
+{% include "partials/data_readiness.html" %}
+
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">Migration Path</h1>
+    <p class="mt-2 text-sm text-gray-600">A ranked, engineer-first path from coupling risks to actionable migration units.</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white rounded-xl border border-gray-100 p-5">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Top Coupling Hotspots</h3>
+        <p class="text-xs text-gray-600 mb-3">These VLANs drive blast radius. Review before sequencing units.</p>
+        <div class="overflow-auto">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>VLAN</th><th>Level</th><th>Score</th><th>Leafs</th><th>FEX</th><th>Racks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in (hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) | sort(attribute='coupling_score', reverse=True))[:10] %}
+                    <tr>
+                        <td>{{ row.get('vlan_id') }}</td>
+                        <td>{{ row.get('coupling_level') }}</td>
+                        <td>{{ row.get('coupling_score') }}</td>
+                        <td>{{ row.get('leaf_count') }}</td>
+                        <td>{{ row.get('fex_count') }}</td>
+                        <td>{{ row.get('rack_count') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-100 p-5">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Capacity & Feasibility</h3>
+        <p class="text-xs text-gray-600 mb-3">Pre-migration cleanup opportunities.</p>
+        {% set summary = hub_data.get('fex_consolidation_summary', {}) %}
+        <div class="grid grid-cols-2 gap-3">
+            <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Current FEX</div><div class="text-lg font-semibold">{{ summary.get('current_total', 0) }}</div></div>
+            <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Surplus FEX</div><div class="text-lg font-semibold">{{ summary.get('surplus_total', 0) }}</div></div>
+            <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Candidate Racks</div><div class="text-lg font-semibold">{{ summary.get('candidate_racks', 0) }}</div></div>
+            <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Remaining FEX</div><div class="text-lg font-semibold">{{ summary.get('remaining_total', 0) }}</div></div>
+        </div>
+        <div class="mt-3">
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('view_fex_consolidation') }}">View FEX consolidation</a>
+        </div>
+    </div>
+</div>
+
+<div class="bg-white rounded-xl border border-gray-100 p-5 mt-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-2">Migration Units (Ranked)</h3>
+    <p class="text-xs text-gray-600 mb-3">Engineer-ready work packages sorted by difficulty and coupling risk.</p>
+    <div class="overflow-auto">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>Rack</th><th>Leaf/VPC</th><th>FEX</th><th>Difficulty</th><th>Score</th><th>VLANs</th><th>EPGs</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in (hub_data.get('migration_units', {}).get('units', []) | sort(attribute='score', reverse=True))[:25] %}
+                <tr>
+                    <td>{{ row.get('rack') }}</td>
+                    <td>{{ row.get('leaf_or_vpc') }}</td>
+                    <td>{{ row.get('fex_display') }}</td>
+                    <td>{{ row.get('difficulty_bucket') }}</td>
+                    <td>{{ row.get('score') }}</td>
+                    <td>{{ row.get('impacted_vlan_count') }}</td>
+                    <td>{{ row.get('impacted_epg_count') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="mt-3">
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('view_migration_units') }}">Open full Migration Units</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
