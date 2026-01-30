@@ -807,6 +807,8 @@ def index():
     mode = 'migration'
     ui_mode = 'next'
     session['ui_mode'] = ui_mode
+    if session.get('ui_layout') is None:
+        session['ui_layout'] = 'path'
     current_fabric = session.get('current_fabric')
     fabric_stats = None
     validation_results = None

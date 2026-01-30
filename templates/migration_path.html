@@ -20,56 +20,72 @@
 
 <div class="mb-6">
     <h1 class="text-3xl font-bold text-gray-900">Migration Path</h1>
-    <p class="mt-2 text-sm text-gray-600">A ranked, engineer-first path from coupling risks to actionable migration units.</p>
+    <p class="mt-2 text-sm text-gray-600">Engineer-first flow: coupling risks ? ranked work units ? feasibility & cleanup.</p>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <div class="bg-white rounded-xl border border-gray-100 p-5">
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">Top Coupling Hotspots</h3>
-        <p class="text-xs text-gray-600 mb-3">These VLANs drive blast radius. Review before sequencing units.</p>
-        <div class="overflow-auto">
-            <table class="table table-sm table-striped">
-                <thead>
-                    <tr>
-                        <th>VLAN</th><th>Level</th><th>Score</th><th>Leafs</th><th>FEX</th><th>Racks</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in (hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) | sort(attribute='coupling_score', reverse=True))[:10] %}
-                    <tr>
-                        <td>{{ row.get('vlan_id') }}</td>
-                        <td>{{ row.get('coupling_level') }}</td>
-                        <td>{{ row.get('coupling_score') }}</td>
-                        <td>{{ row.get('leaf_count') }}</td>
-                        <td>{{ row.get('fex_count') }}</td>
-                        <td>{{ row.get('rack_count') }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <div class="text-xs text-gray-500">Total Units</div>
+        <div class="text-2xl font-semibold text-gray-900">{{ hub_data.get('migration_units', {}).get('units', []) | length }}</div>
+        <div class="text-xs text-gray-500 mt-2">Units define the migration work packages.</div>
     </div>
-
-    <div class="bg-white rounded-xl border border-gray-100 p-5">
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">Capacity & Feasibility</h3>
-        <p class="text-xs text-gray-600 mb-3">Pre-migration cleanup opportunities.</p>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <div class="text-xs text-gray-500">High Coupling VLANs</div>
+        {% set high_vlans = hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) | selectattr('coupling_level', 'equalto', 'high') | list %}
+        <div class="text-2xl font-semibold text-gray-900">{{ high_vlans | length }}</div>
+        <div class="text-xs text-gray-500 mt-2">These drive blast radius & sequencing risk.</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
         {% set summary = hub_data.get('fex_consolidation_summary', {}) %}
-        <div class="grid grid-cols-2 gap-3">
-            <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Current FEX</div><div class="text-lg font-semibold">{{ summary.get('current_total', 0) }}</div></div>
-            <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Surplus FEX</div><div class="text-lg font-semibold">{{ summary.get('surplus_total', 0) }}</div></div>
-            <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Candidate Racks</div><div class="text-lg font-semibold">{{ summary.get('candidate_racks', 0) }}</div></div>
-            <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Remaining FEX</div><div class="text-lg font-semibold">{{ summary.get('remaining_total', 0) }}</div></div>
-        </div>
-        <div class="mt-3">
-            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('view_fex_consolidation') }}">View FEX consolidation</a>
-        </div>
+        <div class="text-xs text-gray-500">Surplus FEX</div>
+        <div class="text-2xl font-semibold text-gray-900">{{ summary.get('surplus_total', 0) }}</div>
+        <div class="text-xs text-gray-500 mt-2">Pre-migration capacity recovery.</div>
     </div>
 </div>
 
-<div class="bg-white rounded-xl border border-gray-100 p-5 mt-6">
-    <h3 class="text-lg font-semibold text-gray-900 mb-2">Migration Units (Ranked)</h3>
-    <p class="text-xs text-gray-600 mb-3">Engineer-ready work packages sorted by difficulty and coupling risk.</p>
-    <div class="overflow-auto">
+<div class="feature-panel">
+    <div class="flex items-start justify-between mb-3">
+        <div>
+            <h2 class="text-xl font-semibold text-gray-900">1) Coupling Hotspots</h2>
+            <p class="text-sm text-gray-600">Identify VLANs/EPGs that force bundled migration or decoupling first.</p>
+        </div>
+    </div>
+    <div class="overflow-auto mb-4">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>VLAN</th><th>Level</th><th>Score</th><th>Leaves</th><th>FEX</th><th>Racks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in (hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) | sort(attribute='coupling_score', reverse=True))[:15] %}
+                <tr>
+                    <td>{{ row.get('vlan_id') }}</td>
+                    <td>{{ row.get('coupling_level') }}</td>
+                    <td>{{ row.get('coupling_score') }}</td>
+                    <td>{{ row.get('leaf_count') }}</td>
+                    <td>{{ row.get('fex_count') }}</td>
+                    <td>{{ row.get('rack_count') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% set vlan_rows = hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) %}
+    {% include "partials/coupling_visualization.html" %}
+</div>
+
+<div class="feature-panel mt-6">
+    <div class="flex items-start justify-between mb-3">
+        <div>
+            <h2 class="text-xl font-semibold text-gray-900">2) Migration Units (Ranked)</h2>
+            <p class="text-sm text-gray-600">Work packages grouped by rack/leaf/FEX with difficulty drivers.</p>
+        </div>
+        <div>
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('view_migration_units') }}">Open full table</a>
+        </div>
+    </div>
+    <div class="overflow-auto mb-4">
         <table class="table table-sm table-striped">
             <thead>
                 <tr>
@@ -91,9 +107,70 @@
             </tbody>
         </table>
     </div>
-    <div class="mt-3">
-        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('view_migration_units') }}">Open full Migration Units</a>
-    </div>
+    {% set unit_rows = hub_data.get('migration_units', {}).get('units', []) %}
+    {% include "partials/migration_visualization.html" %}
 </div>
+
+<div class="feature-panel mt-6">
+    <div class="flex items-start justify-between mb-3">
+        <div>
+            <h2 class="text-xl font-semibold text-gray-900">3) Capacity & Consolidation</h2>
+            <p class="text-sm text-gray-600">Pre-migration cleanup and feasibility gate.</p>
+        </div>
+        <div>
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('view_fex_consolidation') }}">Open FEX consolidation</a>
+        </div>
+    </div>
+    {% set summary = hub_data.get('fex_consolidation_summary', {}) %}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Current FEX</div><div class="text-lg font-semibold">{{ summary.get('current_total', 0) }}</div></div>
+        <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Remaining FEX</div><div class="text-lg font-semibold">{{ summary.get('remaining_total', 0) }}</div></div>
+        <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Surplus FEX</div><div class="text-lg font-semibold">{{ summary.get('surplus_total', 0) }}</div></div>
+        <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Candidate Racks</div><div class="text-lg font-semibold">{{ summary.get('candidate_racks', 0) }}</div></div>
+    </div>
+    {% set models_current = summary.get('models_current', {}) %}
+    {% if models_current %}
+    <div class="overflow-auto mt-4">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr><th>Model</th><th>Current</th><th>Remaining</th><th>Surplus</th></tr>
+            </thead>
+            <tbody>
+                {% for model, count in models_current.items() %}
+                <tr>
+                    <td>{{ model }}</td>
+                    <td>{{ count }}</td>
+                    <td>{{ summary.get('models_remaining', {}).get(model, 0) }}</td>
+                    <td>{{ summary.get('models_surplus', {}).get(model, 0) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<div class="feature-panel mt-6">
+    <div class="flex items-start justify-between mb-3">
+        <div>
+            <h2 class="text-xl font-semibold text-gray-900">4) Data Readiness</h2>
+            <p class="text-sm text-gray-600">Missing datasets block specific decisions. Fix these first.</p>
+        </div>
+        <div>
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('debug_fex_page') }}">Open Debug Data</a>
+        </div>
+    </div>
+    {% set missing_required = validation_results.get('missing_required', []) if validation_results else [] %}
+    {% if missing_required %}
+    <ul class="text-sm text-gray-700">
+        {% for item in missing_required %}
+        <li><strong>{{ item.type }}</strong> — {{ item.description }}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-gray-700">No required datasets missing. Migration decisions are fully supported.</p>
+    {% endif %}
+</div>
+
 {% endif %}
 {% endblock %}
