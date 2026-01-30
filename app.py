@@ -2298,13 +2298,19 @@ def _get_hub_data(current_fabric: str):
         target_by_rack[rack] = target_fex
         if entry['fex_count'] >= 2:
             racks_with_2plus += 1
-        if entry['utilization_known'] and entry['connected_ports'] <= 48 and entry['fex_count'] >= 2:
+        per_fex_utils = []
+        for fex in rack_fex_map.get(rack, []):
+            util = fex.get('utilization_pct')
+            if util is not None:
+                per_fex_utils.append(util)
+        all_under_50 = bool(per_fex_utils) and all(u < 50 for u in per_fex_utils)
+        if entry['utilization_known'] and entry['connected_ports'] <= 48 and entry['fex_count'] >= 2 and all_under_50:
             can_consolidate = 'Yes'
             consolidation_candidates += 1
-            recommendation = 'Consolidate into 2248 (<=48 ports)'
+            recommendation = 'Consolidate (all FEX <50% and total <=48)'
         elif entry['utilization_known']:
             can_consolidate = 'No'
-            recommendation = 'Do not consolidate (ports > 48)'
+            recommendation = 'Do not consolidate (utilization or ports too high)'
         else:
             can_consolidate = 'Needs Data'
             recommendation = 'Needs port usage data'
