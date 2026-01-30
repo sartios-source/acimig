@@ -1,0 +1,94 @@
+{% set vlan_rows = vlan_rows or [] %}
+<div class="feature-panel" id="coupling-viz">
+    <div class="flex items-start justify-between mb-3">
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900">Coupling Visualization</h3>
+            <p class="text-sm text-gray-600">Select a VLAN to see leaf/FEX/rack drilldown.</p>
+        </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
+        <div>
+            <input id="coupling-viz-search" class="form-control form-control-sm mb-2" placeholder="Search VLAN, tenant, EPG, leaf, rack..." />
+            <div id="coupling-viz-list" class="border rounded-lg overflow-auto" style="max-height: 520px;"></div>
+        </div>
+        <div class="border rounded-lg p-4 bg-white" id="coupling-viz-detail">
+            <h4 class="text-sm font-semibold text-gray-900">Select a VLAN</h4>
+            <p class="text-xs text-gray-600">Details will appear here.</p>
+        </div>
+    </div>
+
+    <script type="application/json" id="coupling-viz-data">{{ vlan_rows | tojson }}</script>
+    <script>
+    (() => {
+        const dataEl = document.getElementById('coupling-viz-data');
+        const listEl = document.getElementById('coupling-viz-list');
+        const detailEl = document.getElementById('coupling-viz-detail');
+        const searchEl = document.getElementById('coupling-viz-search');
+        if (!dataEl || !listEl || !detailEl) return;
+        let rows = [];
+        try { rows = JSON.parse(dataEl.textContent || '[]'); } catch (e) { rows = []; }
+
+        function renderList(items) {
+            listEl.innerHTML = '';
+            if (!items.length) {
+                listEl.innerHTML = '<div class="p-3 text-sm text-gray-500">No VLANs found.</div>';
+                return;
+            }
+            items.forEach(row => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'w-full text-left px-3 py-2 border-b hover:bg-gray-50';
+                btn.innerHTML = `<div class="text-sm font-semibold">VLAN ${row.vlan_id}</div>
+                                 <div class="text-xs text-gray-600">${row.coupling_level || 'low'} | Leaves: ${row.leaf_count || 0} | FEX: ${row.fex_count || 0}</div>`;
+                btn.addEventListener('click', () => renderDetail(row));
+                listEl.appendChild(btn);
+            });
+        }
+
+        function renderDetail(row) {
+            const epgs = row.epgs || [];
+            const bindings = [];
+            epgs.forEach(e => (e.bindings || []).forEach(b => bindings.push(b)));
+            const leafs = Array.from(new Set(bindings.map(b => b.leafName || b.leafId).filter(Boolean)));
+            const fexes = Array.from(new Set(bindings.map(b => b.fexId || b.fexSerial).filter(Boolean)));
+            const racks = Array.from(new Set(bindings.map(b => b.rack).filter(Boolean)));
+
+            detailEl.innerHTML = `
+                <div class="mb-3">
+                    <h4 class="text-lg font-semibold text-gray-900">VLAN ${row.vlan_id}</h4>
+                    <p class="text-sm text-gray-600">Coupling: ${row.coupling_level || 'low'} (score ${row.coupling_score || 0})</p>
+                    <p class="text-xs text-gray-500">${row.why || ''}</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                    <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Leaves</div><div class="text-sm font-semibold">${leafs.length}</div></div>
+                    <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">FEX</div><div class="text-sm font-semibold">${fexes.length}</div></div>
+                    <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Racks</div><div class="text-sm font-semibold">${racks.length}</div></div>
+                </div>
+                <div class="mb-3">
+                    <h5 class="text-sm font-semibold">Leafs</h5>
+                    <div class="text-xs text-gray-700">${leafs.join(', ') || 'None'}</div>
+                </div>
+                <div class="mb-3">
+                    <h5 class="text-sm font-semibold">FEX</h5>
+                    <div class="text-xs text-gray-700">${fexes.join(', ') || 'None'}</div>
+                </div>
+                <div class="mb-3">
+                    <h5 class="text-sm font-semibold">Racks</h5>
+                    <div class="text-xs text-gray-700">${racks.join(', ') || 'None'}</div>
+                </div>
+                <div>
+                    <h5 class="text-sm font-semibold">EPGs</h5>
+                    <div class="text-xs text-gray-700">${epgs.map(e => `${e.tenant}/${e.app}/${e.epg}`).join(', ') || 'None'}</div>
+                </div>
+            `;
+        }
+
+        renderList(rows);
+        searchEl.addEventListener('input', () => {
+            const q = (searchEl.value || '').toLowerCase();
+            const filtered = rows.filter(r => (r.search_blob || '').includes(q));
+            renderList(filtered);
+        });
+    })();
+    </script>
+</div>

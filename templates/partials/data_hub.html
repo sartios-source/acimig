@@ -40,6 +40,7 @@
         ]
     } %}
     {% include explorer_template %}
+    {% include "partials/coupling_visualization.html" %}
 
     {% set unit_rows = hub_data.get('migration_units', {}).get('units', []) %}
     {% set explorer = {
