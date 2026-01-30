@@ -464,63 +464,32 @@ class ACIAnalyzer:
 
             utilization_known = True
             utilization_reason = None
+            utilization_source = None
 
-            # Count connected (up) ports
+            # Prefer binding-based utilization if available
             connected_ports = None
-            if not quality.get('utilization_data_present'):
-                if path_attachment_available:
-                    connected_ports = self._count_fex_ports_from_path_attachments_with_state(
-                        str(fex_id), leaf_id, interface_state
-                    )
-                    if connected_ports is None:
-                        connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
-                    if connected_ports is None:
-                        utilization_known = False
-                        utilization_reason = 'Insufficient interface data to compute utilization'
-                    else:
-                        utilization_known = True
-                        utilization_reason = 'Using fvRsPathAtt + interface state (interface data missing)'
-                else:
+            bound_ports = None
+            if path_attachment_available:
+                bound_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
+                if bound_ports is not None:
+                    connected_ports = bound_ports
+                    utilization_reason = 'Using fvRsPathAtt bindings'
+                    utilization_source = 'fvRsPathAtt'
+
+            if connected_ports is None:
+                if not quality.get('utilization_data_present'):
                     utilization_known = False
                     utilization_reason = 'Insufficient interface data to compute utilization'
-            elif total_ports <= 0:
-                if path_attachment_available:
-                    connected_ports = self._count_fex_ports_from_path_attachments_with_state(
-                        str(fex_id), leaf_id, interface_state
-                    )
-                    if connected_ports is None:
-                        connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
-                    if connected_ports is None:
-                        utilization_known = False
-                        utilization_reason = 'Unknown total port count for FEX model'
-                    else:
-                        utilization_known = True
-                        utilization_reason = 'Using fvRsPathAtt + interface state (unknown total ports)'
-                else:
-                    utilization_known = False
-                    utilization_reason = 'Unknown total port count for FEX model'
-            elif len(fex_interfaces) == 0:
-                if path_attachment_available:
-                    connected_ports = self._count_fex_ports_from_path_attachments_with_state(
-                        str(fex_id), leaf_id, interface_state
-                    )
-                    if connected_ports is None:
-                        connected_ports = self._count_fex_ports_from_path_attachments(str(fex_id), leaf_id)
-                    if connected_ports is None:
-                        utilization_known = False
-                        utilization_reason = 'No interfaces matched to this FEX'
-                    else:
-                        utilization_known = True
-                        utilization_reason = 'Using fvRsPathAtt + interface state (no interfaces matched)'
-                else:
+                elif len(fex_interfaces) == 0:
                     utilization_known = False
                     utilization_reason = 'No interfaces matched to this FEX'
-            else:
-                connected_ports = sum(
-                    1 for iface in fex_interfaces
-                    if iface.get('operSt') == 'up'
-                )
-                utilization_reason = f'Using {interface_source} operational state'
+                else:
+                    connected_ports = sum(
+                        1 for iface in fex_interfaces
+                        if iface.get('operSt') == 'up'
+                    )
+                    utilization_reason = f'Using {interface_source} operational state'
+                    utilization_source = interface_source or 'ethpmPhysIf'
 
             if total_ports <= 0:
                 utilization_known = False
@@ -550,7 +519,7 @@ class ACIAnalyzer:
                 'utilization_pct': utilization_pct,
                 'utilization_known': utilization_known,
                 'utilization_reason': utilization_reason,
-                'utilization_source': interface_source if utilization_known and interface_candidates else 'fvRsPathAtt' if connected_ports is not None else 'unknown',
+                'utilization_source': utilization_source or ('ethpmPhysIf' if utilization_known and interface_candidates else 'unknown'),
                 'status': fex.get('operSt', 'unknown'),
                 'consolidation_score': consolidation_score,
                 'recommendation': recommendation,
