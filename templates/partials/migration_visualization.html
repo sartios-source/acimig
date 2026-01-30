@@ -1,0 +1,109 @@
+{% set unit_rows = unit_rows or [] %}
+<div class="feature-panel" id="migration-viz">
+    <div class="flex items-start justify-between mb-3">
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900">Migration Units Visualization</h3>
+            <p class="text-sm text-gray-600">Select a unit to see impacted VLANs, EPGs, tenants, and ports.</p>
+        </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
+        <div>
+            <input id="migration-viz-search" class="form-control form-control-sm mb-2" placeholder="Search rack, leaf, FEX, tenant, VLAN..." />
+            <div id="migration-viz-list" class="border rounded-lg overflow-auto" style="max-height: 520px;"></div>
+        </div>
+        <div class="border rounded-lg p-4 bg-white" id="migration-viz-detail">
+            <h4 class="text-sm font-semibold text-gray-900">Select a migration unit</h4>
+            <p class="text-xs text-gray-600">Details will appear here.</p>
+        </div>
+    </div>
+
+    <script type="application/json" id="migration-viz-data">{{ unit_rows | tojson }}</script>
+    <script>
+    (() => {
+        const dataEl = document.getElementById('migration-viz-data');
+        const listEl = document.getElementById('migration-viz-list');
+        const detailEl = document.getElementById('migration-viz-detail');
+        const searchEl = document.getElementById('migration-viz-search');
+        if (!dataEl || !listEl || !detailEl) return;
+        let rows = [];
+        try { rows = JSON.parse(dataEl.textContent || '[]'); } catch (e) { rows = []; }
+
+        function label(row) {
+            const rack = row.rack || 'Unknown';
+            const leaf = row.leaf_or_vpc || row.leaf_id || 'leaf';
+            const fex = row.fex_display || row.fex_identifier || '';
+            return `Rack ${rack} | ${leaf}${fex && fex !== 'N/A' ? ' | ' + fex : ''}`;
+        }
+
+        function renderList(items) {
+            listEl.innerHTML = '';
+            if (!items.length) {
+                listEl.innerHTML = '<div class="p-3 text-sm text-gray-500">No units found.</div>';
+                return;
+            }
+            items.forEach(row => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'w-full text-left px-3 py-2 border-b hover:bg-gray-50';
+                btn.innerHTML = `<div class="text-sm font-semibold">${label(row)}</div>
+                                 <div class="text-xs text-gray-600">${row.difficulty_bucket || 'n/a'} | VLANs: ${row.impacted_vlan_count || 0} | EPGs: ${row.impacted_epg_count || 0}</div>`;
+                btn.addEventListener('click', () => renderDetail(row));
+                listEl.appendChild(btn);
+            });
+        }
+
+        function renderDetail(row) {
+            const vlans = row.impacted_vlans || [];
+            const epgs = row.impacted_epgs || [];
+            const tenants = row.impacted_tenants || [];
+            const ports = row.ports || [];
+            detailEl.innerHTML = `
+                <div class="mb-3">
+                    <h4 class="text-lg font-semibold text-gray-900">${label(row)}</h4>
+                    <p class="text-sm text-gray-600">Difficulty: ${row.difficulty_bucket || 'n/a'} (score ${row.score || 'n/a'})</p>
+                    <p class="text-xs text-gray-500">Worst VLAN: ${row.worst_vlan_display || row.worst_vlan_id || 'n/a'}</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+                    <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">VLANs</div><div class="text-sm font-semibold">${vlans.length}</div></div>
+                    <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">EPGs</div><div class="text-sm font-semibold">${epgs.length}</div></div>
+                    <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Tenants</div><div class="text-sm font-semibold">${tenants.length}</div></div>
+                    <div class="p-3 rounded bg-gray-50"><div class="text-xs text-gray-500">Bindings</div><div class="text-sm font-semibold">${row.bindings || row.ports_used || 0}</div></div>
+                </div>
+                <div class="mb-3">
+                    <h5 class="text-sm font-semibold">Impacted VLANs</h5>
+                    <div class="text-xs text-gray-700">${vlans.join(', ') || 'None'}</div>
+                </div>
+                <div class="mb-3">
+                    <h5 class="text-sm font-semibold">Impacted EPGs</h5>
+                    <div class="text-xs text-gray-700">${epgs.join(', ') || 'None'}</div>
+                </div>
+                <div class="mb-3">
+                    <h5 class="text-sm font-semibold">Impacted Tenants</h5>
+                    <div class="text-xs text-gray-700">${tenants.join(', ') || 'None'}</div>
+                </div>
+                <div class="mb-3">
+                    <h5 class="text-sm font-semibold">Ports</h5>
+                    <div class="text-xs text-gray-700">${ports.slice(0, 50).join(', ') || 'None'}</div>
+                </div>
+                <div>
+                    <h5 class="text-sm font-semibold">Utilization</h5>
+                    <div class="text-xs text-gray-700">${row.utilization_pct !== null && row.utilization_pct !== undefined ? row.utilization_pct + '%' : 'n/a'} (total ${row.ports_total || 'n/a'}, connected ${row.ports_connected || 'n/a'})</div>
+                </div>
+            `;
+        }
+
+        renderList(rows);
+        searchEl.addEventListener('input', () => {
+            const q = (searchEl.value || '').toLowerCase();
+            const filtered = rows.filter(r => {
+                const blob = [
+                    r.rack, r.leaf_or_vpc, r.fex_display, r.fex_identifier,
+                    ...(r.impacted_tenants || []), ...(r.impacted_vlans || []), ...(r.impacted_epgs || [])
+                ].join(' ').toLowerCase();
+                return blob.includes(q);
+            });
+            renderList(filtered);
+        });
+    })();
+    </script>
+</div>

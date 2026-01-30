@@ -77,6 +77,7 @@
         ]
     } %}
     {% include explorer_template %}
+    {% include "partials/migration_visualization.html" %}
 
     {% set epg_rows = hub_data.get('epg_complexity', []) %}
     {% set explorer = {
