@@ -628,6 +628,39 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.2.5/dist/js/tabulator.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        window.reportUiError = function(payload) {
+            try {
+                fetch('/api/debug/js-errors', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: payload.message || 'UI error',
+                        source: payload.source || 'ui',
+                        detail: payload.detail || '',
+                        path: location.pathname,
+                        userAgent: navigator.userAgent
+                    })
+                });
+            } catch (e) {
+                // noop
+            }
+        };
+        window.addEventListener('error', function(event) {
+            window.reportUiError({
+                source: 'window.onerror',
+                message: event.message,
+                detail: event.filename + ':' + event.lineno + ':' + event.colno
+            });
+        });
+        window.addEventListener('unhandledrejection', function(event) {
+            window.reportUiError({
+                source: 'unhandledrejection',
+                message: 'Unhandled promise rejection',
+                detail: String(event.reason)
+            });
+        });
+    </script>
     {% block scripts %}{% endblock %}
 
     <div class="offcanvas offcanvas-end" tabindex="-1" id="biDetailDrawer" aria-labelledby="biDetailDrawerLabel">

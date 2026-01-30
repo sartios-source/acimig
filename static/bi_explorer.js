@@ -110,6 +110,13 @@
             })
             .catch(err => {
                 console.error('Remote BI fetch failed', err);
+                if (window.reportUiError) {
+                    window.reportUiError({
+                        source: 'bi_explorer',
+                        message: 'Remote BI fetch failed',
+                        detail: String(err)
+                    });
+                }
                 return { rows: [], total: 0, page: 1, size: size, error: 'Network error' };
             });
     }
@@ -180,6 +187,28 @@
         banner.hidden = false;
     }
 
+    function renderSimpleTable(tableEl, columns, rows) {
+        if (!tableEl) return;
+        const cols = columns || [];
+        const data = rows || [];
+        let html = '<table class="table table-sm table-striped mb-0"><thead><tr>';
+        cols.forEach(col => {
+            html += `<th>${col.label || col.title || col.field || ''}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        data.slice(0, 200).forEach(row => {
+            html += '<tr>';
+            cols.forEach(col => {
+                const key = col.key || col.field;
+                const val = row && key ? row[key] : '';
+                html += `<td>${val === null || val === undefined ? '' : String(val)}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        tableEl.innerHTML = html;
+    }
+
     function updateDebugBanner(banner, config, table, payload) {
         if (!banner) return;
         if (payload && payload.error) {
@@ -217,34 +246,44 @@
 
         const tableEl = section.querySelector(`[data-table="${id}"]`);
         if (!tableEl) return;
-        if (typeof Tabulator === 'undefined') {
-            setDebugBanner(debugBanner, 'Tabulator not loaded. UI scripts failed to initialize.');
-            return;
-        }
+        const tabulatorAvailable = typeof Tabulator !== 'undefined';
 
-        const table = new Tabulator(tableEl, {
-            data: rows,
-            columns: columns,
-            layout: 'fitColumns',
-            height: '520px',
-            pagination: 'local',
-            paginationSize: 100,
-            movableColumns: true,
-            placeholder: 'No data available',
-            rowClick: (e, row) => {
-                const drawer = document.getElementById('biDetailDrawer');
-                const body = document.getElementById('biDetailBody');
-                if (drawer && body) {
-                    body.textContent = JSON.stringify(row.getData(), null, 2);
-                    const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(drawer);
-                    offcanvas.show();
+        let table = null;
+        if (tabulatorAvailable) {
+            table = new Tabulator(tableEl, {
+                data: rows,
+                columns: columns,
+                layout: 'fitColumns',
+                height: '520px',
+                pagination: 'local',
+                paginationSize: 100,
+                movableColumns: true,
+                placeholder: 'No data available',
+                rowClick: (e, row) => {
+                    const drawer = document.getElementById('biDetailDrawer');
+                    const body = document.getElementById('biDetailBody');
+                    if (drawer && body) {
+                        body.textContent = JSON.stringify(row.getData(), null, 2);
+                        const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(drawer);
+                        offcanvas.show();
+                    }
+                },
+                rowFormatter: row => {
+                    row.getCells().forEach(applyConditionalFormatting);
                 }
-            },
-            rowFormatter: row => {
-                row.getCells().forEach(applyConditionalFormatting);
+            });
+            buildKpis(rows, config, section.querySelector(`[data-kpis="${id}"]`));
+        } else {
+            setDebugBanner(debugBanner, 'Tabulator not loaded. Rendering basic table fallback.');
+            if (window.reportUiError) {
+                window.reportUiError({
+                    source: 'bi_explorer',
+                    message: 'Tabulator not loaded',
+                    detail: `explorer=${id}`
+                });
             }
-        });
-        buildKpis(rows, config, section.querySelector(`[data-kpis="${id}"]`));
+            renderSimpleTable(tableEl, config.columns || [], rows);
+        }
 
         const searchInput = section.querySelector(`[data-search="${id}"]`);
         if (searchInput) {
@@ -253,19 +292,24 @@
                 if (config.remote) {
                     fetchRemote(config, 1, table.getPageSize(), value, table.getSorters()[0]?.field, table.getSorters()[0]?.dir)
                         .then(payload => {
-                            table.setData(payload.rows);
-                            buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
-                            updateChartAndPivot(table, section, config);
+                            if (table) {
+                                table.setData(payload.rows);
+                                buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
+                                updateChartAndPivot(table, section, config);
+                            } else {
+                                renderSimpleTable(tableEl, config.columns || [], payload.rows || []);
+                            }
+                            updateDebugBanner(debugBanner, config, table, payload);
                         });
                 } else {
                     if (!value) {
-                        table.clearFilter();
+                        table && table.clearFilter();
                     } else {
-                        table.setFilter(row => {
+                        table && table.setFilter(row => {
                             return Object.values(row).some(val => String(val ?? '').toLowerCase().includes(value));
                         });
                     }
-                    updateChartAndPivot(table, section, config);
+                    if (table) updateChartAndPivot(table, section, config);
                 }
             });
         }
@@ -274,13 +318,18 @@
         if (pageSelect) {
             pageSelect.addEventListener('change', () => {
                 const size = Number(pageSelect.value || 100);
-                table.setPageSize(size);
+                table && table.setPageSize(size);
                 if (config.remote) {
-                    fetchRemote(config, 1, size, searchInput?.value || '', table.getSorters()[0]?.field, table.getSorters()[0]?.dir)
+                    fetchRemote(config, 1, size, searchInput?.value || '', table?.getSorters?.()[0]?.field, table?.getSorters?.()[0]?.dir)
                         .then(payload => {
-                            table.setData(payload.rows);
-                            buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
-                            updateChartAndPivot(table, section, config);
+                            if (table) {
+                                table.setData(payload.rows);
+                                buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
+                                updateChartAndPivot(table, section, config);
+                            } else {
+                                renderSimpleTable(tableEl, config.columns || [], payload.rows || []);
+                            }
+                            updateDebugBanner(debugBanner, config, table, payload);
                         });
                 }
             });
@@ -289,7 +338,11 @@
         const exportBtn = section.querySelector('.bi-export');
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
-                table.download('csv', `${id}_export.csv`);
+                if (table) {
+                    table.download('csv', `${id}_export.csv`);
+                } else {
+                    setDebugBanner(debugBanner, 'Export not available in fallback mode.');
+                }
             });
         }
 
@@ -332,15 +385,19 @@
         }
 
         if (config.remote) {
-            fetchRemote(config, 1, table.getPageSize(), searchInput?.value || '', table.getSorters()[0]?.field, table.getSorters()[0]?.dir)
+            fetchRemote(config, 1, table?.getPageSize?.() || 100, searchInput?.value || '', table?.getSorters?.()[0]?.field, table?.getSorters?.()[0]?.dir)
                 .then(payload => {
-                    table.setData(payload.rows);
-                    buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
-                    updateChartAndPivot(table, section, config);
+                    if (table) {
+                        table.setData(payload.rows);
+                        buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
+                        updateChartAndPivot(table, section, config);
+                    } else {
+                        renderSimpleTable(tableEl, config.columns || [], payload.rows || []);
+                    }
                     updateDebugBanner(debugBanner, config, table, payload);
                 });
         } else {
-            updateChartAndPivot(table, section, config);
+            if (table) updateChartAndPivot(table, section, config);
             if (rows.length === 0) {
                 setDebugBanner(debugBanner, 'No local rows provided to UI. If the backend has data, check binding.');
             }
@@ -351,6 +408,16 @@
         const data = table.getData('active');
         const chartCanvas = section.querySelector(`[data-chart="${section.id}"]`);
         if (chartCanvas) {
+            if (typeof Chart === 'undefined') {
+                if (window.reportUiError) {
+                    window.reportUiError({
+                        source: 'bi_explorer',
+                        message: 'Chart.js not loaded',
+                        detail: `explorer=${section.id}`
+                    });
+                }
+                return;
+            }
             const ctx = chartCanvas.getContext('2d');
             const chartConfig = config.chart || {};
             const field = chartConfig.field || '';

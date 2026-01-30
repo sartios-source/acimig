@@ -123,6 +123,9 @@ OUTPUT_DIR = app.config['OUTPUT_DIR']
 # Initialize fabric manager
 fm = fabric_manager.FabricManager(FABRICS_DIR)
 
+# Simple in-memory JS error log for UI diagnostics
+JS_ERROR_LOG = []
+
 
 # Cache helper functions
 def get_fabric_cache_key(fabric_name: str, suffix: str = '') -> str:
@@ -901,6 +904,33 @@ def debug_data_check():
         }
     }
     return jsonify(payload)
+
+
+@app.route('/api/debug/js-errors', methods=['GET', 'POST'])
+@csrf.exempt
+def debug_js_errors():
+    """Collect and return frontend JS errors."""
+    if request.method == 'POST':
+        payload = request.get_json(silent=True) or {}
+        entry = {
+            'ts': datetime.now().isoformat(),
+            'message': payload.get('message'),
+            'source': payload.get('source'),
+            'detail': payload.get('detail'),
+            'path': payload.get('path'),
+            'userAgent': payload.get('userAgent')
+        }
+        JS_ERROR_LOG.append(entry)
+        if len(JS_ERROR_LOG) > 200:
+            JS_ERROR_LOG[:] = JS_ERROR_LOG[-200:]
+        return jsonify({'ok': True})
+
+    limit = int(request.args.get('limit', 50))
+    return jsonify({
+        'ok': True,
+        'count': len(JS_ERROR_LOG),
+        'rows': JS_ERROR_LOG[-limit:]
+    })
 
 
 @app.route('/ui/select')
