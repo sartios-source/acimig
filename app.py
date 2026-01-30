@@ -123,6 +123,9 @@ OUTPUT_DIR = app.config['OUTPUT_DIR']
 # Initialize fabric manager
 fm = fabric_manager.FabricManager(FABRICS_DIR)
 
+# Cached analyzers to avoid re-parsing large datasets on every request
+ANALYZER_CACHE = {}
+
 # Simple in-memory JS error log for UI diagnostics
 JS_ERROR_LOG = []
 
@@ -178,7 +181,23 @@ def invalidate_fabric_cache(fabric_name: str):
     ]
     for key in keys_to_delete:
         cache.delete(key)
+    ANALYZER_CACHE.pop(fabric_name, None)
     app.logger.info(f"Invalidated cache for fabric: {fabric_name}")
+
+
+def get_cached_analyzer(fabric_name: str, fabric_data: Dict[str, Any]):
+    """Return a cached analyzer if fabric data hasn't changed."""
+    modified = fabric_data.get('modified') or fabric_data.get('created') or ''
+    cached = ANALYZER_CACHE.get(fabric_name)
+    if cached and cached.get('modified') == modified:
+        return cached.get('analyzer')
+    analyzer = engine.ACIAnalyzer(fabric_data)
+    analyzer._load_data()
+    ANALYZER_CACHE[fabric_name] = {
+        'modified': modified,
+        'analyzer': analyzer
+    }
+    return analyzer
 
 def get_active_fabric_data():
     """Load the active fabric dataset and return analyzer + basic counts."""
@@ -192,8 +211,7 @@ def get_active_fabric_data():
 
     try:
         fabric_data = fm.get_fabric_data(current_fabric)
-        analyzer = engine.ACIAnalyzer(fabric_data)
-        analyzer._load_data()
+        analyzer = get_cached_analyzer(current_fabric, fabric_data)
         counts = dict(analyzer._aci_class_counts) if hasattr(analyzer, '_aci_class_counts') else {}
         return {
             'ok': True,
@@ -823,8 +841,7 @@ def index():
 
         # Try to load detailed stats from analyzer if data exists
         try:
-            analyzer = engine.ACIAnalyzer(fabric_data)
-            analyzer._load_data()
+            analyzer = get_cached_analyzer(current_fabric, fabric_data)
 
             # Get object counts from analyzer
             fabric_stats['fex_count'] = len(analyzer._fexes)
@@ -854,9 +871,8 @@ def index():
             if cached and cached.get('validation_results'):
                 validation_results = cached.get('validation_results')
             else:
-                analyzer = engine.ACIAnalyzer(fabric_data)
-                analyzer._load_data()
-                validation_results = analyzer.get_data_completeness()
+            analyzer = get_cached_analyzer(current_fabric, fabric_data)
+            validation_results = analyzer.get_data_completeness()
         except Exception as e:
             app.logger.warning(f"Could not load validation results for {current_fabric}: {e}")
 
@@ -2108,8 +2124,7 @@ def _get_hub_data(current_fabric: str):
         return cached, validation_results
 
     fabric_data = fm.get_fabric_data(current_fabric)
-    analyzer = engine.ACIAnalyzer(fabric_data)
-    analyzer._load_data()
+    analyzer = get_cached_analyzer(current_fabric, fabric_data)
     validation_results = analyzer.get_data_completeness()
 
     raw_cmdb = _load_cmdb_records_for_fabric(fabric_data, current_fabric)
