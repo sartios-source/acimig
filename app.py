@@ -876,6 +876,30 @@ def debug_fex_page():
     return render_template('debug_fex.html')
 
 
+@app.route('/safe/data')
+def safe_data_page():
+    """Safe mode data explorer (minimal UI)."""
+    current_fabric = session.get('current_fabric')
+    hub_data = {}
+    if current_fabric:
+        hub_data, _ = _get_hub_data(current_fabric)
+    return render_template('safe_data.html',
+                          current_fabric=current_fabric,
+                          hub_data=hub_data)
+
+
+@app.route('/safe/fex')
+def safe_fex_page():
+    """Safe mode FEX view (minimal UI)."""
+    current_fabric = session.get('current_fabric')
+    hub_data = {}
+    if current_fabric:
+        hub_data, _ = _get_hub_data(current_fabric)
+    return render_template('safe_fex.html',
+                          current_fabric=current_fabric,
+                          hub_data=hub_data)
+
+
 @app.route('/api/debug/data-check')
 def debug_data_check():
     """Aggregate data pipeline checks across all modules."""

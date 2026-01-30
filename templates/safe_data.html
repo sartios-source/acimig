@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Safe Mode - Data Explorer{% endblock %}
+{% block page_title %}Safe Mode - Data Explorer{% endblock %}
+
+{% block content %}
+{% if not current_fabric %}
+<div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-6 mb-8">
+    <div class="flex items-start">
+        <svg class="h-6 w-6 text-yellow-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <div>
+            <h3 class="text-lg font-semibold text-yellow-800 mb-2">No Fabric Selected</h3>
+            <p class="text-yellow-700">Select a fabric to explore data.</p>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">Safe Mode - Data Explorer</h1>
+    <p class="mt-2 text-sm text-gray-600">Minimal UI to validate data loads and logic.</p>
+</div>
+
+<div class="grid grid-cols-1 gap-6">
+    <div class="bg-white rounded-xl p-4 border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">VLAN Coupling</h3>
+        <div class="text-xs text-gray-500 mb-2">Rows: {{ hub_data.get('vlan_coupling', {}).get('vlans_detailed', []) | length }}</div>
+        <div class="overflow-auto">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>VLAN</th><th>Level</th><th>Score</th><th>EPGs</th><th>Tenants</th><th>Leaves</th><th>FEX</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in hub_data.get('vlan_coupling', {}).get('vlans_detailed', [])[:200] %}
+                    <tr>
+                        <td>{{ row.get('vlan_id') }}</td>
+                        <td>{{ row.get('coupling_level') }}</td>
+                        <td>{{ row.get('coupling_score') }}</td>
+                        <td>{{ row.get('epg_count') }}</td>
+                        <td>{{ row.get('tenant_count') }}</td>
+                        <td>{{ row.get('leaf_count') }}</td>
+                        <td>{{ row.get('fex_count') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-4 border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Migration Units</h3>
+        <div class="text-xs text-gray-500 mb-2">Rows: {{ hub_data.get('migration_units', {}).get('units', []) | length }}</div>
+        <div class="overflow-auto">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Rack</th><th>Leaf/VPC</th><th>FEX</th><th>Ports Used</th><th>Ports Total</th><th>Difficulty</th><th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in hub_data.get('migration_units', {}).get('units', [])[:200] %}
+                    <tr>
+                        <td>{{ row.get('rack') }}</td>
+                        <td>{{ row.get('leaf_or_vpc') }}</td>
+                        <td>{{ row.get('fex_display') }}</td>
+                        <td>{{ row.get('ports_used') }}</td>
+                        <td>{{ row.get('ports_total') }}</td>
+                        <td>{{ row.get('difficulty_bucket') }}</td>
+                        <td>{{ row.get('score') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-4 border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">EPG Complexity</h3>
+        <div class="text-xs text-gray-500 mb-2">Rows: {{ hub_data.get('epg_complexity', []) | length }}</div>
+        <div class="overflow-auto">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Tenant</th><th>App</th><th>EPG</th><th>Score</th><th>Risk</th><th>Bindings</th><th>FEX</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in hub_data.get('epg_complexity', [])[:200] %}
+                    <tr>
+                        <td>{{ row.get('tenant') }}</td>
+                        <td>{{ row.get('app_profile') }}</td>
+                        <td>{{ row.get('epg_name') }}</td>
+                        <td>{{ row.get('complexity_score') }}</td>
+                        <td>{{ row.get('complexity_level') }}</td>
+                        <td>{{ row.get('path_count') }}</td>
+                        <td>{{ row.get('fex_binding_count') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-4 border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">CMDB Correlation</h3>
+        <div class="text-xs text-gray-500 mb-2">Rows: {{ hub_data.get('cmdb_rows', []) | length }}</div>
+        <div class="overflow-auto">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Serial</th><th>Name</th><th>Model</th><th>Matched</th><th>Reason</th><th>Rack</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in hub_data.get('cmdb_rows', [])[:200] %}
+                    <tr>
+                        <td>{{ row.get('SerialNumber') }}</td>
+                        <td>{{ row.get('Name') }}</td>
+                        <td>{{ row.get('ModelName') }}</td>
+                        <td>{{ row.get('matched_label') }}</td>
+                        <td>{{ row.get('MatchReason') }}</td>
+                        <td>{{ row.get('Rack') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
