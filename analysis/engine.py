@@ -188,6 +188,11 @@ class ACIAnalyzer:
                 self._aci_class_counts[obj_type] += 1
 
             if obj_type == 'eqptFex':
+                if not attrs.get('id'):
+                    dn = attrs.get('dn', '')
+                    match = re.search(r'fex-(\d+)', dn)
+                    if match:
+                        attrs['id'] = match.group(1)
                 self._fexes.append(attrs)
                 fex_id = attrs.get('id')
                 if fex_id:
