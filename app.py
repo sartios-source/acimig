@@ -1310,7 +1310,7 @@ def export_cmdb():
 
 @app.route('/upload', methods=['POST'])
 @csrf.exempt
-@limiter.limit("120 per minute")
+@limiter.exempt
 def upload():
     """Handle file uploads - ACI JSON/XML, legacy configs, CMDB CSV."""
     current_fabric = session.get('current_fabric')
