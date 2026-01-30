@@ -12,11 +12,57 @@
             <p>Consolidation Candidates</p>
             <h3>{{ hub_data.get('rack_consolidation', {}).get('statistics', {}).get('consolidation_candidates', 0) }}</h3>
         </div>
+        <div class="fex-kpi-card">
+            <p>Current FEX</p>
+            <h3>{{ hub_data.get('fex_consolidation_summary', {}).get('current_total', 0) }}</h3>
+        </div>
+        <div class="fex-kpi-card">
+            <p>Remaining FEX</p>
+            <h3>{{ hub_data.get('fex_consolidation_summary', {}).get('remaining_total', 0) }}</h3>
+        </div>
+        <div class="fex-kpi-card fex-kpi-ok">
+            <p>Surplus FEX</p>
+            <h3>{{ hub_data.get('fex_consolidation_summary', {}).get('surplus_total', 0) }}</h3>
+        </div>
     </div>
 
     <div class="fex-info-panel">
         <h4>Consolidation logic</h4>
         <p>Consolidate if a rack has 2+ FEX and total used ports <= 48 (2248 capacity). Target FEX is selected by highest known port capacity and usage. If port usage is unknown, it is marked as Needs Data.</p>
+    </div>
+    <div class="fex-info-panel">
+        <h4>Consolidation footprint summary</h4>
+        <p>Projected FEX footprint after applying all eligible consolidations.</p>
+        {% set models_current = hub_data.get('fex_consolidation_summary', {}).get('models_current', {}) %}
+        {% set models_remaining = hub_data.get('fex_consolidation_summary', {}).get('models_remaining', {}) %}
+        {% set models_surplus = hub_data.get('fex_consolidation_summary', {}).get('models_surplus', {}) %}
+        {% if models_current %}
+        <div class="overflow-auto mt-3">
+            <table class="table table-sm table-striped">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Current</th>
+                        <th>Remaining</th>
+                        <th>Surplus</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for model, count in models_current.items() %}
+                    <tr>
+                        <td>{{ model }}</td>
+                        <td>{{ count }}</td>
+                        <td>{{ models_remaining.get(model, 0) }}</td>
+                        <td>{{ models_surplus.get(model, 0) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        <div class="mt-3 flex flex-wrap gap-3">
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('export_fex_consolidation') }}">Export consolidation flow (Excel)</a>
+        </div>
     </div>
     {% set port_quality = hub_data.get('port_utilization_quality', {}) %}
     {% if port_quality %}

@@ -2361,6 +2361,46 @@ def _get_hub_data(current_fabric: str):
             and (target.get('serial') or '') == (row.get('serial') or '')
         )
 
+    # Consolidation summary footprint
+    def _fex_key(row):
+        return f\"{row.get('fex_id')}|{row.get('serial') or ''}|{row.get('leaf_id') or ''}\"
+
+    surplus_keys = set()
+    for rack, target in target_by_rack.items():
+        rack_row = next((r for r in rack_rows if r.get('rack') == rack), None)
+        if not rack_row or rack_row.get('can_consolidate') != 'Yes':
+            continue
+        for fex in rack_fex_map.get(rack, []):
+            if not target:
+                continue
+            if str(fex.get('fex_id')) == str(target.get('fex_id')) and (fex.get('serial') or '') == (target.get('serial') or ''):
+                continue
+            surplus_keys.add(_fex_key(fex))
+
+    surplus_rows = [row for row in fex_util_rows if _fex_key(row) in surplus_keys]
+    remaining_rows = [row for row in fex_util_rows if _fex_key(row) not in surplus_keys]
+
+    def _count_by_model(rows):
+        counts = {}
+        for row in rows:
+            model = row.get('model') or 'unknown'
+            counts[model] = counts.get(model, 0) + 1
+        return counts
+
+    models_current = _count_by_model(fex_util_rows)
+    models_remaining = _count_by_model(remaining_rows)
+    models_surplus = _count_by_model(surplus_rows)
+
+    fex_consolidation_summary = {
+        'current_total': len(fex_util_rows),
+        'remaining_total': len(remaining_rows),
+        'surplus_total': len(surplus_rows),
+        'candidate_racks': consolidation_candidates,
+        'models_current': models_current,
+        'models_remaining': models_remaining,
+        'models_surplus': models_surplus
+    }
+
     fex_inventory = []
     for fex in analyzer._fexes:
         fex_inventory.append({
@@ -2418,6 +2458,9 @@ def _get_hub_data(current_fabric: str):
         'vrfs': vrfs,
         'bds': bds,
         'fex_port_util': fex_util_rows,
+        'fex_consolidation_summary': fex_consolidation_summary,
+        'fex_consolidation_surplus': surplus_rows,
+        'fex_consolidation_remaining': remaining_rows,
         'rack_consolidation': {
             'rows': rack_rows,
             'statistics': {
@@ -2734,6 +2777,31 @@ def analyze_physical(fabric_id):
     analyzer = engine.ACIAnalyzer(fabric_data)
     results = analyzer.analyze_physical_connectivity()
     return jsonify(results)
+
+
+@app.route('/api/fex/consolidation/export', methods=['GET'])
+@handle_api_errors
+def export_fex_consolidation():
+    """Export FEX consolidation flow to Excel."""
+    current_fabric = session.get('current_fabric')
+    if not current_fabric:
+        return jsonify({'error': 'No fabric selected'}), 400
+    hub_data, _ = _get_hub_data(current_fabric)
+    from analysis.export import generate_fex_consolidation_excel
+    payload = {
+        'summary': hub_data.get('fex_consolidation_summary', {}),
+        'rack_rows': hub_data.get('rack_consolidation', {}).get('rows', []),
+        'fex_rows': hub_data.get('fex_port_util', []),
+        'surplus_rows': hub_data.get('fex_consolidation_surplus', []),
+        'remaining_rows': hub_data.get('fex_consolidation_remaining', [])
+    }
+    content = generate_fex_consolidation_excel(payload)
+    filename = f'{current_fabric}_fex_consolidation.xlsx'
+    return Response(
+        content,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
 
 
 @app.route('/api/migration-assessment/<fabric_id>')

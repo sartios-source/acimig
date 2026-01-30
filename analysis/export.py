@@ -596,3 +596,74 @@ def generate_excel_report(data: Dict[str, Any], output_path: str = None) -> byte
     """Generate Excel report - convenience function."""
     generator = ExcelReportGenerator(output_path)
     return generator.generate_report(data)
+
+
+def generate_fex_consolidation_excel(data: Dict[str, Any], output_path: str = None) -> bytes:
+    """Generate Excel export for FEX consolidation flow."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Summary"
+
+    summary = data.get('summary', {})
+    summary_rows = [
+        ("Current FEX", summary.get('current_total', 0)),
+        ("Remaining FEX", summary.get('remaining_total', 0)),
+        ("Surplus FEX", summary.get('surplus_total', 0)),
+        ("Candidate Racks", summary.get('candidate_racks', 0))
+    ]
+    ws.append(["Metric", "Value"])
+    for metric, value in summary_rows:
+        ws.append([metric, value])
+    ws.column_dimensions['A'].width = 28
+    ws.column_dimensions['B'].width = 18
+
+    # Model footprint sheet
+    models = set()
+    models_current = summary.get('models_current', {}) or {}
+    models_remaining = summary.get('models_remaining', {}) or {}
+    models_surplus = summary.get('models_surplus', {}) or {}
+    models.update(models_current.keys())
+    models.update(models_remaining.keys())
+    models.update(models_surplus.keys())
+
+    ws_models = wb.create_sheet("Model Footprint")
+    ws_models.append(["Model", "Current", "Remaining", "Surplus"])
+    for model in sorted(models):
+        ws_models.append([
+            model,
+            models_current.get(model, 0),
+            models_remaining.get(model, 0),
+            models_surplus.get(model, 0)
+        ])
+    ws_models.column_dimensions['A'].width = 32
+
+    # Rack targets sheet
+    rack_rows = data.get('rack_rows', []) or []
+    if rack_rows:
+        ws_racks = wb.create_sheet("Rack Targets")
+        headers = list(rack_rows[0].keys())
+        ws_racks.append(headers)
+        for row in rack_rows:
+            ws_racks.append([row.get(h) for h in headers])
+
+    # FEX devices sheet
+    fex_rows = data.get('fex_rows', []) or []
+    if fex_rows:
+        ws_fex = wb.create_sheet("FEX Devices")
+        headers = list(fex_rows[0].keys())
+        ws_fex.append(headers)
+        for row in fex_rows:
+            ws_fex.append([row.get(h) for h in headers])
+
+    # Surplus sheet
+    surplus_rows = data.get('surplus_rows', []) or []
+    if surplus_rows:
+        ws_surplus = wb.create_sheet("Surplus")
+        headers = list(surplus_rows[0].keys())
+        ws_surplus.append(headers)
+        for row in surplus_rows:
+            ws_surplus.append([row.get(h) for h in headers])
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
