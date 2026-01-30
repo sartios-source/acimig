@@ -78,7 +78,17 @@ def main():
     # Match debug
     debug_url = urljoin(base, 'api/debug/fex-match')
     status, _, debug = _request_json(opener, 'GET', debug_url, timeout=args.timeout, verbose=args.verbose)
-    print(f"Debug match ({status}): fex_total={debug.get('fex_total_objects')} fex_ids={debug.get('fex_count')} match_rate={debug.get('match_rate')}")
+    print(
+        "Debug match ({status}): fex_total={total} fex_ids={ids} missing_id={missing} "
+        "fex_style_if={style} match_rate={rate}".format(
+            status=status,
+            total=debug.get('fex_total_objects'),
+            ids=debug.get('fex_count'),
+            missing=debug.get('fex_missing_id'),
+            style=debug.get('fex_style_interfaces'),
+            rate=debug.get('match_rate'),
+        )
+    )
 
     print("\nDone.")
 
