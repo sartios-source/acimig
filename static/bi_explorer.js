@@ -102,10 +102,15 @@
         if (sortField) params.set('sort', sortField);
         if (sortDir) params.set('dir', sortDir);
         return fetch(`${config.remoteUrl}?${params.toString()}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    return { rows: [], total: 0, page: 1, size: size, error: `HTTP ${res.status}` };
+                }
+                return res.json();
+            })
             .catch(err => {
                 console.error('Remote BI fetch failed', err);
-                return { rows: [], total: 0, page: 1, size: size };
+                return { rows: [], total: 0, page: 1, size: size, error: 'Network error' };
             });
     }
 
@@ -164,10 +169,38 @@
         };
     }
 
+    function setDebugBanner(banner, message) {
+        if (!banner) return;
+        if (!message) {
+            banner.textContent = '';
+            banner.hidden = true;
+            return;
+        }
+        banner.textContent = message;
+        banner.hidden = false;
+    }
+
+    function updateDebugBanner(banner, config, table, payload) {
+        if (!banner) return;
+        if (payload && payload.error) {
+            setDebugBanner(banner, `Data fetch failed (${payload.error}). If the API works, this is a UI binding issue.`);
+            return;
+        }
+        if (payload && typeof payload.total === 'number' && payload.total > 0) {
+            const shown = table ? table.getData().length : 0;
+            if (shown === 0) {
+                setDebugBanner(banner, `Data returned (${payload.total} rows) but table is empty. UI binding failed.`);
+                return;
+            }
+        }
+        setDebugBanner(banner, '');
+    }
+
     function initExplorer(section) {
         const id = section.getAttribute('id');
         const rows = parseJson(`${id}-rows`) || [];
         const config = parseJson(`${id}-config`) || {};
+        const debugBanner = section.querySelector('.bi-debug-banner');
         const isNextMode = document.body.classList.contains('ui-next');
         const badgeFields = new Set(['coupling_level', 'complexity_level', 'difficulty_bucket', 'matched_label', 'vpc_symmetry', 'MatchReason', 'match_reason']);
         const columns = (config.columns || []).map((col, index) => ({
@@ -184,6 +217,10 @@
 
         const tableEl = section.querySelector(`[data-table="${id}"]`);
         if (!tableEl) return;
+        if (typeof Tabulator === 'undefined') {
+            setDebugBanner(debugBanner, 'Tabulator not loaded. UI scripts failed to initialize.');
+            return;
+        }
 
         const table = new Tabulator(tableEl, {
             data: rows,
@@ -300,9 +337,13 @@
                     table.setData(payload.rows);
                     buildKpis(payload.rows, config, section.querySelector(`[data-kpis="${id}"]`));
                     updateChartAndPivot(table, section, config);
+                    updateDebugBanner(debugBanner, config, table, payload);
                 });
         } else {
             updateChartAndPivot(table, section, config);
+            if (rows.length === 0) {
+                setDebugBanner(debugBanner, 'No local rows provided to UI. If the backend has data, check binding.');
+            }
         }
     }
 
