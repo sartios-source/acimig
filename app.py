@@ -2071,19 +2071,8 @@ def build_imdata_from_mcp(mcp_data: Dict[str, Any]) -> list:
 @app.route('/visualize')
 @handle_route_errors
 def visualize():
-    """Visualization page - interactive dashboards with charts and graphs."""
-    mode = 'migration'
-    current_fabric = session.get('current_fabric')
-    hub_data = {}
-    validation_results = None
-    if current_fabric:
-        hub_data, validation_results = _get_hub_data(current_fabric)
-
-    return render_template('visualize_hub.html',
-                          mode=mode,
-                          current_fabric=current_fabric,
-                          hub_data=hub_data,
-                          validation_results=validation_results)
+    """Visualization page deprecated: redirect to Data Explorer."""
+    return redirect(url_for('data_explorer'))
 @app.route('/data')
 @handle_route_errors
 def data_explorer():
