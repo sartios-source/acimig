@@ -2396,7 +2396,7 @@ def _get_hub_data(current_fabric: str):
 
     # Consolidation summary footprint
     def _fex_key(row):
-        return f\"{row.get('fex_id')}|{row.get('serial') or ''}|{row.get('leaf_id') or ''}\"
+        return f"{row.get('fex_id')}|{row.get('serial') or ''}|{row.get('leaf_id') or ''}"
 
     surplus_keys = set()
     for rack, target in target_by_rack.items():
