@@ -491,6 +491,8 @@ class ACIAnalyzer:
                     return oper_st == 'up'
 
                 connected_ports = sum(1 for iface in fex_interfaces if _is_port_up(iface))
+                down_ports = sum(1 for iface in fex_interfaces if (iface.get('operSt') or '').lower() == 'down')
+                unknown_ports = sum(1 for iface in fex_interfaces if (iface.get('operSt') or '') == '')
                 utilization_reason = f'Using {interface_source} operational state'
                 utilization_source = interface_source or 'ethpmPhysIf'
 
@@ -527,6 +529,9 @@ class ACIAnalyzer:
                 'leaf_id': leaf_id,
                 'total_ports': total_ports,
                 'connected_ports': connected_ports,
+                'up_ports': connected_ports,
+                'down_ports': down_ports if 'down_ports' in locals() else None,
+                'unknown_ports': unknown_ports if 'unknown_ports' in locals() else None,
                 'utilization_pct': utilization_pct,
                 'utilization_known': utilization_known,
                 'utilization_reason': utilization_reason,

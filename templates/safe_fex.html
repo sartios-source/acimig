@@ -29,7 +29,7 @@
             <table class="table table-sm table-striped">
                 <thead>
                     <tr>
-                        <th>FEX ID</th><th>Name</th><th>Serial</th><th>Model</th><th>Leaf</th><th>Rack</th><th>Total</th><th>Connected</th><th>Util %</th><th>Source</th>
+                        <th>FEX ID</th><th>Name</th><th>Serial</th><th>Model</th><th>Leaf</th><th>Rack</th><th>Total</th><th>Up</th><th>Down</th><th>Unknown</th><th>Util %</th><th>Source</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -42,7 +42,9 @@
                         <td>{{ row.get('leaf_id') }}</td>
                         <td>{{ row.get('rack') }}</td>
                         <td>{{ row.get('total_ports') }}</td>
-                        <td>{{ row.get('connected_ports') }}</td>
+                        <td>{{ row.get('up_ports') }}</td>
+                        <td>{{ row.get('down_ports') }}</td>
+                        <td>{{ row.get('unknown_ports') }}</td>
                         <td>{{ row.get('utilization_pct') }}</td>
                         <td>{{ row.get('utilization_source') }}</td>
                     </tr>
