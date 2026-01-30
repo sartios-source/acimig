@@ -5,7 +5,11 @@
 // Global state
 const uploadQueue = [];
 let activeUploads = 0;
-const MAX_CONCURRENT_UPLOADS = 3;
+const MAX_CONCURRENT_UPLOADS = 2;
+const RETRY_STATUS = 429;
+const RETRY_FALLBACK_MS = 10000;
+const RETRY_JITTER_MS = 2500;
+const RETRY_MAX_ATTEMPTS = 6;
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
@@ -126,7 +130,9 @@ function addFileToQueue(file) {
         totalBytes: file.size,
         xhr: null,
         startTime: null,
-        error: null
+        error: null,
+        attempts: 0,
+        nextRetryAt: null
     };
 
     uploadQueue.push(fileItem);
@@ -255,6 +261,26 @@ function startUpload(fileItem) {
 
             // Start next queued upload
             startNextUpload();
+        } else if (xhr.status === RETRY_STATUS) {
+            const retryAfter = parseInt(xhr.getResponseHeader('Retry-After') || '', 10);
+            const delayMs = Number.isFinite(retryAfter)
+                ? Math.max(1, retryAfter) * 1000
+                : RETRY_FALLBACK_MS + Math.floor(Math.random() * RETRY_JITTER_MS);
+            fileItem.attempts += 1;
+            if (fileItem.attempts <= RETRY_MAX_ATTEMPTS) {
+                fileItem.status = 'queued';
+                fileItem.nextRetryAt = Date.now() + delayMs;
+                fileItem.error = `Rate limited. Retrying in ${Math.round(delayMs / 1000)}s...`;
+                updateFileProgress(fileItem);
+                setTimeout(() => {
+                    if (fileItem.status === 'queued') startUpload(fileItem);
+                }, delayMs);
+            } else {
+                fileItem.status = 'error';
+                fileItem.error = 'Rate limit exceeded too many times. Try again later.';
+                updateFileProgress(fileItem);
+                showError(`${fileItem.file.name}: ${fileItem.error}`);
+            }
         } else {
             fileItem.status = 'error';
             if (response && response.error) {
@@ -300,16 +326,6 @@ function startUpload(fileItem) {
         if (isQueueComplete()) {
             onAllUploadsComplete();
         }
-    });
-
-    // Error handler
-    xhr.addEventListener('error', () => {
-        activeUploads--;
-        fileItem.status = 'error';
-        fileItem.error = 'Network error';
-        updateFileProgress(fileItem);
-        showError(`${fileItem.file.name}: Network error`);
-        updateOverallProgress();
     });
 
     // Abort handler
