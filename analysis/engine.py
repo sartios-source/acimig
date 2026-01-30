@@ -2086,6 +2086,17 @@ class ACIAnalyzer:
             if key in model:
                 return count
 
+        # Fallback: infer from model pattern (e.g., N2K-C2248TP-E-1GE)
+        match = re.search(r'C(\d{4})', model)
+        if match:
+            code = match.group(1)
+            if code in {'2248', '2348'}:
+                return 48
+            if code == '2232':
+                return 32
+            if code == '2224':
+                return 24
+
         return 0  # Unknown model: avoid false certainty
 
     def _build_fex_identifier(self, fex_id: str, leaf_id: Optional[str], serial: Optional[str]) -> str:
