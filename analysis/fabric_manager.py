@@ -28,13 +28,22 @@ class FabricManager:
         with self._lock:
             if self.index_file.exists():
                 try:
-                    content = self.index_file.read_text(encoding='utf-8')
+                    content = self._read_text_safe(self.index_file)
                     return json.loads(content)
                 except json.JSONDecodeError as e:
                     raise ValueError(f"Corrupted index file: {str(e)}")
                 except Exception as e:
                     raise IOError(f"Error reading index file: {str(e)}")
             return {}
+
+    def _read_text_safe(self, path: Path) -> str:
+        """Read file with encoding fallback to avoid Unicode errors."""
+        for encoding in ['utf-8', 'cp1252', 'latin-1']:
+            try:
+                return path.read_text(encoding=encoding)
+            except UnicodeDecodeError:
+                continue
+        raise UnicodeDecodeError('utf-8', b'', 0, 1, 'Unable to decode file')
 
     def _write_index(self, index: Dict[str, Any]):
         """
