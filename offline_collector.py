@@ -690,9 +690,14 @@ def parse_args():
 def main():
     args = parse_args()
     apic_hosts = []
-    if args.host_file:
+    host_file = args.host_file
+    if not host_file:
+        choice = input("Use a host file with APIC hostnames? [y/N]: ").strip().lower()
+        if choice in {"y", "yes"}:
+            host_file = input("Host file path: ").strip()
+    if host_file:
         try:
-            with open(args.host_file, 'r', encoding='utf-8') as handle:
+            with open(host_file, 'r', encoding='utf-8') as handle:
                 for line in handle:
                     line = line.strip()
                     if not line or line.startswith('#'):
