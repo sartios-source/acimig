@@ -19,7 +19,7 @@
 </div>
 
 {% if not current_fabric %}
-<!-- No Fabric Selected Warning -->
+<!-- No Fabric Selected Warning (collector ZIP still available) -->
 <div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-6 mb-8">
     <div class="flex items-start">
         <svg class="h-6 w-6 text-yellow-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -28,12 +28,12 @@
         <div>
             <h3 class="text-lg font-semibold text-yellow-800 mb-2">No Fabric Selected</h3>
             <p class="text-yellow-700">
-                Please select or create a fabric from the <a href="{{ url_for('index') }}" class="underline hover:text-yellow-900 font-semibold">home page</a> to upload data.
+                You can still import a collector ZIP below (it will auto-create fabrics). To upload individual files, select or create a fabric from the <a href="{{ url_for('index') }}" class="underline hover:text-yellow-900 font-semibold">home page</a>.
             </p>
         </div>
     </div>
 </div>
-{% else %}
+{% endif %}
 
 <!-- Offline Collector Callout -->
 <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 mb-8">
@@ -58,6 +58,7 @@
 <div class="bg-white rounded-2xl shadow-lg mb-8">
     <div class="border-b border-gray-200">
         <nav class="flex space-x-8 px-8 pt-6" aria-label="Upload Methods">
+            {% if current_fabric %}
             <button onclick="switchTab('file-upload')" id="tab-file-upload" class="upload-tab active pb-4 px-1 border-b-2 border-primary-600 font-medium text-sm text-primary-600 whitespace-nowrap">
                 <svg class="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
@@ -70,7 +71,8 @@
                 </svg>
                 MCP Server Import
             </button>
-            <button onclick="switchTab('collector-import')" id="tab-collector-import" class="upload-tab pb-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
+            {% endif %}
+            <button onclick="switchTab('collector-import')" id="tab-collector-import" class="upload-tab pb-4 px-1 border-b-2 {% if not current_fabric %}border-primary-600 text-primary-600 active{% else %}border-transparent text-gray-500{% endif %} font-medium text-sm hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
                 <svg class="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                 </svg>
@@ -80,6 +82,7 @@
     </div>
 </div>
 
+{% if current_fabric %}
 <!-- File Upload Tab Content -->
 <div id="content-file-upload" class="tab-content">
 
@@ -333,9 +336,10 @@
 </div>
 </div>
 <!-- End MCP Import Tab Content -->
+{% endif %}
 
 <!-- Collector ZIP Import Tab Content -->
-<div id="content-collector-import" class="tab-content hidden">
+<div id="content-collector-import" class="tab-content {% if not current_fabric %}{% else %}hidden{% endif %}">
     <div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
         <div class="mb-6">
             <h2 class="text-xl font-bold text-gray-900 mb-2">Import Collector ZIP</h2>
@@ -367,7 +371,6 @@
     </div>
 </div>
 <!-- End Collector ZIP Import Tab Content -->
-{% endif %}
 
 <!-- Include upload.js -->
 <script src="{{ url_for('static', filename='upload.js') }}"></script>
