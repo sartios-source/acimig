@@ -12,6 +12,7 @@ import zipfile
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import http.cookiejar
 import urllib.request
@@ -723,8 +724,7 @@ def main():
     else:
         classes = DEFAULT_ACI_CLASSES
 
-    final_status = 0
-    for apic_host in apic_hosts:
+    def collect_for_host(apic_host):
         host_output = os.path.join(args.output_dir, apic_host)
         collector = APICCollector(
             apic_host=apic_host,
@@ -742,14 +742,44 @@ def main():
                 json.dump(summary, handle, indent=2)
         except Exception:
             pass
-        status = summary.get('collection_status', 'failed')
-        print(f"[{apic_host}] APIC collection status: {status}")
-        print(f"[{apic_host}] Classes collected: {len(summary.get('classes_collected', []))}/{len(classes)}")
-        print(f"[{apic_host}] Output: {summary.get('output_file', '')}")
-        if summary.get('missing_required'):
-            print(f"[{apic_host}] Missing required classes: {', '.join(summary.get('missing_required', []))}")
-        if status != 'success':
-            final_status = 1
+        return apic_host, summary
+
+    final_status = 0
+    max_threads = 1
+    if len(apic_hosts) > 1:
+        try:
+            thread_input = input(f"Parallel threads (1-{len(apic_hosts)}, default 4): ").strip()
+            if thread_input:
+                max_threads = max(1, min(int(thread_input), len(apic_hosts)))
+            else:
+                max_threads = min(4, len(apic_hosts))
+        except Exception:
+            max_threads = min(4, len(apic_hosts))
+
+    if max_threads > 1:
+        with ThreadPoolExecutor(max_workers=max_threads) as executor:
+            future_map = {executor.submit(collect_for_host, host): host for host in apic_hosts}
+            for future in as_completed(future_map):
+                apic_host, summary = future.result()
+                status = summary.get('collection_status', 'failed')
+                print(f"[{apic_host}] APIC collection status: {status}")
+                print(f"[{apic_host}] Classes collected: {len(summary.get('classes_collected', []))}/{len(classes)}")
+                print(f"[{apic_host}] Output: {summary.get('output_file', '')}")
+                if summary.get('missing_required'):
+                    print(f"[{apic_host}] Missing required classes: {', '.join(summary.get('missing_required', []))}")
+                if status != 'success':
+                    final_status = 1
+    else:
+        for apic_host in apic_hosts:
+            apic_host, summary = collect_for_host(apic_host)
+            status = summary.get('collection_status', 'failed')
+            print(f"[{apic_host}] APIC collection status: {status}")
+            print(f"[{apic_host}] Classes collected: {len(summary.get('classes_collected', []))}/{len(classes)}")
+            print(f"[{apic_host}] Output: {summary.get('output_file', '')}")
+            if summary.get('missing_required'):
+                print(f"[{apic_host}] Missing required classes: {', '.join(summary.get('missing_required', []))}")
+            if status != 'success':
+                final_status = 1
     zip_answer = input("Create a ZIP archive of the output? [Y/n]: ").strip().lower()
     if zip_answer in {"", "y", "yes"}:
         zip_name = input(f"ZIP filename (default: {args.output_dir}.zip): ").strip()
