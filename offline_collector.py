@@ -251,6 +251,37 @@ class APICCollector:
         with session.open(url, timeout=60, context=self.ssl_context) as resp:
             return resp.read().decode("utf-8")
 
+    def _fetch_paged_class(self, class_name, fetch_fn, allowed_types=None, page_size=50000, max_pages=50):
+        """Fetch class data across pages until empty."""
+        imdata_all = []
+        attempts = []
+        seen_dns = set()
+        for page in range(max_pages):
+            path = f"/api/node/class/{class_name}.json?page={page}&page-size={page_size}"
+            try:
+                output = fetch_fn(path)
+                class_imdata = self._parse_imdata(output, class_name, allowed_types=allowed_types) or []
+                attempts.append({'path': path, 'count': len(class_imdata), 'status': 'success' if class_imdata else 'empty'})
+                if not class_imdata:
+                    break
+                # De-dupe by dn if possible
+                for item in class_imdata:
+                    if not isinstance(item, dict):
+                        continue
+                    attrs = item.get(class_name, {}).get('attributes', {})
+                    dn = attrs.get('dn')
+                    if dn:
+                        if dn in seen_dns:
+                            continue
+                        seen_dns.add(dn)
+                    imdata_all.append(item)
+                if len(class_imdata) < page_size:
+                    break
+            except Exception as exc:
+                attempts.append({'path': path, 'count': 0, 'status': f'error: {exc}'})
+                break
+        return imdata_all, attempts
+
     def _ssh_command(self, command, timeout=120):
         ssh_cmd = [
             'ssh',
@@ -452,6 +483,12 @@ class APICCollector:
         allowed_types = ALIAS_ACCEPT_CLASSES.get(class_name, [class_name])
 
         if self.rest_session:
+            if class_name in LARGE_QUERY_CLASSES:
+                paged, page_attempts = self._fetch_paged_class(class_name, self._rest_get_url, allowed_types=allowed_types)
+                for item in page_attempts:
+                    attempts.append({'method': 'rest', **item})
+                if paged:
+                    return paged, "rest", attempts
             for idx, path in enumerate(queries, start=1):
                 percent = int(round((idx / float(len(queries))) * 100))
                 self.logger.info(
@@ -474,6 +511,12 @@ class APICCollector:
                     attempts.append({'method': 'rest', 'path': path, 'count': 0, 'status': f'error: {exc}'})
 
         if self.icurl_token:
+            if class_name in LARGE_QUERY_CLASSES:
+                paged, page_attempts = self._fetch_paged_class(class_name, self._icurl_get_url, allowed_types=allowed_types)
+                for item in page_attempts:
+                    attempts.append({'method': 'icurl', **item})
+                if paged:
+                    return paged, "icurl", attempts
             for idx, path in enumerate(queries, start=1):
                 percent = int(round((idx / float(len(queries))) * 100))
                 self.logger.info(
@@ -635,6 +678,7 @@ class APICCollector:
 def parse_args():
     parser = argparse.ArgumentParser(description="ACI-only APIC data collector")
     parser.add_argument("--apic-host", help="APIC hostname or IP (prompted if not set)")
+    parser.add_argument("--host-file", help="File with APIC hostnames (one per line)")
     parser.add_argument("--apic-username", help="APIC username (prompted if not set)")
     parser.add_argument("--output-dir", default="network_data", help="Output directory")
     parser.add_argument("--log-level", default="INFO", help="Log level")
@@ -644,10 +688,24 @@ def parse_args():
 
 def main():
     args = parse_args()
-    apic_host = args.apic_host or input("APIC hostname or IP: ").strip()
-    if not apic_host:
-        print("No APIC hostname provided.")
-        return 1
+    apic_hosts = []
+    if args.host_file:
+        try:
+            with open(args.host_file, 'r', encoding='utf-8') as handle:
+                for line in handle:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    apic_hosts.append(line)
+        except Exception as exc:
+            print(f"Failed to read host file: {exc}")
+            return 1
+    else:
+        apic_host = args.apic_host or input("APIC hostname or IP: ").strip()
+        if not apic_host:
+            print("No APIC hostname provided.")
+            return 1
+        apic_hosts = [apic_host]
     apic_username = args.apic_username or input("APIC username: ").strip()
     if not apic_username:
         print("No APIC username provided.")
@@ -659,33 +717,34 @@ def main():
     else:
         classes = DEFAULT_ACI_CLASSES
 
-    collector = APICCollector(
-        apic_host=apic_host,
-        username=apic_username,
-        password=apic_password,
-        output_dir=args.output_dir,
-        log_level=args.log_level
-    )
-
-    summary = collector.collect(classes)
-    status = summary.get('collection_status', 'failed')
-    print(f"APIC collection status: {status}")
-    print(f"Classes collected: {len(summary.get('classes_collected', []))}/{len(classes)}")
-    print(f"Output: {summary.get('output_file', '')}")
-    if summary.get('classes_collected'):
-        print("Collected classes:")
-        print(", ".join(summary.get('classes_collected', [])))
-    if summary.get('missing_required'):
-        print("Missing required classes:")
-        print(", ".join(summary.get('missing_required', [])))
-    if summary.get('missing_optional'):
-        print("Missing optional classes:")
-        print(", ".join(summary.get('missing_optional', [])))
-    if summary.get('class_errors'):
-        print(f"Errors: {len(summary.get('class_errors'))} (see summary JSON)")
-    if summary.get('class_details'):
-        print("Class details saved to summary JSON.")
-    return 0 if status == 'success' else 1
+    final_status = 0
+    for apic_host in apic_hosts:
+        host_output = os.path.join(args.output_dir, apic_host)
+        collector = APICCollector(
+            apic_host=apic_host,
+            username=apic_username,
+            password=apic_password,
+            output_dir=host_output,
+            log_level=args.log_level
+        )
+        summary = collector.collect(classes)
+        summary['fabric_name'] = apic_host
+        summary['description'] = ''
+        summary_path = os.path.join(host_output, 'collector_manifest.json')
+        try:
+            with open(summary_path, 'w', encoding='utf-8') as handle:
+                json.dump(summary, handle, indent=2)
+        except Exception:
+            pass
+        status = summary.get('collection_status', 'failed')
+        print(f"[{apic_host}] APIC collection status: {status}")
+        print(f"[{apic_host}] Classes collected: {len(summary.get('classes_collected', []))}/{len(classes)}")
+        print(f"[{apic_host}] Output: {summary.get('output_file', '')}")
+        if summary.get('missing_required'):
+            print(f"[{apic_host}] Missing required classes: {', '.join(summary.get('missing_required', []))}")
+        if status != 'success':
+            final_status = 1
+    return final_status
 
 
 if __name__ == "__main__":

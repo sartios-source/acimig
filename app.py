@@ -17,6 +17,8 @@ ACI Migrator v2.0 - ACI Migration Analysis Platform.
 import os
 import json
 import shutil
+import zipfile
+import tempfile
 import logging
 import re
 import sys
@@ -909,6 +911,36 @@ def migration_path():
                           validation_results=validation_results)
 
 
+@app.route('/fex-summary')
+def fex_summary():
+    """Cross-fabric FEX utilization summary."""
+    fabrics = fm.list_fabrics()
+    rows = []
+    model_counts = {}
+    for fabric in fabrics:
+        fabric_name = fabric.get('name')
+        fabric_data = fm.get_fabric_data(fabric_name)
+        analyzer = get_cached_analyzer(fabric_name, fabric_data)
+        port_util = analyzer.analyze_port_utilization()
+        known = [p for p in port_util if p.get('utilization_pct') is not None]
+        avg_util = round(sum(p.get('utilization_pct') for p in known) / len(known), 2) if known else None
+        total_connected = sum(p.get('connected_ports') or 0 for p in port_util)
+        total_ports = sum(p.get('total_ports') or 0 for p in port_util)
+        for p in port_util:
+            model = p.get('model') or 'unknown'
+            model_counts[model] = model_counts.get(model, 0) + 1
+        rows.append({
+            'fabric': fabric_name,
+            'fex_total': len(port_util),
+            'utilization_avg': avg_util,
+            'ports_connected': total_connected,
+            'ports_total': total_ports
+        })
+    return render_template('fex_summary.html',
+                          rows=rows,
+                          model_counts=model_counts)
+
+
 @app.route('/safe/data')
 def safe_data_page():
     """Safe mode data explorer (minimal UI)."""
@@ -1769,6 +1801,70 @@ def upload():
     except Exception as e:
         app.logger.error(f"Unexpected error during upload: {str(e)}", exc_info=True)
         return jsonify({'error': 'An unexpected error occurred during upload'}), 500
+
+
+@app.route('/api/collector/import', methods=['POST'])
+@csrf.exempt
+def import_collector_zip():
+    """Bulk import collector ZIP and auto-create fabrics by APIC hostname."""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    upload_file = request.files['file']
+    filename = secure_filename(upload_file.filename or '')
+    if not filename.lower().endswith('.zip'):
+        return jsonify({'error': 'Only .zip files are supported'}), 400
+
+    temp_dir = tempfile.mkdtemp(prefix='aci_import_')
+    zip_path = os.path.join(temp_dir, filename)
+    upload_file.save(zip_path)
+
+    imported = []
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            zf.extractall(temp_dir)
+        # Find host directories with manifest
+        for root, _, files in os.walk(temp_dir):
+            if 'collector_manifest.json' in files:
+                manifest_path = os.path.join(root, 'collector_manifest.json')
+                try:
+                    manifest = json.loads(read_file_safely(Path(manifest_path)))
+                except Exception:
+                    manifest = {}
+                fabric_name = manifest.get('fabric_name') or os.path.basename(root)
+                fabric_name = validate_fabric_name(fabric_name)
+                if fabric_name not in [f['name'] for f in fm.list_fabrics()]:
+                    fm.create_fabric(fabric_name, description=str(manifest.get('description') or ''))
+
+                fabric_dir = FABRICS_DIR / fabric_name / 'imports' / datetime.now().strftime('%Y%m%d_%H%M%S')
+                fabric_dir.mkdir(parents=True, exist_ok=True)
+
+                for file_name in files:
+                    if not file_name.endswith('.json'):
+                        continue
+                    if file_name.startswith('apic_summary_') or file_name == 'collector_manifest.json':
+                        continue
+                    src = os.path.join(root, file_name)
+                    dest = fabric_dir / file_name
+                    shutil.copy2(src, dest)
+                    try:
+                        content = read_file_safely(dest)
+                        parsed = parsers.parse_aci(content, 'json')
+                        obj_count = len(parsed.get('objects', []))
+                    except Exception:
+                        obj_count = 0
+                    fm.add_dataset(fabric_name, {
+                        'filename': file_name,
+                        'type': 'aci',
+                        'format': 'json',
+                        'uploaded': datetime.now().isoformat(),
+                        'objects': obj_count,
+                        'path': str(dest)
+                    })
+                imported.append(fabric_name)
+                invalidate_fabric_cache(fabric_name)
+        return jsonify({'success': True, 'fabrics': sorted(list(set(imported)))})
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @app.route('/api/mcp/test', methods=['POST'])
@@ -2861,6 +2957,7 @@ def create_fabric():
     if not isinstance(data, dict):
         return jsonify({'error': 'Invalid JSON payload'}), 400
     fabric_name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
 
     if not fabric_name:
         return jsonify({'error': 'Fabric name required'}), 400
@@ -2868,12 +2965,26 @@ def create_fabric():
     try:
         # Validate and sanitize fabric name
         fabric_name = validate_fabric_name(fabric_name)
-        fm.create_fabric(fabric_name)
+        fm.create_fabric(fabric_name, description=description)
         session['current_fabric'] = fabric_name
         app.logger.info(f"Created new fabric: {fabric_name}")
         return jsonify({'success': True, 'fabric': fabric_name})
     except ValueError as e:
         app.logger.warning(f"Failed to create fabric: {str(e)}")
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/fabrics/<fabric_name>/meta', methods=['POST'])
+@csrf.exempt
+def update_fabric_meta(fabric_name):
+    """Update fabric metadata (description)."""
+    try:
+        fabric_name = validate_fabric_name(fabric_name)
+        data = request.get_json(silent=True) or {}
+        description = str(data.get('description', '')).strip()
+        fm.update_description(fabric_name, description)
+        return jsonify({'success': True})
+    except ValueError as e:
         return jsonify({'error': str(e)}), 400
 
 

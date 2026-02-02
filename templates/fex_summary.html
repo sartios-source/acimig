@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}FEX Estate Summary{% endblock %}
+{% block page_title %}FEX Estate Summary{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">FEX Estate Summary</h1>
+    <p class="mt-2 text-sm text-gray-600">Port utilization and footprint across all fabrics.</p>
+</div>
+
+<div class="bg-white rounded-xl border border-gray-100 p-5 mb-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-3">By Fabric</h3>
+    <div class="overflow-auto">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>Fabric</th><th>FEX Count</th><th>Avg Utilization %</th><th>Ports Connected</th><th>Ports Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row.fabric }}</td>
+                    <td>{{ row.fex_total }}</td>
+                    <td>{{ row.utilization_avg if row.utilization_avg is not none else 'n/a' }}</td>
+                    <td>{{ row.ports_connected }}</td>
+                    <td>{{ row.ports_total }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="bg-white rounded-xl border border-gray-100 p-5">
+    <h3 class="text-lg font-semibold text-gray-900 mb-3">Model Footprint</h3>
+    <div class="overflow-auto">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr><th>Model</th><th>Count</th></tr>
+            </thead>
+            <tbody>
+                {% for model, count in model_counts.items() %}
+                <tr>
+                    <td>{{ model }}</td>
+                    <td>{{ count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

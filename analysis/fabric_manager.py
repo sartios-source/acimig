@@ -75,17 +75,23 @@ class FabricManager:
                     'created': data.get('created', ''),
                     'modified': data.get('modified', ''),
                     'dataset_count': len(data.get('datasets', [])),
+                    'description': data.get('description', '')
                 })
         return sorted(fabrics, key=lambda x: x['modified'], reverse=True)
 
-    def create_fabric(self, name: str):
+    def create_fabric(self, name: str, description: str = ''):
         index = self._read_index()
         if name in index:
             raise ValueError(f"Fabric '{name}' already exists")
         fabric_dir = self.base_dir / name
         fabric_dir.mkdir(exist_ok=True)
         now = datetime.now().isoformat()
-        index[name] = {'created': now, 'modified': now, 'datasets': []}
+        index[name] = {
+            'created': now,
+            'modified': now,
+            'datasets': [],
+            'description': description or ''
+        }
         self._write_index(index)
 
     def delete_fabric(self, name: str):
@@ -104,6 +110,14 @@ class FabricManager:
         if name not in index:
             return {'datasets': []}
         return index[name]
+
+    def update_description(self, name: str, description: str):
+        index = self._read_index()
+        if name not in index:
+            raise ValueError(f"Fabric '{name}' not found")
+        index[name]['description'] = description or ''
+        index[name]['modified'] = datetime.now().isoformat()
+        self._write_index(index)
 
     def add_dataset(self, fabric_name: str, dataset: Dict[str, Any]):
         index = self._read_index()

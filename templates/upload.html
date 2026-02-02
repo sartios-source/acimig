@@ -70,6 +70,12 @@
                 </svg>
                 MCP Server Import
             </button>
+            <button onclick="switchTab('collector-import')" id="tab-collector-import" class="upload-tab pb-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
+                <svg class="h-5 w-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                Collector ZIP Import
+            </button>
         </nav>
     </div>
 </div>
@@ -327,6 +333,40 @@
 </div>
 </div>
 <!-- End MCP Import Tab Content -->
+
+<!-- Collector ZIP Import Tab Content -->
+<div id="content-collector-import" class="tab-content hidden">
+    <div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
+        <div class="mb-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-2">Import Collector ZIP</h2>
+            <p class="text-sm text-gray-600">
+                Upload a ZIP produced by the offline collector. Each APIC host folder inside the ZIP becomes a fabric automatically.
+            </p>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Collector ZIP (.zip)</label>
+                <input type="file" id="collector-zip-input" accept=".zip"
+                       class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-600 file:text-white hover:file:bg-primary-700">
+            </div>
+            <button onclick="importCollectorZip()" id="collector-import-btn"
+                    class="w-full px-6 py-4 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-lg hover:shadow-xl">
+                Import Collector ZIP
+            </button>
+            <div id="collector-import-progress" class="hidden">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex items-center mb-3">
+                        <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 mr-3"></div>
+                        <span class="text-sm font-medium text-gray-900">Importing collector ZIP...</span>
+                    </div>
+                    <p id="collector-import-status" class="text-xs text-gray-600">Uploading...</p>
+                </div>
+            </div>
+            <div id="collector-import-results" class="hidden"></div>
+        </div>
+    </div>
+</div>
+<!-- End Collector ZIP Import Tab Content -->
 {% endif %}
 
 <!-- Include upload.js -->
@@ -556,6 +596,75 @@ function showMCPResults(type, data) {
                 </div>
             </div>
         `;
+    }
+}
+
+async function importCollectorZip() {
+    const input = document.getElementById('collector-zip-input');
+    const progress = document.getElementById('collector-import-progress');
+    const status = document.getElementById('collector-import-status');
+    const results = document.getElementById('collector-import-results');
+    const button = document.getElementById('collector-import-btn');
+
+    if (!input || !input.files || input.files.length === 0) {
+        showToast('Please choose a collector ZIP file', 'warning');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', input.files[0]);
+
+    progress.classList.remove('hidden');
+    results.classList.add('hidden');
+    button.disabled = true;
+    status.textContent = 'Uploading...';
+
+    try {
+        const response = await fetch('/api/collector/import', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        if (data.success) {
+            status.textContent = 'Import complete';
+            results.classList.remove('hidden');
+            results.innerHTML = `
+                <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                    <div class="flex items-start mb-2">
+                        <svg class="h-6 w-6 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <div>
+                            <h4 class="font-semibold text-green-800">Import Successful</h4>
+                            <p class="text-green-700 text-sm mt-1">Created/updated fabrics: ${data.fabrics.join(', ')}</p>
+                        </div>
+                    </div>
+                    <button onclick="location.reload()" class="mt-3 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors">
+                        Refresh Fabric List
+                    </button>
+                </div>
+            `;
+        } else {
+            throw new Error(data.error || 'Import failed');
+        }
+    } catch (error) {
+        results.classList.remove('hidden');
+        results.innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                <div class="flex items-start">
+                    <svg class="h-6 w-6 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div>
+                        <h4 class="font-semibold text-red-800">Import Failed</h4>
+                        <p class="text-red-700 text-sm mt-1">${error.message}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    } finally {
+        progress.classList.add('hidden');
+        button.disabled = false;
     }
 }
 </script>
