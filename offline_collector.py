@@ -684,8 +684,6 @@ def parse_args():
     parser.add_argument("--output-dir", default="network_data", help="Output directory")
     parser.add_argument("--log-level", default="INFO", help="Log level")
     parser.add_argument("--aci-classes", help="Comma-separated ACI classes to collect (defaults to full set)")
-    parser.add_argument("--zip-output", action="store_true", help="Zip the output directory after collection")
-    parser.add_argument("--zip-name", default="", help="Optional zip filename (defaults to <output-dir>.zip)")
     return parser.parse_args()
 
 
@@ -747,8 +745,11 @@ def main():
             print(f"[{apic_host}] Missing required classes: {', '.join(summary.get('missing_required', []))}")
         if status != 'success':
             final_status = 1
-    if args.zip_output:
-        zip_name = args.zip_name.strip() if args.zip_name else f"{args.output_dir}.zip"
+    zip_answer = input("Create a ZIP archive of the output? [Y/n]: ").strip().lower()
+    if zip_answer in {"", "y", "yes"}:
+        zip_name = input(f"ZIP filename (default: {args.output_dir}.zip): ").strip()
+        if not zip_name:
+            zip_name = f"{args.output_dir}.zip"
         try:
             with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zf:
                 for root, _, files in os.walk(args.output_dir):
