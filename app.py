@@ -247,7 +247,7 @@ def _load_cmdb_records_for_fabric(fabric_data: Dict[str, Any], fabric_name: str)
         normalized_path = dataset.get('normalized_path')
         if normalized_path and Path(normalized_path).exists():
             try:
-                content = Path(normalized_path).read_text(encoding='utf-8')
+                content = read_file_safely(Path(normalized_path))
                 parsed = json.loads(content)
                 if isinstance(parsed, list):
                     cmdb_records.extend(parsed)

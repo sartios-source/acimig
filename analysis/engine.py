@@ -129,7 +129,7 @@ class ACIAnalyzer:
                     normalized_path = dataset.get('normalized_path')
                     if normalized_path and Path(normalized_path).exists():
                         try:
-                            normalized_content = Path(normalized_path).read_text(encoding='utf-8')
+                            normalized_content = self._read_file_safe(Path(normalized_path))
                             parsed = json.loads(normalized_content)
                             if isinstance(parsed, list):
                                 self._cmdb_records.extend(parsed)
