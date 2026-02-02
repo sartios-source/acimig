@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import ssl
+import zipfile
 import subprocess
 import sys
 import time
@@ -683,6 +684,8 @@ def parse_args():
     parser.add_argument("--output-dir", default="network_data", help="Output directory")
     parser.add_argument("--log-level", default="INFO", help="Log level")
     parser.add_argument("--aci-classes", help="Comma-separated ACI classes to collect (defaults to full set)")
+    parser.add_argument("--zip-output", action="store_true", help="Zip the output directory after collection")
+    parser.add_argument("--zip-name", default="", help="Optional zip filename (defaults to <output-dir>.zip)")
     return parser.parse_args()
 
 
@@ -743,6 +746,19 @@ def main():
         if summary.get('missing_required'):
             print(f"[{apic_host}] Missing required classes: {', '.join(summary.get('missing_required', []))}")
         if status != 'success':
+            final_status = 1
+    if args.zip_output:
+        zip_name = args.zip_name.strip() if args.zip_name else f"{args.output_dir}.zip"
+        try:
+            with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for root, _, files in os.walk(args.output_dir):
+                    for file_name in files:
+                        file_path = os.path.join(root, file_name)
+                        rel_path = os.path.relpath(file_path, args.output_dir)
+                        zf.write(file_path, rel_path)
+            print(f"Created ZIP: {zip_name}")
+        except Exception as exc:
+            print(f"Failed to create ZIP: {exc}")
             final_status = 1
     return final_status
 
