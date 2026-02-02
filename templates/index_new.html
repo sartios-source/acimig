@@ -88,13 +88,20 @@
             <p class="mt-4 text-lg text-white/80">
                 This layout puts decisions first: what data you have, what’s missing, and the next action.
             </p>
-            <div class="mt-8 flex flex-wrap gap-3">
+            <div class="mt-8 flex flex-wrap gap-3 items-center">
                 <a href="{{ url_for('upload_page') }}" class="rounded-full bg-white text-slate-900 px-6 py-3 text-sm font-semibold shadow-lg hover:scale-[1.02] transition">
                     Start with Data
                 </a>
                 <a href="{{ url_for('analyze') }}" class="rounded-full border border-white/50 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 transition">
                     Jump to Analysis
                 </a>
+                <form method="post" action="{{ url_for('set_ui_layout') }}">
+                    <input type="hidden" name="layout" value="path">
+                    <input type="hidden" name="next" value="{{ url_for('migration_path') }}">
+                    <button class="rounded-full bg-slate-900 text-white px-6 py-3 text-sm font-semibold shadow-lg hover:bg-slate-800 transition">
+                        Switch to Migration Path
+                    </button>
+                </form>
             </div>
         </div>
         <div class="absolute -right-12 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>

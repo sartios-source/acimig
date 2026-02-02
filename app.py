@@ -808,7 +808,7 @@ def index():
     ui_mode = 'next'
     session['ui_mode'] = ui_mode
     if session.get('ui_layout') is None:
-        session['ui_layout'] = 'path'
+        session['ui_layout'] = 'classic'
     current_fabric = session.get('current_fabric')
     fabric_stats = None
     validation_results = None
@@ -879,9 +879,6 @@ def index():
             app.logger.warning(f"Could not load validation results for {current_fabric}: {e}")
 
     template_name = 'index_new.html'
-    if session.get('ui_layout') == 'path':
-        return redirect(url_for('migration_path'))
-
     return render_template(template_name,
                          mode=mode,
                          ui_mode=ui_mode,
